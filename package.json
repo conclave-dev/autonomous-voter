@@ -21,6 +21,7 @@
   "homepage": "https://github.com/conclave-dev/autonomous-voter#readme",
   "devDependencies": {
     "@celo/ganache-core": "git+https://github.com/celo-org/ganache-core.git",
+    "@openzeppelin/cli": "^2.8.2",
     "@openzeppelin/test-environment": "^0.1.4",
     "@openzeppelin/upgrades": "^2.8.0",
     "chai": "^4.2.0",
