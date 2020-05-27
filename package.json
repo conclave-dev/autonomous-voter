@@ -4,9 +4,10 @@
   "description": "",
   "main": "index.js",
   "scripts": {
+    "dev": "node ./ganache/baklava.js",
     "lint": "eslint './**/*.js' && solhint './contracts/**/*.sol'",
-    "test": "oz compile && mocha --exit --recursive --timeout 15000",
-    "dev": "node ./ganache/baklava.js"
+    "test": "mocha --exit --recursive --timeout 15000",
+    "test:nuke": "rm -rf .openzeppelin/ && rm -rf build/ && node ./scripts/setup.js && npm run test"
   },
   "repository": {
     "type": "git",
@@ -25,6 +26,7 @@
     "@openzeppelin/test-environment": "^0.1.4",
     "@openzeppelin/upgrades": "^2.8.0",
     "chai": "^4.2.0",
+    "dotenv": "^8.2.0",
     "eslint": "^7.1.0",
     "eslint-config-prettier": "^6.11.0",
     "eslint-plugin-mocha": "^7.0.0",
