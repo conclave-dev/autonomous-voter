@@ -5,7 +5,8 @@
   "main": "index.js",
   "scripts": {
     "lint": "eslint './**/*.js' && solhint './contracts/**/*.sol'",
-    "test": "oz compile && mocha --exit --recursive"
+    "test": "oz compile && mocha --exit --recursive",
+    "start:baklava": "node ./ganache/baklava.js"
   },
   "repository": {
     "type": "git",
