@@ -1,0 +1,21 @@
+{
+  "extends": ["eslint:recommended", "plugin:mocha/recommended"],
+  "plugins": ["prettier"],
+  "env": {
+    "node": true,
+    "es6": true,
+    "mocha": true
+  },
+  "rules": {
+    "prettier/prettier": ["error", { "singleQuote": true }],
+    "no-unused-vars": [
+      "error",
+      {
+        "varsIgnorePattern": "should|expect"
+      }
+    ]
+  },
+  "parserOptions": {
+    "ecmaVersion": 8
+  }
+}
