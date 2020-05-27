@@ -1,3 +1,4 @@
+// Use Celo ganache fork instead of OpenZeppelin's
 const ganache = require('@celo/ganache-core');
 
 const baklavaServer = ganache.server({
@@ -6,7 +7,10 @@ const baklavaServer = ganache.server({
   gasPrice: 100000000000,
   network_id: 40120,
   fork: 'https://geth.celoist.com',
-  unlocked_accounts: ['0x57c445eaea6b8782b75a50e2069fc209386541f1']
+  default_balance_ether: 200000000,
+  mnemonic: 'concert load couple harbor equip island argue ramp clarify fence smart topic',
+  from: '0x5409ed021d9299bf6814279a6a1411a7e866a631',
+  total_accounts: 1
 });
 
 baklavaServer.listen(8545, (err, baklava) => {
