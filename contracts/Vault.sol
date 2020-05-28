@@ -1,4 +1,4 @@
-// contracts/Product.sol
+// contracts/Vault.sol
 pragma solidity ^0.5.0;
 
 import '@openzeppelin/upgrades/contracts/Initializable.sol';
