@@ -1,33 +1,28 @@
 const { contract } = require('@openzeppelin/test-environment');
-const { expect } = require('chai');
 const { encodeCall } = require('@openzeppelin/upgrades');
-const { newKit } = require('@celo/contractkit');
-const { APP_CONTRACT_ADDRESS, DEFAULT_SENDER_ADDRESS, REGISTRY_CONTRACT_ADDRESS } = require('./config');
-
-const kit = newKit('http://localhost:8545');
+const { expect, kit, APP_CONTRACT_ADDRESS, DEFAULT_SENDER_ADDRESS, REGISTRY_CONTRACT_ADDRESS } = require('./config');
 
 const VaultFactory = contract.fromArtifact('VaultFactory');
 
 describe('Vault', function () {
-  it('should create and initialize a Factory with App address', async function () {
+  before(async function () {
     this.factory = await VaultFactory.new({ from: DEFAULT_SENDER_ADDRESS });
-    const { receipt } = await this.factory.initialize.sendTransaction(APP_CONTRACT_ADDRESS, {
-      from: DEFAULT_SENDER_ADDRESS
-    });
+    this.defaultTx = { from: DEFAULT_SENDER_ADDRESS };
+    this.accounts = await kit.contracts.getAccounts();
+  });
 
-    expect(receipt.status).to.be.true;
+  it('should create and initialize a Factory with App address', async function () {
+    await expect(this.factory.initialize(APP_CONTRACT_ADDRESS, this.defaultTx)).to.not.be.rejected;
   });
 
   it('should create an instance and register a Celo account', async function () {
     const vaultInitializeCall = encodeCall('initialize', ['address'], [REGISTRY_CONTRACT_ADDRESS]);
-    const { logs } = await this.factory.createInstance.sendTransaction(vaultInitializeCall, {
-      from: DEFAULT_SENDER_ADDRESS
-    });
+    const { logs } = await this.factory.createInstance(vaultInitializeCall, this.defaultTx);
     const { args, event } = logs[0];
-    const accounts = await kit.contracts.getAccounts();
+    const vaultAddress = args[0];
 
-    expect(await accounts.isAccount(this.factory.address)).to.equal(false);
-    expect(await accounts.isAccount(args[0])).to.equal(true);
+    expect(await this.accounts.isAccount(this.factory.address)).to.equal(false);
+    expect(await this.accounts.isAccount(vaultAddress)).to.equal(true);
     expect(event).to.equal('InstanceCreated');
   });
 });

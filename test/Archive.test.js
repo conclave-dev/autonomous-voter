@@ -1,49 +1,40 @@
 const { contract } = require('@openzeppelin/test-environment');
-const chai = require('chai');
-const { DEFAULT_SENDER_ADDRESS } = require('./config');
+const { expect, DEFAULT_SENDER_ADDRESS } = require('./config');
 
-chai.use(require('chai-as-promised'));
-
-const expect = chai.expect;
 const Archive = contract.fromArtifact('Archive');
+const VaultFactory = contract.fromArtifact('VaultFactory');
 
 describe('Archive', function () {
-  it('should create contract without an owner', async function () {
+  before(async function () {
     this.archive = await Archive.new({ from: DEFAULT_SENDER_ADDRESS });
-    const archiveOwner = (await this.archive.owner()).toLowerCase();
+    this.vaultFactoryAddress = (await VaultFactory.new({ from: DEFAULT_SENDER_ADDRESS })).address;
+    this.defaultTx = { from: DEFAULT_SENDER_ADDRESS };
+    this.getArchiveOwner = async () => (await this.archive.owner()).toLowerCase();
+  });
 
-    expect(archiveOwner).to.equal('0x0000000000000000000000000000000000000000');
+  it('should create contract without an owner', async function () {
+    expect(await this.getArchiveOwner()).to.equal('0x0000000000000000000000000000000000000000');
   });
 
   it('should set an owner by calling initialize', async function () {
-    await this.archive.initialize.sendTransaction(DEFAULT_SENDER_ADDRESS, {
-      from: DEFAULT_SENDER_ADDRESS
-    });
-    const archiveOwner = (await this.archive.owner()).toLowerCase();
+    await this.archive.initialize(DEFAULT_SENDER_ADDRESS, this.defaultTx);
 
-    expect(archiveOwner).to.equal(DEFAULT_SENDER_ADDRESS);
+    expect(await this.getArchiveOwner()).to.equal(DEFAULT_SENDER_ADDRESS);
   });
 
   describe('Access Control', function () {
     it('should not change vaultFactory if not owner', async function () {
-      this.vaultFactory = await contract.fromArtifact('VaultFactory').new({ from: DEFAULT_SENDER_ADDRESS });
-      const nonOwnerAddress = '0x57c445eaea6b8782b75a50e2069fc209386541f1';
+      const nonOwnerTx = { from: '0x57c445eaea6b8782b75a50e2069fc209386541f1' };
 
-      await expect(
-        this.archive.setVaultFactory.sendTransaction(this.vaultFactory.address, {
-          from: nonOwnerAddress
-        })
-      ).to.be.rejectedWith(Error);
+      await expect(this.archive.setVaultFactory(this.vaultFactoryAddress, nonOwnerTx)).to.be.rejectedWith(
+        'Returned error: sender account not recognized -- Reason given: Ownable: caller is not the owner.'
+      );
+      expect(await this.archive.vaultFactory()).to.equal('0x0000000000000000000000000000000000000000');
     });
 
     it('should change vaultFactory if owner', async function () {
-      expect(await this.archive.vaultFactory()).to.equal('0x0000000000000000000000000000000000000000');
-
-      this.archive.setVaultFactory.sendTransaction(this.vaultFactory.address, {
-        from: DEFAULT_SENDER_ADDRESS
-      });
-
-      expect(await this.archive.vaultFactory()).to.equal(this.vaultFactory.address);
+      await this.archive.setVaultFactory(this.vaultFactoryAddress, this.defaultTx);
+      expect(await this.archive.vaultFactory()).to.equal(this.vaultFactoryAddress);
     });
   });
 });
