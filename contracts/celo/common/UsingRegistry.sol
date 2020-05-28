@@ -67,7 +67,7 @@ contract UsingRegistry is Ownable {
     _;
   }
 
-  function initialize(address owner, address registryAddress) public initializer {
+  function initializeRegistry(address owner, address registryAddress) public initializer {
     Ownable.initialize(owner);
     setRegistry(registryAddress);
   }
