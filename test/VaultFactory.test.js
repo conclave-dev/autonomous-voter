@@ -15,7 +15,7 @@ describe('VaultFactory', function () {
     expect(receipt.status).to.be.true;
   });
 
-  it('should create a Vault instance', async function () {
+  it('should create a Vault instance and immediately registered', async function () {
     const vaultInitializeCall = encodeCall('initialize', ['address'], [REGISTRY_CONTRACT_ADDRESS]);
 
     const { logs } = await this.vaultFactoryContract.createInstance.sendTransaction(vaultInitializeCall, {
