@@ -23,7 +23,7 @@
   },
   "homepage": "https://github.com/conclave-dev/autonomous-voter#readme",
   "devDependencies": {
-    "@celo/ganache-core": "git+https://github.com/celo-org/ganache-core.git",
+    "@celo/ganache-core": "git+https://github.com/celo-org/ganache-core.git#e7bc0bd",
     "@openzeppelin/cli": "^2.8.2",
     "@openzeppelin/contracts-ethereum-package": "^2.4.0",
     "@openzeppelin/test-environment": "^0.1.4",
