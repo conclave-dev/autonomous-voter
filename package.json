@@ -23,6 +23,7 @@
   },
   "homepage": "https://github.com/conclave-dev/autonomous-voter#readme",
   "devDependencies": {
+    "@celo/contractkit": "^0.4.5",
     "@openzeppelin/cli": "^2.8.2",
     "@openzeppelin/contracts-ethereum-package": "^2.4.0",
     "@openzeppelin/test-environment": "^0.1.4",
