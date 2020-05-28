@@ -106,3 +106,5 @@ dist
 # Contracts
 .openzeppelin/
 build/contracts
+
+.openzeppelin/.session

@@ -1,7 +1,7 @@
 pragma solidity ^0.5.3;
 
-import "@openzeppelin/contracts/ownership/Ownable.sol";
-import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts-ethereum-package/contracts/ownership/Ownable.sol";
+import "@openzeppelin/contracts-ethereum-package/contracts/token/ERC20/IERC20.sol";
 
 import "./interfaces/IAccounts.sol";
 import "./interfaces/IFeeCurrencyWhitelist.sol";
@@ -65,6 +65,11 @@ contract UsingRegistry is Ownable {
   modifier onlyRegisteredContracts(bytes32[] memory identifierHashes) {
     require(registry.isOneOf(identifierHashes, msg.sender), "only registered contracts");
     _;
+  }
+
+  function initialize(address owner, address registryAddress) public initializer {
+    Ownable.initialize(owner);
+    setRegistry(registryAddress);
   }
 
   /**
