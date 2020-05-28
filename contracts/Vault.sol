@@ -6,6 +6,6 @@ import './celo/common/UsingRegistry.sol';
 
 contract Vault is Initializable, UsingRegistry {
   function initialize(address registryAddress) public initializer {
-    setRegistry(registryAddress);
+    UsingRegistry.initialize(msg.sender, registryAddress);
   }
 }
