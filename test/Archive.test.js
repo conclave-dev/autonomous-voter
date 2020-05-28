@@ -3,11 +3,13 @@ const { expect, DEFAULT_SENDER_ADDRESS } = require('./config');
 
 const Archive = contract.fromArtifact('Archive');
 const VaultFactory = contract.fromArtifact('VaultFactory');
+const Vault = contract.fromArtifact('Vault');
 
 describe('Archive', function () {
   before(async function () {
     this.archive = await Archive.new({ from: DEFAULT_SENDER_ADDRESS });
     this.vaultFactoryAddress = (await VaultFactory.new({ from: DEFAULT_SENDER_ADDRESS })).address;
+    this.vaultAddress = (await Vault.new({ from: DEFAULT_SENDER_ADDRESS })).address;
     this.defaultTx = { from: DEFAULT_SENDER_ADDRESS };
     this.getArchiveOwner = async () => (await this.archive.owner()).toLowerCase();
   });
@@ -40,6 +42,18 @@ describe('Archive', function () {
       expect(await this.archive.vaultFactory()).to.equal(this.vaultFactoryAddress);
       expect(eventArg).to.equal(this.vaultFactoryAddress); // Check event emitted with correct value
       expect(event).to.equal('VaultFactorySet');
+    });
+  });
+
+  describe('Vaults', function () {
+    it('should map the message sender to the address arg', async function () {
+      const { logs } = await this.archive.updateVault(this.vaultAddress, this.defaultTx);
+      const { event, args } = logs[0];
+      const eventArg = args[0];
+
+      expect(await this.archive.vaults(DEFAULT_SENDER_ADDRESS)).to.equal(this.vaultAddress);
+      expect(eventArg.toLowerCase()).to.equal(DEFAULT_SENDER_ADDRESS); // Check event emitted with correct value
+      expect(event).to.equal('VaultUpdated');
     });
   });
 });
