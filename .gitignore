@@ -108,3 +108,6 @@ dist
 build/contracts
 
 .openzeppelin/.session
+
+# Misc
+**/.DS_Store
