@@ -3,23 +3,23 @@ pragma solidity ^0.5.3;
 import "@openzeppelin/contracts-ethereum-package/contracts/ownership/Ownable.sol";
 import "@openzeppelin/contracts-ethereum-package/contracts/token/ERC20/IERC20.sol";
 
-import "./interfaces/IAccounts.sol";
-import "./interfaces/IFeeCurrencyWhitelist.sol";
-import "./interfaces/IFreezer.sol";
-import "./interfaces/IRegistry.sol";
+import "celo-monorepo/packages/protocol/contracts/common/interfaces/IAccounts.sol";
+import "celo-monorepo/packages/protocol/contracts/common/interfaces/IFeeCurrencyWhitelist.sol";
+import "celo-monorepo/packages/protocol/contracts/common/interfaces/IFreezer.sol";
+import "celo-monorepo/packages/protocol/contracts/common/interfaces/IRegistry.sol";
 
-import "../governance/interfaces/IElection.sol";
-import "../governance/interfaces/IGovernance.sol";
-import "../governance/interfaces/ILockedGold.sol";
-import "../governance/interfaces/IValidators.sol";
+import "celo-monorepo/packages/protocol/contracts/governance/interfaces/IElection.sol";
+import "celo-monorepo/packages/protocol/contracts/governance/interfaces/IGovernance.sol";
+import "celo-monorepo/packages/protocol/contracts/governance/interfaces/ILockedGold.sol";
+import "celo-monorepo/packages/protocol/contracts/governance/interfaces/IValidators.sol";
 
-import "../identity/interfaces/IRandom.sol";
-import "../identity/interfaces/IAttestations.sol";
+import "celo-monorepo/packages/protocol/contracts/identity/interfaces/IRandom.sol";
+import "celo-monorepo/packages/protocol/contracts/identity/interfaces/IAttestations.sol";
 
-import "../stability/interfaces/IExchange.sol";
-import "../stability/interfaces/IReserve.sol";
-import "../stability/interfaces/ISortedOracles.sol";
-import "../stability/interfaces/IStableToken.sol";
+import "celo-monorepo/packages/protocol/contracts/stability/interfaces/IExchange.sol";
+import "celo-monorepo/packages/protocol/contracts/stability/interfaces/IReserve.sol";
+import "celo-monorepo/packages/protocol/contracts/stability/interfaces/ISortedOracles.sol";
+import "celo-monorepo/packages/protocol/contracts/stability/interfaces/IStableToken.sol";
 
 contract UsingRegistry is Ownable {
   event RegistrySet(address indexed registryAddress);
