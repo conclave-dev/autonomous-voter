@@ -29,7 +29,7 @@ const publishProject = () =>
   );
 
 const addVault = () =>
-  exec(`${cliCmd} add Vault --push development --no-interactive`, makeExecCallback(publishProject));
+  exec(`${cliCmd} add --all --push development --no-interactive`, makeExecCallback(publishProject));
 
 const initProject = () => exec(`${cliCmd} init autonomous-voter --no-interactive`, makeExecCallback(addVault));
 
