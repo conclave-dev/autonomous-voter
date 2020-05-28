@@ -1,5 +1,6 @@
 pragma solidity ^0.5.3;
 
+// Swapped these openzeppelin contracts to their initializable counterparts
 import "@openzeppelin/contracts-ethereum-package/contracts/ownership/Ownable.sol";
 import "@openzeppelin/contracts-ethereum-package/contracts/token/ERC20/IERC20.sol";
 
@@ -52,6 +53,7 @@ contract UsingRegistry is Ownable {
 
   IRegistry public registry;
 
+  // The base initialize() method for UsingRegistry to comply with Initializable
   function initializeRegistry(address owner, address registryAddress) public initializer {
     Ownable.initialize(owner);
     setRegistry(registryAddress);
