@@ -33,8 +33,13 @@ describe('Archive', function () {
     });
 
     it('should change vaultFactory if owner', async function () {
-      await this.archive.setVaultFactory(this.vaultFactoryAddress, this.defaultTx);
+      const { logs } = await this.archive.setVaultFactory(this.vaultFactoryAddress, this.defaultTx);
+      const { event, args } = logs[0];
+      const eventArg = args[0];
+
       expect(await this.archive.vaultFactory()).to.equal(this.vaultFactoryAddress);
+      expect(eventArg).to.equal(this.vaultFactoryAddress); // Check event emitted with correct value
+      expect(event).to.equal('VaultFactorySet');
     });
   });
 });
