@@ -4,7 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "dev": "node ./ganache/baklava.js",
+    "dev": "ganache-cli --fork https://geth.celoist.com --mnemonic 'concert load couple harbor equip island argue ramp clarify fence smart topic' --networkId 40120 --gasLimit 20000000",
     "lint": "eslint './**/*.js' && solhint './contracts/**/*.sol'",
     "setup": "./scripts/setup.sh",
     "nuke": "rm -rf .openzeppelin/ && rm -rf build/",
@@ -34,6 +34,7 @@
     "eslint-config-prettier": "^6.11.0",
     "eslint-plugin-mocha": "^7.0.0",
     "eslint-plugin-prettier": "^3.1.3",
+    "ganache-cli": "^6.9.1",
     "mocha": "^7.2.0",
     "prettier": "^2.0.5",
     "solhint": "^3.0.0"
