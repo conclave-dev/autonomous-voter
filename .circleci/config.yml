@@ -13,7 +13,7 @@ jobs:
           command: npm run dev
           background: true
       - run:
-          command: npm run test:nuke
+          command: npm run test:ci
 workflows:
     build-and-test:
       jobs:

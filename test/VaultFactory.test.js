@@ -1,10 +1,7 @@
 const { contract } = require('@openzeppelin/test-environment');
 const { expect } = require('chai');
 const { encodeCall } = require('@openzeppelin/upgrades');
-const { APP_CONTRACT_ADDRESS, DEFAULT_SENDER_ADDRESS } = require('./config');
-
-console.log('APP_CONTRACT_ADDRESS', APP_CONTRACT_ADDRESS);
-console.log('DEFAULT_SENDER_ADDRESS', DEFAULT_SENDER_ADDRESS);
+const { APP_CONTRACT_ADDRESS, DEFAULT_SENDER_ADDRESS, REGISTRY_CONTRACT_ADDRESS } = require('./config');
 
 const VaultFactory = contract.fromArtifact('VaultFactory');
 
@@ -19,7 +16,7 @@ describe('VaultFactory', function () {
   });
 
   it('should create a Vault instance', async function () {
-    const vaultInitializeCall = encodeCall('initialize', [], []);
+    const vaultInitializeCall = encodeCall('initialize', ['address'], [REGISTRY_CONTRACT_ADDRESS]);
 
     const { logs } = await this.vaultFactoryContract.createInstance.sendTransaction(vaultInitializeCall, {
       from: DEFAULT_SENDER_ADDRESS

@@ -6,8 +6,10 @@
   "scripts": {
     "dev": "node ./ganache/baklava.js",
     "lint": "eslint './**/*.js' && solhint './contracts/**/*.sol'",
+    "setup": "./scripts/setup.sh",
+    "nuke": "rm -rf .openzeppelin/ && rm -rf build/",
     "test": "mocha --exit --recursive --timeout 15000",
-    "test:nuke": "rm -rf .openzeppelin/ && rm -rf build/ && node ./scripts/setup.js && npm run test"
+    "test:ci": "npm run nuke && npm run setup && npm run test"
   },
   "repository": {
     "type": "git",
@@ -21,8 +23,9 @@
   },
   "homepage": "https://github.com/conclave-dev/autonomous-voter#readme",
   "devDependencies": {
-    "@celo/ganache-core": "git+https://github.com/celo-org/ganache-core.git",
+    "@celo/ganache-core": "git+https://github.com/celo-org/ganache-core.git#e7bc0bd",
     "@openzeppelin/cli": "^2.8.2",
+    "@openzeppelin/contracts-ethereum-package": "^2.4.0",
     "@openzeppelin/test-environment": "^0.1.4",
     "@openzeppelin/upgrades": "^2.8.0",
     "chai": "^4.2.0",
