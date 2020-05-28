@@ -3,9 +3,6 @@ const { expect } = require('chai');
 const { encodeCall } = require('@openzeppelin/upgrades');
 const { APP_CONTRACT_ADDRESS, DEFAULT_SENDER_ADDRESS, REGISTRY_CONTRACT_ADDRESS } = require('./config');
 
-console.log('APP_CONTRACT_ADDRESS', APP_CONTRACT_ADDRESS);
-console.log('DEFAULT_SENDER_ADDRESS', DEFAULT_SENDER_ADDRESS);
-
 const VaultFactory = contract.fromArtifact('VaultFactory');
 
 describe('VaultFactory', function () {
