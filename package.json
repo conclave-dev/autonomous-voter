@@ -8,7 +8,7 @@
     "lint": "eslint './**/*.js' && solhint './contracts/**/*.sol'",
     "setup": "./scripts/setup.sh",
     "nuke": "rm -rf .openzeppelin/ && rm -rf build/",
-    "test": "mocha --exit --recursive --timeout 15000",
+    "test": "mocha --exit --recursive --timeout 30000",
     "test:ci": "npm run nuke && npm run setup && npm run test"
   },
   "repository": {
