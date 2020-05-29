@@ -17,6 +17,7 @@ describe('Vault', function () {
     this.factory = await VaultFactory.new({ from: DEFAULT_SENDER_ADDRESS });
     this.defaultTx = { from: DEFAULT_SENDER_ADDRESS };
     this.accounts = await kit.contracts.getAccounts();
+    this.goldToken = await kit.contracts.getGoldToken();
   });
 
   it('should create and initialize a Factory with App address', async function () {
@@ -35,7 +36,7 @@ describe('Vault', function () {
 
     expect(await this.accounts.isAccount(this.factory.address)).to.equal(false);
     expect(await this.accounts.isAccount(vaultAddress)).to.equal(true);
-    expect(await kit.web3.eth.getBalance(vaultAddress)).to.equal(depositAmount);
+    expect((await this.goldToken.balanceOf(vaultAddress)).toString()).to.equal(depositAmount);
     expect(event).to.equal('InstanceCreated');
   });
 });
