@@ -1,28 +1,38 @@
 const { contract } = require('@openzeppelin/test-environment');
-const { encodeCall } = require('@openzeppelin/upgrades');
-const { expect, kit, APP_CONTRACT_ADDRESS, DEFAULT_SENDER_ADDRESS, REGISTRY_CONTRACT_ADDRESS } = require('./config');
+const { defaultTx, expect, kit, DEFAULT_SENDER_ADDRESS, ZERO_ADDRESS, SECONDARY_ADDRESS } = require('./setup');
 
-const VaultFactory = contract.fromArtifact('VaultFactory');
+const BaseAdminUpgradeabilityProxy = contract.fromArtifact('BaseAdminUpgradeabilityProxy');
 
 describe('Vault', function () {
-  before(async function () {
-    this.factory = await VaultFactory.new({ from: DEFAULT_SENDER_ADDRESS });
-    this.defaultTx = { from: DEFAULT_SENDER_ADDRESS };
-    this.accounts = await kit.contracts.getAccounts();
+  describe('Factory', function () {
+    describe('Initialize', function () {
+      it('should initialize with an App address', async function () {
+        expect(typeof this.vaultFactory.address).to.equal('string');
+        expect(this.vaultFactory.address.length).to.equal(42);
+        expect(this.vaultFactory.address).to.not.equal(ZERO_ADDRESS);
+      });
+    });
   });
 
-  it('should create and initialize a Factory with App address', async function () {
-    await expect(this.factory.initialize(APP_CONTRACT_ADDRESS, this.defaultTx)).to.not.be.rejected;
-  });
+  describe('Instance', function () {
+    describe('Initialize', function () {
+      it('should initialize with a Registry contract and owner address', async function () {
+        const Vault = await BaseAdminUpgradeabilityProxy.at(this.vault.address);
+        const isAdmin = await Vault.admin.call(defaultTx);
 
-  it('should create an instance and register a Celo account', async function () {
-    const vaultInitializeCall = encodeCall('initialize', ['address'], [REGISTRY_CONTRACT_ADDRESS]);
-    const { logs } = await this.factory.createInstance(vaultInitializeCall, this.defaultTx);
-    const { args, event } = logs[0];
-    const vaultAddress = args[0];
+        await expect(Vault.admin.call({ from: SECONDARY_ADDRESS })).to.be.rejectedWith(Error);
+        expect(isAdmin.toLowerCase()).to.equal(DEFAULT_SENDER_ADDRESS);
+      });
 
-    expect(await this.accounts.isAccount(this.factory.address)).to.equal(false);
-    expect(await this.accounts.isAccount(vaultAddress)).to.equal(true);
-    expect(event).to.equal('InstanceCreated');
+      it('should have a registered Celo account', async function () {
+        const accounts = await kit.contracts.getAccounts();
+        expect(await accounts.isAccount(this.vault.address)).to.equal(true);
+      });
+
+      it('should have the owner address whitelisted as an admin', async function () {
+        expect(await this.vault.isWhitelistAdmin(SECONDARY_ADDRESS)).to.equal(false);
+        expect(await this.vault.isWhitelistAdmin(DEFAULT_SENDER_ADDRESS)).to.equal(true);
+      });
+    });
   });
 });
