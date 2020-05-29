@@ -4,6 +4,9 @@ pragma solidity ^0.5.0;
 import '@openzeppelin/upgrades/contracts/Initializable.sol';
 import '@openzeppelin/upgrades/contracts/application/App.sol';
 
+contract IVault {
+  function deposit() external payable;
+}
 
 contract VaultFactory is Initializable {
   App private app;
@@ -14,13 +17,18 @@ contract VaultFactory is Initializable {
     app = _app;
   }
 
-  function createInstance(bytes memory _data) public {
+  function createInstance(bytes memory _data) public payable {
     string memory packageName = 'autonomous-voter';
     string memory contractName = 'Vault';
     address admin = msg.sender;
 
-    address vault = address(app.create(packageName, contractName, admin, _data));
+    // Create the Vault instance
+    address vaultAddress = address(app.create(packageName, contractName, admin, _data));
 
-    emit InstanceCreated(vault);
+    // Initiate the initial deposit procedure
+    IVault vault = IVault(vaultAddress);
+    require(vault.deposit.value(msg.value)() != false, 'Failed to initiate deposit');
+
+    emit InstanceCreated(vaultAddress);
   }
 }
