@@ -27,7 +27,7 @@ contract VaultFactory is Initializable {
 
     // Initiate the initial deposit procedure
     IVault vault = IVault(vaultAddress);
-    require(vault.deposit.value(msg.value)() != false, 'Failed to initiate deposit');
+    vault.deposit.value(msg.value)();
 
     emit InstanceCreated(vaultAddress);
   }

@@ -1,6 +1,14 @@
 const { contract } = require('@openzeppelin/test-environment');
 const { encodeCall } = require('@openzeppelin/upgrades');
-const { expect, kit, APP_CONTRACT_ADDRESS, DEFAULT_SENDER_ADDRESS, REGISTRY_CONTRACT_ADDRESS } = require('./config');
+const BigNumber = require('bignumber.js');
+const {
+  expect,
+  kit,
+  APP_CONTRACT_ADDRESS,
+  DEFAULT_SENDER_ADDRESS,
+  REGISTRY_CONTRACT_ADDRESS,
+  TOKEN_BASE_MULTIPLIER
+} = require('./config');
 
 const VaultFactory = contract.fromArtifact('VaultFactory');
 
@@ -17,12 +25,17 @@ describe('Vault', function () {
 
   it('should create an instance and register a Celo account', async function () {
     const vaultInitializeCall = encodeCall('initialize', ['address'], [REGISTRY_CONTRACT_ADDRESS]);
-    const { logs } = await this.factory.createInstance(vaultInitializeCall, this.defaultTx);
+    const depositAmount = new BigNumber(1).multipliedBy(TOKEN_BASE_MULTIPLIER).toString();
+    const { logs } = await this.factory.createInstance(vaultInitializeCall, {
+      from: DEFAULT_SENDER_ADDRESS,
+      value: depositAmount
+    });
     const { args, event } = logs[0];
     const vaultAddress = args[0];
 
     expect(await this.accounts.isAccount(this.factory.address)).to.equal(false);
     expect(await this.accounts.isAccount(vaultAddress)).to.equal(true);
+    expect(await kit.web3.eth.getBalance(vaultAddress)).to.equal(depositAmount);
     expect(event).to.equal('InstanceCreated');
   });
 });
