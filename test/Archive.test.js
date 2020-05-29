@@ -1,59 +1,57 @@
-const { contract } = require('@openzeppelin/test-environment');
-const { expect, DEFAULT_SENDER_ADDRESS } = require('./config');
-
-const Archive = contract.fromArtifact('Archive');
-const VaultFactory = contract.fromArtifact('VaultFactory');
-const Vault = contract.fromArtifact('Vault');
+const { defaultTx, expect, DEFAULT_SENDER_ADDRESS, ZERO_ADDRESS, SECONDARY_ADDRESS } = require('./setup');
 
 describe('Archive', function () {
-  before(async function () {
-    this.archive = await Archive.new({ from: DEFAULT_SENDER_ADDRESS });
-    this.vaultFactoryAddress = (await VaultFactory.new({ from: DEFAULT_SENDER_ADDRESS })).address;
-    this.vaultAddress = (await Vault.new({ from: DEFAULT_SENDER_ADDRESS })).address;
-    this.defaultTx = { from: DEFAULT_SENDER_ADDRESS };
-    this.getArchiveOwner = async () => (await this.archive.owner()).toLowerCase();
-  });
-
-  it('should create contract without an owner', async function () {
-    expect(await this.getArchiveOwner()).to.equal('0x0000000000000000000000000000000000000000');
-  });
-
-  it('should set an owner by calling initialize', async function () {
-    await this.archive.initialize(DEFAULT_SENDER_ADDRESS, this.defaultTx);
-
-    expect(await this.getArchiveOwner()).to.equal(DEFAULT_SENDER_ADDRESS);
-  });
-
-  describe('Access Control', function () {
-    it('should not change vaultFactory if not owner', async function () {
-      const nonOwnerTx = { from: '0x57c445eaea6b8782b75a50e2069fc209386541f1' };
-
-      await expect(this.archive.setVaultFactory(this.vaultFactoryAddress, nonOwnerTx)).to.be.rejectedWith(
-        'Returned error: sender account not recognized -- Reason given: Ownable: caller is not the owner.'
-      );
-      expect(await this.archive.vaultFactory()).to.equal('0x0000000000000000000000000000000000000000');
+  describe('Initialize', function () {
+    it('should initialize', function () {
+      expect(typeof this.archive.address).to.equal('string');
+      expect(this.archive.address.length).to.equal(42);
+      expect(this.archive.address).to.not.equal(ZERO_ADDRESS);
     });
 
-    it('should change vaultFactory if owner', async function () {
-      const { logs } = await this.archive.setVaultFactory(this.vaultFactoryAddress, this.defaultTx);
-      const { event, args } = logs[0];
-      const eventArg = args[0];
+    it('should have an owner', async function () {
+      const owner = (await this.archive.owner()).toLowerCase();
 
-      expect(await this.archive.vaultFactory()).to.equal(this.vaultFactoryAddress);
-      expect(eventArg).to.equal(this.vaultFactoryAddress); // Check event emitted with correct value
+      expect(owner).to.not.equal(SECONDARY_ADDRESS);
+      expect(owner).to.equal(DEFAULT_SENDER_ADDRESS);
+    });
+  });
+
+  describe('Ownership', function () {
+    it('should not set vaultFactory if not owner', async function () {
+      await expect(
+        this.archive.setVaultFactory(this.vaultFactory.address, { from: SECONDARY_ADDRESS })
+      ).to.be.rejectedWith(Error);
+    });
+
+    it('should set vaultFactory if owner', async function () {
+      const { logs } = await this.archive.setVaultFactory(this.vaultFactory.address, defaultTx);
+      const { event, args } = logs[0];
+
+      expect(await this.archive.vaultFactory()).to.equal(this.vaultFactory.address);
+      expect(args[0]).to.equal(this.vaultFactory.address); // Check event emitted with correct value
       expect(event).to.equal('VaultFactorySet');
     });
   });
 
-  describe('Vaults', function () {
-    it('should map the message sender to the address arg', async function () {
-      const { logs } = await this.archive.updateVault(this.vaultAddress, this.defaultTx);
-      const { event, args } = logs[0];
-      const eventArg = args[0];
+  describe('Methods', function () {
+    describe('updateVault(address vault)', function () {
+      it('should not set a vault if not vault admin', async function () {
+        await expect(
+          this.archive.updateVault(this.vault.address, {
+            from: SECONDARY_ADDRESS
+          })
+        ).to.be.rejectedWith(Error);
+      });
 
-      expect(await this.archive.vaults(DEFAULT_SENDER_ADDRESS)).to.equal(this.vaultAddress);
-      expect(eventArg.toLowerCase()).to.equal(DEFAULT_SENDER_ADDRESS); // Check event emitted with correct value
-      expect(event).to.equal('VaultUpdated');
+      it('should set a vault if vault admin', async function () {
+        const { logs } = await this.archive.updateVault(this.vault.address, defaultTx);
+        const { event, args } = logs[0];
+
+        expect(await this.archive.vaults(DEFAULT_SENDER_ADDRESS)).to.equal(this.vault.address);
+        expect(args[0].toLowerCase()).to.equal(DEFAULT_SENDER_ADDRESS);
+        expect(args[1]).to.equal(this.vault.address);
+        expect(event).to.equal('VaultUpdated');
+      });
     });
   });
 });

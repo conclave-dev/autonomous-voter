@@ -8,6 +8,7 @@ chai.use(require('chai-as-promised'));
 
 const Vault = contract.fromArtifact('Vault');
 const VaultFactory = contract.fromArtifact('VaultFactory');
+const Archive = contract.fromArtifact('Archive');
 
 const { APP_CONTRACT_ADDRESS, DEFAULT_SENDER_ADDRESS, REGISTRY_CONTRACT_ADDRESS } = process.env;
 const defaultTx = { from: DEFAULT_SENDER_ADDRESS };
@@ -24,9 +25,16 @@ const createVault = async (registryAddress, ownerAddress, vaultFactory) => {
   return Vault.at(logs[0].args[0]);
 };
 
+const createArchive = async () => {
+  const archive = await Archive.new(defaultTx);
+  await archive.initialize(DEFAULT_SENDER_ADDRESS, defaultTx);
+  return archive;
+};
+
 before(async function () {
   this.vaultFactory = await createVaultFactory(APP_CONTRACT_ADDRESS);
   this.vault = await createVault(REGISTRY_CONTRACT_ADDRESS, DEFAULT_SENDER_ADDRESS, this.vaultFactory);
+  this.archive = await createArchive();
 });
 
 module.exports = {
