@@ -24,7 +24,7 @@ describe('Vault', function () {
     await expect(this.factory.initialize(APP_CONTRACT_ADDRESS, this.defaultTx)).to.not.be.rejected;
   });
 
-  it('should create an instance and register a Celo account', async function () {
+  it('should create an instance and register a Celo account for sufficient initial deposit', async function () {
     const vaultInitializeCall = encodeCall('initialize', ['address'], [REGISTRY_CONTRACT_ADDRESS]);
     const depositAmount = new BigNumber(1).multipliedBy(TOKEN_BASE_MULTIPLIER).toString();
     const { logs } = await this.factory.createInstance(vaultInitializeCall, {
@@ -40,5 +40,19 @@ describe('Vault', function () {
     expect((await this.lockedGold.getAccountTotalLockedGold(vaultAddress)).toString()).to.equal(depositAmount);
 
     expect(event).to.equal('InstanceCreated');
+  });
+
+  it('should not create an instance for insufficient initial deposit', async function () {
+    const vaultInitializeCall = encodeCall('initialize', ['address'], [REGISTRY_CONTRACT_ADDRESS]);
+    const depositAmount = new BigNumber(0).multipliedBy(TOKEN_BASE_MULTIPLIER).toString();
+
+    await expect(
+      this.factory.createInstance(vaultInitializeCall, {
+        from: DEFAULT_SENDER_ADDRESS,
+        value: depositAmount
+      })
+    ).to.be.rejectedWith(
+      'Returned error: VM Exception while processing transaction: revert Insufficient funds for initial deposit -- Reason given: Insufficient funds for initial deposit.'
+    );
   });
 });

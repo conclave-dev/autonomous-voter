@@ -9,6 +9,8 @@ contract IVault {
 }
 
 contract VaultFactory is Initializable {
+  uint256 public constant minimumDeposit = 100000000000000000;
+
   App private app;
 
   event InstanceCreated(address);
@@ -18,6 +20,8 @@ contract VaultFactory is Initializable {
   }
 
   function createInstance(bytes memory _data) public payable {
+    require(msg.value >= minimumDeposit, 'Insufficient funds for initial deposit');
+
     string memory packageName = 'autonomous-voter';
     string memory contractName = 'Vault';
     address admin = msg.sender;
