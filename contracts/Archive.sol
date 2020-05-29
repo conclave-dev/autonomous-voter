@@ -23,13 +23,16 @@ contract Archive is Initializable, Ownable {
         emit VaultFactorySet(vaultFactory);
     }
 
+    function _isVaultAdmin(address vault) internal view {
+        require(
+            Vault(vault).isWhitelistAdmin(msg.sender),
+            "Sender is not the vault admin"
+        );
+    }
+
     function updateVault(address vault) public {
-        Vault vaultContract = Vault(vault);
-
-        require(vaultContract.isWhitelistAdmin(msg.sender), "Sender is not the vault's admin");
-
+        _isVaultAdmin(vault);
         vaults[msg.sender] = vault;
-
-        emit VaultUpdated(msg.sender, address(vaultContract));
+        emit VaultUpdated(msg.sender, vault);
     }
 }
