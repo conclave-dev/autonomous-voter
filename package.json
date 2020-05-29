@@ -4,7 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "dev": "ganache-cli --fork https://geth.celoist.com --mnemonic 'concert load couple harbor equip island argue ramp clarify fence smart topic' --networkId 40120 --gasLimit 20000000",
+    "dev": "./ganache/baklava.sh",
     "lint": "eslint './**/*.js' && solhint './contracts/**/*.sol'",
     "setup": "./scripts/setup.sh",
     "nuke": "rm -rf .openzeppelin/ && rm -rf build/",
