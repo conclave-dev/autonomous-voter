@@ -3,18 +3,21 @@ pragma solidity ^0.5.0;
 
 import "@openzeppelin/upgrades/contracts/Initializable.sol";
 import "@openzeppelin/contracts-ethereum-package/contracts/access/roles/WhitelistAdminRole.sol";
+import "@openzeppelin/contracts-ethereum-package/contracts/ownership/Ownable.sol";
 import "./celo/common/UsingRegistry.sol";
 
 
 contract Vault is UsingRegistry, WhitelistAdminRole {
-    function initialize(address registryAddress, address adminAddress) public initializer {
-        UsingRegistry.initializeRegistry(msg.sender, registryAddress);
+    function initialize(address registry, address admin) public initializer {
+        UsingRegistry.initializeRegistry(msg.sender, registry);
+        _registerAccount();
+        WhitelistAdminRole.initialize(admin);
+    }
 
+    function _registerAccount() internal {
         require(
             getAccounts().createAccount(),
             "Failed to register vault account"
         );
-
-        WhitelistAdminRole.initialize(adminAddress);
     }
 }
