@@ -13,6 +13,8 @@ contract Vault is UsingRegistry {
   }
 
   function deposit() public payable {
+    // Immediately lock the deposit
+    getLockedGold().lock.value(msg.value)();
     emit UserDeposit(msg.value);
   }
 }
