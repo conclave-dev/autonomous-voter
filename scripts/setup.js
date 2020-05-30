@@ -1,11 +1,14 @@
 const fs = require('fs');
 const { exec } = require('child_process');
 const cliCmd = './node_modules/.bin/oz';
+const {
+  networks: { development }
+} = require('../networks');
 
 const DEFAULT_SENDER_ADDRESS = '0x5409ed021d9299bf6814279a6a1411a7e866a631';
 
 const setTestEnvironmentVars = () => {
-  const { app } = JSON.parse(fs.readFileSync('.openzeppelin/dev-40120.json').toString());
+  const { app } = JSON.parse(fs.readFileSync(`.openzeppelin/dev-${development.networkId}.json`).toString());
   const appContractAddress = `APP_CONTRACT_ADDRESS=${app.address}`;
   const defaultSenderAddress = `DEFAULT_SENDER_ADDRESS=${DEFAULT_SENDER_ADDRESS}`;
 
