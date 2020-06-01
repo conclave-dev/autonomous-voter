@@ -1,4 +1,12 @@
-const { defaultTx, expect, DEFAULT_SENDER_ADDRESS, ZERO_ADDRESS, SECONDARY_ADDRESS } = require('./setup');
+const {
+  defaultTx,
+  expect,
+  createVault,
+  DEFAULT_SENDER_ADDRESS,
+  ZERO_ADDRESS,
+  SECONDARY_ADDRESS,
+  REGISTRY_CONTRACT_ADDRESS
+} = require('./setup');
 
 describe('Archive', function () {
   describe('Initialize', function () {
@@ -35,22 +43,20 @@ describe('Archive', function () {
 
   describe('Methods', function () {
     describe('updateVault(address vault)', function () {
-      it('should not set a vault if not vault admin', async function () {
+      it('should not set a vault if not vault factory', async function () {
         await expect(
-          this.archive.updateVault(this.vault.address, {
-            from: SECONDARY_ADDRESS
-          })
-        ).to.be.rejectedWith(Error);
+          this.archive.updateVault(this.vault.address, SECONDARY_ADDRESS, { from: SECONDARY_ADDRESS })
+        ).to.be.rejectedWith(
+          'Returned error: VM Exception while processing transaction: revert Sender is not vault factory -- Reason given: Sender is not vault factory.'
+        );
       });
 
-      it('should set a vault if vault admin', async function () {
-        const { logs } = await this.archive.updateVault(this.vault.address, defaultTx);
-        const { event, args } = logs[0];
+      it('should set a vault if vault factory', async function () {
+        expect(await this.archive.vaults(SECONDARY_ADDRESS)).to.equal(ZERO_ADDRESS);
 
-        expect(await this.archive.vaults(DEFAULT_SENDER_ADDRESS)).to.equal(this.vault.address);
-        expect(args[0].toLowerCase()).to.equal(DEFAULT_SENDER_ADDRESS);
-        expect(args[1]).to.equal(this.vault.address);
-        expect(event).to.equal('VaultUpdated');
+        const _vault = await createVault(REGISTRY_CONTRACT_ADDRESS, SECONDARY_ADDRESS, this.archive, this.vaultFactory);
+
+        expect(await this.archive.vaults(SECONDARY_ADDRESS)).to.equal(_vault.address);
       });
     });
   });
