@@ -27,7 +27,7 @@ describe('Vault', function () {
         const depositAmount = '0';
 
         await expect(
-          this.factory.createInstance(vaultInitializeCall, {
+          this.vaultFactory.createInstance(vaultInitializeCall, {
             from: DEFAULT_SENDER_ADDRESS,
             value: depositAmount
           })
