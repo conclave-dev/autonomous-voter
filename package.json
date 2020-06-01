@@ -6,6 +6,8 @@
   "scripts": {
     "dev": "./ganache/baklava.sh",
     "lint": "eslint './**/*.js' && solhint -c .solhint_config.json -ignore_path .solhintignore './contracts/**/*.sol'",
+    "format": "prettier --write './contracts/**/*.sol'",
+    "format:staged": "pretty-quick --staged",
     "setup": "./scripts/setup.sh",
     "nuke": "rm -rf .openzeppelin/ && rm -rf build/",
     "test": "mocha --exit --recursive --timeout 30000",
@@ -13,7 +15,7 @@
   },
   "husky": {
     "hooks": {
-      "pre-commit": "npm run lint && pretty-quick --staged"
+      "pre-commit": "npm run lint && npm run format:staged"
     }
   },
   "repository": {
