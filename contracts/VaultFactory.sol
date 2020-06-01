@@ -1,5 +1,5 @@
 // contracts/VaultFactory.sol
-pragma solidity ^0.5.0;
+pragma solidity ^0.5.8;
 
 import "@openzeppelin/upgrades/contracts/Initializable.sol";
 import "@openzeppelin/upgrades/contracts/application/App.sol";

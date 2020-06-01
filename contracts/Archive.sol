@@ -1,5 +1,5 @@
 // contracts/Archive.sol
-pragma solidity ^0.5.0;
+pragma solidity ^0.5.8;
 
 import "@openzeppelin/upgrades/contracts/Initializable.sol";
 import "@openzeppelin/contracts-ethereum-package/contracts/ownership/Ownable.sol";
