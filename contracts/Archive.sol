@@ -1,30 +1,48 @@
-// contracts/Vault.sol
-pragma solidity ^0.5.0;
+// contracts/Archive.sol
+pragma solidity ^0.5.8;
 
-import '@openzeppelin/upgrades/contracts/Initializable.sol';
-import '@openzeppelin/contracts-ethereum-package/contracts/ownership/Ownable.sol';
+import "@openzeppelin/upgrades/contracts/Initializable.sol";
+import "@openzeppelin/contracts-ethereum-package/contracts/ownership/Ownable.sol";
+import "./Vault.sol";
 
 
 contract Archive is Initializable, Ownable {
-  address public vaultFactory;
-  mapping(address => address) public vaults;
+    address public vaultFactory;
+    mapping(address => address) public vaults;
 
-  event VaultFactorySet(address);
-  event VaultUpdated(address);
+    event VaultFactorySet(address);
+    event VaultUpdated(address, address);
 
-  function initialize(address _owner) public initializer {
-    Ownable.initialize(_owner);
-  }
+    modifier onlyVaultFactory() {
+        require(msg.sender == vaultFactory, "Sender is not vault factory");
+        _;
+    }
 
-  function setVaultFactory(address _vaultFactory) public onlyOwner {
-    vaultFactory = _vaultFactory;
+    function initialize(address _owner) public initializer {
+        Ownable.initialize(_owner);
+    }
 
-    emit VaultFactorySet(vaultFactory);
-  }
+    function setVaultFactory(address _vaultFactory) public onlyOwner {
+        vaultFactory = _vaultFactory;
 
-  function updateVault(address vault) public {
-    vaults[msg.sender] = vault;
+        emit VaultFactorySet(vaultFactory);
+    }
 
-    emit VaultUpdated(msg.sender);
-  }
+    function _isVaultAdmin(address vault, address vaultAdmin) internal view {
+        require(
+            Vault(vault).isWhitelistAdmin(vaultAdmin),
+            "Admin is not whitelisted on vault"
+        );
+    }
+
+    function updateVault(address vault, address vaultAdmin)
+        public
+        onlyVaultFactory
+    {
+        _isVaultAdmin(vault, vaultAdmin);
+
+        vaults[vaultAdmin] = vault;
+
+        emit VaultUpdated(msg.sender, vault);
+    }
 }
