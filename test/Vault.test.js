@@ -33,11 +33,12 @@ describe('Vault', function () {
     });
     const { args, event } = logs[0];
     const vaultAddress = args[0];
+    const vault = contract.fromArtifact('Vault', vaultAddress);
 
     expect(await this.accounts.isAccount(this.factory.address)).to.equal(false);
     expect(await this.accounts.isAccount(vaultAddress)).to.equal(true);
 
-    expect((await this.lockedGold.getAccountTotalLockedGold(vaultAddress)).toString()).to.equal(depositAmount);
+    expect((await vault.getUnmanagedGold()).toString()).to.equal(depositAmount);
 
     expect(event).to.equal('InstanceCreated');
   });

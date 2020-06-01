@@ -17,4 +17,8 @@ contract Vault is UsingRegistry {
     getLockedGold().lock.value(msg.value)();
     emit UserDeposit(msg.value);
   }
+
+  function getUnmanagedGold() public view returns (uint256) {
+    return getLockedGold().getAccountNonvotingLockedGold(address(this));
+  }
 }
