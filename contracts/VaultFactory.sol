@@ -3,10 +3,7 @@ pragma solidity ^0.5.0;
 
 import '@openzeppelin/upgrades/contracts/Initializable.sol';
 import '@openzeppelin/upgrades/contracts/application/App.sol';
-
-contract IVault {
-  function deposit() external payable;
-}
+import './interfaces/IVault.sol';
 
 contract VaultFactory is Initializable {
   uint256 public constant minimumDeposit = 100000000000000000;
