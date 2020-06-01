@@ -13,6 +13,11 @@ contract Archive is Initializable, Ownable {
     event VaultFactorySet(address);
     event VaultUpdated(address, address);
 
+    modifier onlyVaultFactory() {
+        require(msg.sender == vaultFactory, "Sender is not vault factory");
+        _;
+    }
+
     function initialize(address _owner) public initializer {
         Ownable.initialize(_owner);
     }
@@ -23,16 +28,21 @@ contract Archive is Initializable, Ownable {
         emit VaultFactorySet(vaultFactory);
     }
 
-    function _isVaultAdmin(address vault) internal view {
+    function _isVaultAdmin(address vault, address vaultAdmin) internal view {
         require(
-            Vault(vault).isWhitelistAdmin(msg.sender),
-            "Sender is not the vault admin"
+            Vault(vault).isWhitelistAdmin(vaultAdmin),
+            "Admin is not whitelisted on vault"
         );
     }
 
-    function updateVault(address vault) public {
-        _isVaultAdmin(vault);
-        vaults[msg.sender] = vault;
+    function updateVault(address vault, address vaultAdmin)
+        public
+        onlyVaultFactory
+    {
+        _isVaultAdmin(vault, vaultAdmin);
+
+        vaults[vaultAdmin] = vault;
+
         emit VaultUpdated(msg.sender, vault);
     }
 }
