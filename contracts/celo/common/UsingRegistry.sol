@@ -22,8 +22,6 @@ import "celo-monorepo/packages/protocol/contracts/stability/interfaces/IReserve.
 import "celo-monorepo/packages/protocol/contracts/stability/interfaces/ISortedOracles.sol";
 import "celo-monorepo/packages/protocol/contracts/stability/interfaces/IStableToken.sol";
 
-// Custom declaration to extend the interface which includes additional methods
-
 contract UsingRegistry is Ownable {
   event RegistrySet(address indexed registryAddress);
 
