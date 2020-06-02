@@ -61,7 +61,7 @@ describe('Vault', function () {
       });
 
       it('should have an initial deposit', async function () {
-        expect((await this.vault.getUnmanagedGold()).toString()).to.equal(DEPOSIT_AMOUNT);
+        expect((await this.vault.unmanagedGold()).toString()).to.equal(DEPOSIT_AMOUNT);
       });
 
       it('should be able to deposit using owner account', async function () {
@@ -72,7 +72,7 @@ describe('Vault', function () {
           from: DEFAULT_SENDER_ADDRESS,
           value: deposit.toString()
         });
-        expect((await this.vault.getUnmanagedGold()).toString()).to.equal(totalDeposit);
+        expect((await this.vault.unmanagedGold()).toString()).to.equal(totalDeposit);
       });
     });
   });

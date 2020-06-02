@@ -3,12 +3,13 @@ pragma solidity ^0.5.8;
 
 import "@openzeppelin/upgrades/contracts/Initializable.sol";
 import "@openzeppelin/contracts-ethereum-package/contracts/access/roles/WhitelistAdminRole.sol";
-import "@openzeppelin/contracts-ethereum-package/contracts/ownership/Ownable.sol";
 import "./celo/common/UsingRegistry.sol";
 
 
 contract Vault is UsingRegistry, WhitelistAdminRole {
     event UserDeposit(uint256);
+
+    uint256 public unmanagedGold;
 
     function initializeVault(address registry, address admin)
         public
@@ -25,10 +26,6 @@ contract Vault is UsingRegistry, WhitelistAdminRole {
         _depositGold();
     }
 
-    function getUnmanagedGold() public view returns (uint256) {
-        return getLockedGold().getAccountNonvotingLockedGold(address(this));
-    }
-
     function _registerAccount() internal {
         require(
             getAccounts().createAccount(),
@@ -37,6 +34,9 @@ contract Vault is UsingRegistry, WhitelistAdminRole {
     }
 
     function _depositGold() internal {
+        // Update total unmanaged gold
+        unmanagedGold += msg.value;
+
         // Immediately lock the deposit
         getLockedGold().lock.value(msg.value)();
         emit UserDeposit(msg.value);
