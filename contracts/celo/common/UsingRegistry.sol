@@ -11,6 +11,7 @@ import "celo-monorepo/packages/protocol/contracts/common/interfaces/IRegistry.so
 
 import "celo-monorepo/packages/protocol/contracts/governance/interfaces/IElection.sol";
 import "celo-monorepo/packages/protocol/contracts/governance/interfaces/IGovernance.sol";
+import "celo-monorepo/packages/protocol/contracts/governance/interfaces/ILockedGold.sol";
 import "celo-monorepo/packages/protocol/contracts/governance/interfaces/IValidators.sol";
 
 import "celo-monorepo/packages/protocol/contracts/identity/interfaces/IRandom.sol";
@@ -22,7 +23,6 @@ import "celo-monorepo/packages/protocol/contracts/stability/interfaces/ISortedOr
 import "celo-monorepo/packages/protocol/contracts/stability/interfaces/IStableToken.sol";
 
 // Custom declaration to extend the interface which includes additional methods
-import "../interfaces/ILockedGold.sol";
 
 contract UsingRegistry is Ownable {
   event RegistrySet(address indexed registryAddress);
