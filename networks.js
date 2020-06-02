@@ -2,8 +2,8 @@ module.exports = {
   networks: {
     development: {
       protocol: 'http',
-      host: 'localhost',
-      port: 8545,
+      host: '50.17.60.161',
+      port: 8546,
       gas: 20000000,
       gasPrice: 100000000000,
       networkId: 1101,

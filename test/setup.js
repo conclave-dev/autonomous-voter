@@ -14,7 +14,9 @@ const Vault = contract.fromArtifact('Vault');
 const VaultFactory = contract.fromArtifact('VaultFactory');
 
 before(async function () {
-  this.kit = await require('@celo/contractkit').newKit('http://localhost:8545');
+  this.kit = await require('@celo/contractkit').newKit(
+    `${development.protocol}://${development.host}:${development.port}`
+  );
 
   this.address = {
     primary: development.from,
