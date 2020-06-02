@@ -63,7 +63,9 @@ describe('Vault', function () {
       it('should have an initial deposit', async function () {
         expect((await this.vault.unmanagedGold()).toString()).to.equal(DEPOSIT_AMOUNT);
       });
+    });
 
+    describe('Deposit', function () {
       it('should be able to deposit using owner account', async function () {
         const deposit = new BigNumber(DEPOSIT_AMOUNT);
         const totalDeposit = new BigNumber(DEPOSIT_AMOUNT).plus(deposit).toString();
@@ -73,6 +75,17 @@ describe('Vault', function () {
           value: deposit.toString()
         });
         expect((await this.vault.unmanagedGold()).toString()).to.equal(totalDeposit);
+      });
+
+      it('should not be able to deposit using non-owner account', async function () {
+        await expect(
+          this.vault.deposit({
+            from: SECONDARY_ADDRESS,
+            value: DEPOSIT_AMOUNT
+          })
+        ).to.be.rejectedWith(
+          'Returned error: VM Exception while processing transaction: revert WhitelistAdminRole: caller does not have the WhitelistAdmin role -- Reason given: WhitelistAdminRole: caller does not have the WhitelistAdmin role.'
+        );
       });
     });
   });
