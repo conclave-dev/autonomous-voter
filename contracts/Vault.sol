@@ -23,6 +23,8 @@ contract Vault is UsingRegistry, WhitelistAdminRole {
     }
 
     function deposit() public payable onlyWhitelistAdmin {
+        require(msg.value > 0, "Deposited funds must be larger than 0");
+
         _depositGold();
     }
 
