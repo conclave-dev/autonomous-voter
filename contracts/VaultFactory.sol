@@ -4,9 +4,12 @@ pragma solidity ^0.5.8;
 import "@openzeppelin/upgrades/contracts/Initializable.sol";
 import "@openzeppelin/upgrades/contracts/application/App.sol";
 import "./interfaces/IArchive.sol";
+import "./interfaces/IVault.sol";
 
 
 contract VaultFactory is Initializable {
+    uint256 public constant MINIMUM_DEPOSIT = 100000000000000000;
+
     App private app;
     IArchive public archive;
 
@@ -18,19 +21,29 @@ contract VaultFactory is Initializable {
         archive = _archive;
     }
 
-    function createInstance(bytes memory _data) public {
+    function createInstance(bytes memory _data) public payable {
+        require(
+            msg.value >= MINIMUM_DEPOSIT,
+            "Insufficient funds for initial deposit"
+        );
+
         string memory packageName = "autonomous-voter";
         string memory contractName = "Vault";
         address admin = msg.sender;
 
-        address vault = address(
-            app.create(packageName, contractName, admin, _data)
+        address vaultAddress = address(
+            app.create.value(msg.value)(
+                packageName,
+                contractName,
+                address(app),
+                _data
+            )
         );
 
-        emit InstanceCreated(vault);
+        emit InstanceCreated(vaultAddress);
 
-        archive.updateVault(vault, admin);
+        archive.updateVault(vaultAddress, admin);
 
-        emit InstanceArchived(vault, admin);
+        emit InstanceArchived(vaultAddress, admin);
     }
 }

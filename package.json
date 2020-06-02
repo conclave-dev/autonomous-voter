@@ -35,6 +35,7 @@
     "@openzeppelin/contracts-ethereum-package": "^2.4.0",
     "@openzeppelin/test-environment": "^0.1.4",
     "@openzeppelin/upgrades": "^2.8.0",
+    "bignumber.js": "^9.0.0",
     "chai": "^4.2.0",
     "chai-as-promised": "^7.1.1",
     "dotenv": "^8.2.0",
