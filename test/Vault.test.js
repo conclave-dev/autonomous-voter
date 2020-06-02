@@ -1,14 +1,16 @@
 const { contract } = require('@openzeppelin/test-environment');
 const { encodeCall } = require('@openzeppelin/upgrades');
+const BigNumber = require('bignumber.js');
 const {
   defaultTx,
+  APP_CONTRACT_ADDRESS,
   expect,
   kit,
   DEFAULT_SENDER_ADDRESS,
   ZERO_ADDRESS,
   SECONDARY_ADDRESS,
   REGISTRY_CONTRACT_ADDRESS,
-  INITIAL_DEPOSIT_AMOUNT
+  DEPOSIT_AMOUNT
 } = require('./setup');
 
 const BaseAdminUpgradeabilityProxy = contract.fromArtifact('BaseAdminUpgradeabilityProxy');
@@ -40,12 +42,12 @@ describe('Vault', function () {
 
   describe('Instance', function () {
     describe('Initialize', function () {
-      it('should initialize with a Registry contract and owner address', async function () {
+      it('should initialize with a Registry contract and admin address', async function () {
         const Vault = await BaseAdminUpgradeabilityProxy.at(this.vault.address);
-        const isAdmin = await Vault.admin.call(defaultTx);
+        const isAdmin = await Vault.admin.call({ from: APP_CONTRACT_ADDRESS });
 
-        await expect(Vault.admin.call({ from: SECONDARY_ADDRESS })).to.be.rejectedWith(Error);
-        expect(isAdmin.toLowerCase()).to.equal(DEFAULT_SENDER_ADDRESS);
+        await expect(Vault.admin.call(defaultTx)).to.be.rejectedWith(Error);
+        expect(isAdmin).to.equal(APP_CONTRACT_ADDRESS);
       });
 
       it('should have a registered Celo account', async function () {
@@ -59,7 +61,18 @@ describe('Vault', function () {
       });
 
       it('should have an initial deposit', async function () {
-        expect((await this.vault.getUnmanagedGold()).toString()).to.equal(INITIAL_DEPOSIT_AMOUNT);
+        expect((await this.vault.getUnmanagedGold()).toString()).to.equal(DEPOSIT_AMOUNT);
+      });
+
+      it('should be able to deposit using owner account', async function () {
+        const deposit = new BigNumber(DEPOSIT_AMOUNT);
+        const totalDeposit = new BigNumber(DEPOSIT_AMOUNT).plus(deposit).toString();
+
+        await this.vault.deposit({
+          from: DEFAULT_SENDER_ADDRESS,
+          value: deposit.toString()
+        });
+        expect((await this.vault.getUnmanagedGold()).toString()).to.equal(totalDeposit);
       });
     });
   });

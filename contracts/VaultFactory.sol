@@ -32,12 +32,13 @@ contract VaultFactory is Initializable {
         address admin = msg.sender;
 
         address vaultAddress = address(
-            app.create(packageName, contractName, admin, _data)
+            app.create.value(msg.value)(
+                packageName,
+                contractName,
+                address(app),
+                _data
+            )
         );
-
-        // Initiate the initial deposit procedure
-        IVault vault = IVault(vaultAddress);
-        vault.deposit.value(msg.value)();
 
         emit InstanceCreated(vaultAddress);
 
