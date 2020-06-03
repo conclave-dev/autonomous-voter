@@ -2,6 +2,7 @@ const { contract } = require('@openzeppelin/test-environment');
 const { encodeCall } = require('@openzeppelin/upgrades');
 const { expect } = require('./setup');
 
+const VaultAdmin = contract.fromArtifact('VaultAdmin');
 const BaseAdminUpgradeabilityProxy = contract.fromArtifact('BaseAdminUpgradeabilityProxy');
 
 describe('Vault', function () {
@@ -71,6 +72,29 @@ describe('Vault', function () {
         ).to.be.rejectedWith(
           'Returned error: VM Exception while processing transaction: revert WhitelistAdminRole: caller does not have the WhitelistAdmin role -- Reason given: WhitelistAdminRole: caller does not have the WhitelistAdmin role.'
         );
+      });
+    });
+  });
+
+  describe('Admin', function () {
+    describe('Initialize', function () {
+      it('should have a vault-admin instance with valid address created for the user vault', async function () {
+        const adminAddress = await this.archive.vaultAdmins(this.address.primary);
+
+        expect(typeof adminAddress).to.equal('string');
+        expect(adminAddress.length).to.equal(42);
+        expect(adminAddress).to.not.equal(this.address.zero);
+      });
+
+      it('should only allow access for vault upgrade to the vault owner', async function () {
+        const adminAddress = await this.archive.vaultAdmins(this.address.primary);
+        const vaultAdmin = await VaultAdmin.at(adminAddress);
+
+        await expect(vaultAdmin.upgradeVault(this.vault.address, { from: this.address.secondary })).to.be.rejectedWith(
+          'Returned error: VM Exception while processing transaction: revert WhitelistAdminRole: caller does not have the WhitelistAdmin role -- Reason given: WhitelistAdminRole: caller does not have the WhitelistAdmin role.'
+        );
+
+        await expect(vaultAdmin.upgradeVault(this.vault.address, this.defaultTx)).to.be.fulfilled;
       });
     });
   });
