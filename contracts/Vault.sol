@@ -1,7 +1,6 @@
 // contracts/Vault.sol
 pragma solidity ^0.5.8;
 
-import "@openzeppelin/upgrades/contracts/Initializable.sol";
 import "@openzeppelin/contracts-ethereum-package/contracts/access/roles/WhitelistAdminRole.sol";
 import "./celo/common/UsingRegistry.sol";
 

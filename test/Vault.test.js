@@ -31,12 +31,9 @@ describe('Vault', function () {
 
   describe('Instance', function () {
     describe('Initialize', function () {
-      it('should initialize with a Registry contract and admin address', async function () {
+      it('should initialize with a Registry contract and a Vault admin', async function () {
         const Vault = await BaseAdminUpgradeabilityProxy.at(this.vault.address);
-        const isAdmin = await Vault.admin.call({ from: this.address.appContract });
-
-        await expect(Vault.admin.call(this.defaultTx)).to.be.rejectedWith(Error);
-        expect(isAdmin).to.equal(this.address.appContract);
+        expect(Vault.admin.call(this.defaultTx)).to.be.rejectedWith(Error);
       });
 
       it('should have a registered Celo account', async function () {
