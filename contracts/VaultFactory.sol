@@ -32,7 +32,8 @@ contract VaultFactory is Initializable {
 
         // Create a vault admin for managing the user's vault upgradeability
         VaultAdmin vaultAdmin = new VaultAdmin();
-        vaultAdmin.initialize(app, msg.sender);
+        vaultAdmin.initialize(app, vaultOwner);
+        address adminAddress = address(vaultAdmin);
 
         string memory packageName = "autonomous-voter";
         string memory contractName = "Vault";
@@ -42,7 +43,7 @@ contract VaultFactory is Initializable {
             app.create.value(msg.value)(
                 packageName,
                 contractName,
-                address(vaultAdmin),
+                adminAddress,
                 _data
             )
         );
@@ -50,6 +51,7 @@ contract VaultFactory is Initializable {
         emit InstanceCreated(vaultAddress);
 
         archive.updateVault(vaultAddress, vaultOwner);
+        archive.updateVaultAdmin(adminAddress, vaultOwner);
 
         emit InstanceArchived(vaultAddress, vaultOwner);
     }

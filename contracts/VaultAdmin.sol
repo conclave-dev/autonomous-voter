@@ -2,7 +2,7 @@
 pragma solidity ^0.5.8;
 
 import "@openzeppelin/upgrades/contracts/application/App.sol";
-import "@openzeppelin/upgrades/contracts/upgradeability/AdminUpgradeabilityProxy.sol";
+import "@openzeppelin/upgrades/contracts/upgradeability/BaseAdminUpgradeabilityProxy.sol";
 import "@openzeppelin/contracts-ethereum-package/contracts/access/roles/WhitelistAdminRole.sol";
 import "./Vault.sol";
 
@@ -15,13 +15,10 @@ contract VaultAdmin is WhitelistAdminRole {
         app = _app;
     }
 
-    function upgradeVault(AdminUpgradeabilityProxy _proxy)
+    function upgradeVault(BaseAdminUpgradeabilityProxy _proxy)
         public
         onlyWhitelistAdmin
     {
-        // Check if the sender has the right to upgrade the vault proxy
-        require(Vault(address(_proxy)).isWhitelistAdmin(msg.sender));
-
         string memory packageName = "autonomous-voter";
         string memory contractName = "Vault";
 
@@ -30,6 +27,7 @@ contract VaultAdmin is WhitelistAdminRole {
             packageName,
             contractName
         );
+
         _proxy.upgradeTo(implementation);
     }
 }
