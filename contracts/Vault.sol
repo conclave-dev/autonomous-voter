@@ -1,31 +1,35 @@
 // contracts/Vault.sol
 pragma solidity ^0.5.8;
 
-import "@openzeppelin/upgrades/contracts/Initializable.sol";
-import "@openzeppelin/contracts-ethereum-package/contracts/access/roles/WhitelistAdminRole.sol";
 import "./celo/common/UsingRegistry.sol";
 
 
-contract Vault is UsingRegistry, WhitelistAdminRole {
+contract Vault is UsingRegistry {
     event UserDeposit(uint256);
 
+    address public vaultAdmin;
     uint256 public unmanagedGold;
 
-    function initializeVault(address registry, address admin)
+    function initializeVault(address registry, address owner)
         public
         payable
         initializer
     {
         UsingRegistry.initializeRegistry(msg.sender, registry);
-        WhitelistAdminRole.initialize(admin);
+        Ownable.initialize(owner);
+
         _registerAccount();
         _depositGold();
     }
 
-    function deposit() public payable onlyWhitelistAdmin {
+    function deposit() public payable onlyOwner {
         require(msg.value > 0, "Deposited funds must be larger than 0");
-
         _depositGold();
+    }
+
+    function updateVaultAdmin(address admin) external onlyOwner {
+        require(admin != address(0), "Invalid admin address");
+        vaultAdmin = admin;
     }
 
     function _registerAccount() internal {

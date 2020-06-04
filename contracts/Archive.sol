@@ -28,20 +28,20 @@ contract Archive is Initializable, Ownable {
         emit VaultFactorySet(vaultFactory);
     }
 
-    function _isVaultAdmin(address vault, address vaultAdmin) internal view {
+    function _isVaultOwner(address vault, address account) internal view {
         require(
-            Vault(vault).isWhitelistAdmin(vaultAdmin),
-            "Admin is not whitelisted on vault"
+            Vault(vault).owner() == account,
+            "Account is not the vault owner"
         );
     }
 
-    function updateVault(address vault, address vaultAdmin)
+    function updateVault(address vault, address account)
         public
         onlyVaultFactory
     {
-        _isVaultAdmin(vault, vaultAdmin);
+        _isVaultOwner(vault, account);
 
-        vaults[vaultAdmin] = vault;
+        vaults[account] = vault;
 
         emit VaultUpdated(msg.sender, vault);
     }
