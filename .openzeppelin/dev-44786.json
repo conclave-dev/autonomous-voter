@@ -148,5 +148,14 @@
   "version": "1.0.0",
   "proxyAdmin": {
     "address": "0x60DCd452209d1F22D9271F2d9Fb330282Fb161ec"
+  },
+  "app": {
+    "address": "0x44c5B7Cb61D9F18705184e105dC46D158f790221"
+  },
+  "package": {
+    "address": "0x8167B2171487D32F28906C2Fb62fcbE3C4E21EEE"
+  },
+  "provider": {
+    "address": "0x9768Af67Ac0571D8E7a2AB658fe18D1353Ab1983"
   }
 }
