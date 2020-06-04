@@ -7,7 +7,6 @@ import "./celo/common/UsingRegistry.sol";
 contract Vault is UsingRegistry {
     event UserDeposit(uint256);
 
-    address private vaultFactory;
     address public vaultAdmin;
     uint256 public unmanagedGold;
 
