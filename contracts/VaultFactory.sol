@@ -4,7 +4,6 @@ pragma solidity ^0.5.8;
 import "@openzeppelin/upgrades/contracts/Initializable.sol";
 import "@openzeppelin/upgrades/contracts/application/App.sol";
 import "./interfaces/IArchive.sol";
-import "./interfaces/IVault.sol";
 import "./VaultAdmin.sol";
 
 
@@ -15,6 +14,7 @@ contract VaultFactory is Initializable {
     IArchive public archive;
 
     event InstanceCreated(address);
+    event AdminCreated(address);
     event InstanceArchived(address, address);
 
     function initialize(App _app, IArchive _archive) public initializer {
@@ -48,11 +48,9 @@ contract VaultFactory is Initializable {
             )
         );
 
-        // Set the vault admin
-        IVault vault = IVault(vaultAddress);
-        vault.updateVaultAdmin(adminAddress);
-
         emit InstanceCreated(vaultAddress);
+
+        emit AdminCreated(adminAddress);
 
         archive.updateVault(vaultAddress, vaultOwner);
 

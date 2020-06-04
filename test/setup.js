@@ -11,6 +11,7 @@ chai.use(require('chai-as-promised'));
 
 const Archive = contract.fromArtifact('Archive');
 const Vault = contract.fromArtifact('Vault');
+const VaultAdmin = contract.fromArtifact('VaultAdmin');
 const VaultFactory = contract.fromArtifact('VaultFactory');
 
 before(async function () {
@@ -42,25 +43,33 @@ before(async function () {
 
   this.createVault = async (msgSender, archive, vaultFactory) => {
     // Set vaultFactory in Archive so that our vault factory can update its `vaults` variable
-    // Set vaultFactory in Archive so that our vault factory can update its `vaults` variable
     await archive.setVaultFactory(vaultFactory.address, this.defaultTx);
 
     const initializeVault = encodeCall(
       'initializeVault',
-      ['address', 'address', 'address'],
-      [this.address.registryContract, msgSender, vaultFactory.address]
+      ['address', 'address'],
+      [this.address.registryContract, msgSender]
     );
     const { logs } = await vaultFactory.createInstance(initializeVault, {
       from: msgSender,
       value: this.defaultTxValue
     });
 
-    return Vault.at(logs[0].args[0]);
+    // Parse the admin address from the event logs, and get the instance
+    const vault = await Vault.at(logs[0].args[0]);
+    const adminAddress = logs[1].args[0];
+
+    await vault.updateVaultAdmin(adminAddress, {
+      from: msgSender
+    });
+
+    return vault;
   };
 
   this.archive = await this.createArchive();
   this.vaultFactory = await this.createVaultFactory(app.address, this.archive.address);
   this.vault = await this.createVault(this.address.primary, this.archive, this.vaultFactory);
+  this.vaultAdmin = await VaultAdmin.at(await this.vault.vaultAdmin());
 });
 
 module.exports = {

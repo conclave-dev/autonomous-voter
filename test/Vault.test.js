@@ -2,7 +2,6 @@ const { contract } = require('@openzeppelin/test-environment');
 const { encodeCall } = require('@openzeppelin/upgrades');
 const { expect } = require('./setup');
 
-const VaultAdmin = contract.fromArtifact('VaultAdmin');
 const BaseAdminUpgradeabilityProxy = contract.fromArtifact('BaseAdminUpgradeabilityProxy');
 
 describe('Vault', function () {
@@ -42,9 +41,8 @@ describe('Vault', function () {
         expect(await accounts.isAccount(this.vault.address)).to.equal(true);
       });
 
-      it('should have the owner address whitelisted as an admin', async function () {
-        expect(await this.vault.isWhitelistAdmin(this.address.secondary)).to.equal(false);
-        expect(await this.vault.isWhitelistAdmin(this.address.primary)).to.equal(true);
+      it('should be setting the owner account as vault owner', async function () {
+        expect(await this.vault.owner()).to.equal(this.address.primary);
       });
 
       it('should have an initial deposit', async function () {
@@ -70,7 +68,7 @@ describe('Vault', function () {
             value: this.defaultTxValue
           })
         ).to.be.rejectedWith(
-          'Returned error: VM Exception while processing transaction: revert WhitelistAdminRole: caller does not have the WhitelistAdmin role -- Reason given: WhitelistAdminRole: caller does not have the WhitelistAdmin role.'
+          'Returned error: VM Exception while processing transaction: revert Ownable: caller is not the owner -- Reason given: Ownable: caller is not the owner.'
         );
       });
     });
@@ -79,7 +77,7 @@ describe('Vault', function () {
   describe('Admin', function () {
     describe('Initialize', function () {
       it('should have a vault-admin instance with valid address created for the user vault', async function () {
-        const adminAddress = await this.vault.getVaultAdmin.call(this.defaultTx);
+        const adminAddress = await this.vault.vaultAdmin.call(this.defaultTx);
 
         expect(typeof adminAddress).to.equal('string');
         expect(adminAddress.length).to.equal(42);
@@ -87,14 +85,12 @@ describe('Vault', function () {
       });
 
       it('should only allow access for vault upgrade to the vault owner', async function () {
-        const adminAddress = await this.vault.getVaultAdmin.call(this.defaultTx);
-        const vaultAdmin = await VaultAdmin.at(adminAddress);
+        console.log(await this.vaultAdmin.owner());
+        await expect(
+          this.vaultAdmin.upgradeVault(this.vault.address, { from: this.address.secondary })
+        ).to.be.rejectedWith('Returned error: VM Exception while processing transaction: revert');
 
-        await expect(vaultAdmin.upgradeVault(this.vault.address, { from: this.address.secondary })).to.be.rejectedWith(
-          'Returned error: VM Exception while processing transaction: revert WhitelistAdminRole: caller does not have the WhitelistAdmin role -- Reason given: WhitelistAdminRole: caller does not have the WhitelistAdmin role.'
-        );
-
-        await expect(vaultAdmin.upgradeVault(this.vault.address, this.defaultTx)).to.be.fulfilled;
+        await expect(this.vaultAdmin.upgradeVault(this.vault.address, this.defaultTx)).to.be.fulfilled;
       });
     });
   });

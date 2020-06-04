@@ -4,7 +4,6 @@ pragma solidity ^0.5.8;
 import "@openzeppelin/upgrades/contracts/Initializable.sol";
 import "@openzeppelin/contracts-ethereum-package/contracts/ownership/Ownable.sol";
 import "./Vault.sol";
-import "./VaultAdmin.sol";
 
 
 contract Archive is Initializable, Ownable {
@@ -31,8 +30,8 @@ contract Archive is Initializable, Ownable {
 
     function _isVaultOwner(address vault, address account) internal view {
         require(
-            Vault(vault).isWhitelistAdmin(account),
-            "Account is not whitelisted on vault"
+            Vault(vault).owner() == account,
+            "Account is not the vault owner"
         );
     }
 
