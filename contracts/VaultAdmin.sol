@@ -4,7 +4,6 @@ pragma solidity ^0.5.8;
 import "@openzeppelin/upgrades/contracts/application/App.sol";
 import "@openzeppelin/upgrades/contracts/upgradeability/BaseAdminUpgradeabilityProxy.sol";
 import "@openzeppelin/contracts-ethereum-package/contracts/access/roles/WhitelistAdminRole.sol";
-import "./Vault.sol";
 
 
 contract VaultAdmin is WhitelistAdminRole {

@@ -10,11 +10,9 @@ import "./VaultAdmin.sol";
 contract Archive is Initializable, Ownable {
     address public vaultFactory;
     mapping(address => address) public vaults;
-    mapping(address => address) public vaultAdmins;
 
     event VaultFactorySet(address);
     event VaultUpdated(address, address);
-    event VaultAdminUpdated(address, address);
 
     modifier onlyVaultFactory() {
         require(msg.sender == vaultFactory, "Sender is not vault factory");
@@ -38,13 +36,6 @@ contract Archive is Initializable, Ownable {
         );
     }
 
-    function _isVaultAdminOwner(address admin, address account) internal view {
-        require(
-            VaultAdmin(admin).isWhitelistAdmin(account),
-            "Account is not whitelisted on vault admin"
-        );
-    }
-
     function updateVault(address vault, address account)
         public
         onlyVaultFactory
@@ -54,16 +45,5 @@ contract Archive is Initializable, Ownable {
         vaults[account] = vault;
 
         emit VaultUpdated(msg.sender, vault);
-    }
-
-    function updateVaultAdmin(address admin, address account)
-        public
-        onlyVaultFactory
-    {
-        _isVaultAdminOwner(admin, account);
-
-        vaultAdmins[account] = admin;
-
-        emit VaultAdminUpdated(msg.sender, admin);
     }
 }

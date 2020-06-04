@@ -8,15 +8,19 @@ import "./celo/common/UsingRegistry.sol";
 contract Vault is UsingRegistry, WhitelistAdminRole {
     event UserDeposit(uint256);
 
+    address private vaultFactory;
+    address private vaultAdmin;
     uint256 public unmanagedGold;
 
-    function initializeVault(address registry, address admin)
-        public
-        payable
-        initializer
-    {
+    function initializeVault(
+        address registry,
+        address admin,
+        address factory
+    ) public payable initializer {
         UsingRegistry.initializeRegistry(msg.sender, registry);
         WhitelistAdminRole.initialize(admin);
+
+        vaultFactory = factory;
         _registerAccount();
         _depositGold();
     }
@@ -25,6 +29,21 @@ contract Vault is UsingRegistry, WhitelistAdminRole {
         require(msg.value > 0, "Deposited funds must be larger than 0");
 
         _depositGold();
+    }
+
+    function getVaultAdmin()
+        external
+        view
+        onlyWhitelistAdmin
+        returns (address)
+    {
+        return vaultAdmin;
+    }
+
+    function updateVaultAdmin(address admin) external {
+        require(msg.sender == vaultFactory, "Sender is not vault factory");
+        require(admin != address(0), "Invalid admin address");
+        vaultAdmin = admin;
     }
 
     function _registerAccount() internal {

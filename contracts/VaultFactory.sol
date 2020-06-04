@@ -48,10 +48,13 @@ contract VaultFactory is Initializable {
             )
         );
 
+        // Set the vault admin
+        IVault vault = IVault(vaultAddress);
+        vault.updateVaultAdmin(adminAddress);
+
         emit InstanceCreated(vaultAddress);
 
         archive.updateVault(vaultAddress, vaultOwner);
-        archive.updateVaultAdmin(adminAddress, vaultOwner);
 
         emit InstanceArchived(vaultAddress, vaultOwner);
     }

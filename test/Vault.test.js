@@ -79,7 +79,7 @@ describe('Vault', function () {
   describe('Admin', function () {
     describe('Initialize', function () {
       it('should have a vault-admin instance with valid address created for the user vault', async function () {
-        const adminAddress = await this.archive.vaultAdmins(this.address.primary);
+        const adminAddress = await this.vault.getVaultAdmin.call(this.defaultTx);
 
         expect(typeof adminAddress).to.equal('string');
         expect(adminAddress.length).to.equal(42);
@@ -87,7 +87,7 @@ describe('Vault', function () {
       });
 
       it('should only allow access for vault upgrade to the vault owner', async function () {
-        const adminAddress = await this.archive.vaultAdmins(this.address.primary);
+        const adminAddress = await this.vault.getVaultAdmin.call(this.defaultTx);
         const vaultAdmin = await VaultAdmin.at(adminAddress);
 
         await expect(vaultAdmin.upgradeVault(this.vault.address, { from: this.address.secondary })).to.be.rejectedWith(

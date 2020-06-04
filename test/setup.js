@@ -47,8 +47,8 @@ before(async function () {
 
     const initializeVault = encodeCall(
       'initializeVault',
-      ['address', 'address'],
-      [this.address.registryContract, msgSender]
+      ['address', 'address', 'address'],
+      [this.address.registryContract, msgSender, vaultFactory.address]
     );
     const { logs } = await vaultFactory.createInstance(initializeVault, {
       from: msgSender,
