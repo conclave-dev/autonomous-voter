@@ -31,9 +31,12 @@ describe('Vault', function () {
 
   describe('Instance', function () {
     describe('Initialize', function () {
-      it('should initialize with a Registry contract and a Vault admin', async function () {
+      it('should initialize with a Vault admin with proper access control', async function () {
         const Vault = await BaseAdminUpgradeabilityProxy.at(this.vault.address);
+        const adminAddress = await Vault.admin.call({ from: this.vaultAdmin.address });
+
         expect(Vault.admin.call(this.defaultTx)).to.be.rejectedWith(Error);
+        expect(adminAddress).to.be.equal(this.vaultAdmin.address);
       });
 
       it('should have a registered Celo account', async function () {
@@ -77,15 +80,10 @@ describe('Vault', function () {
   describe('Admin', function () {
     describe('Initialize', function () {
       it('should have a vault-admin instance with valid address created for the user vault', async function () {
-        const adminAddress = await this.vault.vaultAdmin.call(this.defaultTx);
-
-        expect(typeof adminAddress).to.equal('string');
-        expect(adminAddress.length).to.equal(42);
-        expect(adminAddress).to.not.equal(this.address.zero);
+        expect(await this.vault.vaultAdmin()).to.be.equal(this.vaultAdmin.address);
       });
 
       it('should only allow access for vault upgrade to the vault owner', async function () {
-        console.log(await this.vaultAdmin.owner());
         await expect(
           this.vaultAdmin.upgradeVault(this.vault.address, { from: this.address.secondary })
         ).to.be.rejectedWith('Returned error: VM Exception while processing transaction: revert');
