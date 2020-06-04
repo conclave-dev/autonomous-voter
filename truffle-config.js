@@ -10,7 +10,8 @@ module.exports = {
       provider: web3.currentProvider, // CeloProvider
       network_id: 44786,
       gas: 20000000,
-      gasPrice: 100000000000
+      gasPrice: 100000000000,
+      from: '0x876b74eDac7b5ecad82Ac3bf446c8E1503FEF37d'
     }
   },
 
