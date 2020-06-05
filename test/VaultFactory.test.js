@@ -22,9 +22,7 @@ describe('VaultFactory', () => {
             value: '0'
           }
         )
-      ).to.be.rejectedWith(
-        'Returned error: VM Exception while processing transaction: revert Insufficient funds for initial deposit -- Reason given: Insufficient funds for initial deposit.'
-      );
+      ).to.be.rejectedWith(Error);
     });
   });
 });
