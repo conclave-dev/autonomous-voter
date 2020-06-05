@@ -1,8 +1,8 @@
 const {
   scripts: { add, push, publish },
+  files: { ProjectFile },
   ConfigManager
 } = require('@openzeppelin/cli');
-
 const deployContract = async (contractName, networkName, deployerAddress) => {
   const { network, txParams } = await ConfigManager.initNetworkConfiguration({
     network: networkName,
@@ -21,6 +21,9 @@ const deployContract = async (contractName, networkName, deployerAddress) => {
   await publish({ network, txParams });
 };
 
+const getProjectFile = network => new ProjectFile(`${__dirname}/../.openzeppelin/${network}.json`);
+
 module.exports = {
-  deployContract
+  deployContract,
+  getProjectFile
 };
