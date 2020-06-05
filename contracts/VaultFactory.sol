@@ -2,7 +2,8 @@
 pragma solidity ^0.5.8;
 
 import "@openzeppelin/upgrades/contracts/Initializable.sol";
-import "@openzeppelin/upgrades/contracts/application/App.sol";
+
+import "./App.sol";
 import "./interfaces/IArchive.sol";
 import "./VaultAdmin.sol";
 
@@ -40,12 +41,7 @@ contract VaultFactory is Initializable {
 
         // Create the actual vault instance
         address vaultAddress = address(
-            app.create.value(msg.value)(
-                packageName,
-                contractName,
-                adminAddress,
-                _data
-            )
+            app.create.value(msg.value)(adminAddress, _data)
         );
 
         emit InstanceCreated(vaultAddress);
