@@ -6,13 +6,13 @@
   "scripts": {
     "setup": "./scripts/setup.sh",
     "lint": "eslint './**/*.js' --ignore-path .custom.eslintignore && solhint -c .solhint_config.json -ignore_path .solhintignore './contracts/**/*.sol'",
-    "format": "prettier --write './contracts/**/*.sol'",
+    "format": "prettier --write ./**/*.js ./**/*.sol",
     "test": "mocha --exit --timeout 60000",
-    "truffle": "truffle migrate --network"
+    "truffle:dev": "npm run setup && truffle migrate --network alfajores"
   },
   "husky": {
     "hooks": {
-      "pre-commit": "npm run lint && npm run format:staged"
+      "pre-commit": "npm run lint && npm run format"
     }
   },
   "repository": {

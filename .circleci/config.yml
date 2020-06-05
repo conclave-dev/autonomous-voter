@@ -10,10 +10,7 @@ jobs:
       - checkout
       - node/install-packages
       - run:
-          command: npm run dev
-          background: true
-      - run:
-          command: npm run test:ci
+          command: npm test
 workflows:
     build-and-test:
       jobs:

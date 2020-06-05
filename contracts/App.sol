@@ -20,10 +20,10 @@ contract App is Initializable, Ownable {
     event ProxyCreated(address proxy);
 
     function initialize(address _vault) public initializer {
-      Ownable.initialize(msg.sender);
+        Ownable.initialize(msg.sender);
 
-      // Set the vault logic contract address
-      vault = _vault;
+        // Set the vault logic contract address
+        vault = _vault;
     }
 
     /**
