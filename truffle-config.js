@@ -1,8 +1,9 @@
 // Thanks @ critesjosh
 // https://docs.celo.org/developer-guide/start/hello-contract-remote-node
 const { newKit } = require('@celo/contractkit');
+const { rpcAPI } = require('./config');
 
-const { web3 } = newKit('http://10.0.18.12:8545');
+const { web3 } = newKit(rpcAPI);
 
 module.exports = {
   networks: {
