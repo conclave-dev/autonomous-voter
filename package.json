@@ -4,11 +4,13 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "setup": "./scripts/setup.sh",
+    "build": "npm install && ./scripts/setup.sh",
     "lint": "eslint './**/*.js' --ignore-path .custom.eslintignore && solhint -c .solhint_config.json -ignore_path .solhintignore './contracts/**/*.sol'",
     "format": "prettier --write ./**/*.js ./**/*.sol",
     "test": "mocha --exit --timeout 60000",
-    "truffle:dev": "npm run setup && truffle migrate --network alfajores"
+    "test:ci": "rm -rf node_modules/ && npm run build -- alfajores && npm run truffle:compile -- alfajores && npm test",
+    "truffle:compile": "truffle compile --network",
+    "truffle:migrate": "truffle migrate --network"
   },
   "husky": {
     "hooks": {

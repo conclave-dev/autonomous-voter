@@ -10,7 +10,7 @@ jobs:
       - checkout
       - node/install-packages
       - run:
-          command: npm test
+          command: npm run test:ci
 workflows:
     build-and-test:
       jobs:
