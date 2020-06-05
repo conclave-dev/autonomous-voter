@@ -6,13 +6,8 @@ module.exports = async (deployer) => {
   await deployer.deploy(VaultFactory);
 
   const vaultFactory = await VaultFactory.deployed();
-
-  if (await vaultFactory.archive()) {
-    return;
-  }
-
-  const { address: appAddress } = App.deployed();
-  const { address: archiveAddress } = Archive.deployed();
+  const { address: appAddress } = await App.deployed();
+  const { address: archiveAddress } = await Archive.deployed();
 
   await vaultFactory.initialize(appAddress, archiveAddress);
 };

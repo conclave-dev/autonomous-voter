@@ -11,7 +11,7 @@ import "@openzeppelin/contracts-ethereum-package/contracts/ownership/Ownable.sol
  * It handles the creation of proxies.
  */
 contract App is Initializable, Ownable {
-    address vault;
+    address public vault;
 
     /**
      * @dev Emitted when a new proxy is created.

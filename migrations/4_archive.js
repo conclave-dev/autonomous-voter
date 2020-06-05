@@ -5,11 +5,5 @@ module.exports = async (deployer, _, accounts) => {
 
   const archive = await Archive.deployed();
 
-  console.log('await archive.owner()', await archive.owner());
-
-  if (await archive.owner()) {
-    return;
-  }
-
   await archive.initialize(accounts[0]);
 };

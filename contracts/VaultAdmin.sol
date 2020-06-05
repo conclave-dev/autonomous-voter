@@ -1,9 +1,10 @@
 // contracts/VaultAdmin.sol
 pragma solidity ^0.5.8;
 
-import "./App.sol";
 import "@openzeppelin/upgrades/contracts/upgradeability/BaseAdminUpgradeabilityProxy.sol";
 import "@openzeppelin/contracts-ethereum-package/contracts/ownership/Ownable.sol";
+
+import "./App.sol";
 
 
 contract VaultAdmin is Ownable {
