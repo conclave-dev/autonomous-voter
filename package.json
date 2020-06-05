@@ -7,7 +7,7 @@
     "setup": "./scripts/setup.sh",
     "lint": "eslint './**/*.js' --ignore-path .custom.eslintignore && solhint -c .solhint_config.json -ignore_path .solhintignore './contracts/**/*.sol'",
     "format": "prettier --write './contracts/**/*.sol'",
-    "test": "truffle test --network alfajores",
+    "test": "mocha --exit --timeout 60000",
     "truffle": "truffle migrate --network"
   },
   "husky": {
@@ -28,6 +28,7 @@
   "homepage": "https://github.com/conclave-dev/autonomous-voter#readme",
   "devDependencies": {
     "@celo/contractkit": "^0.4.5",
+    "@openzeppelin/contract-loader": "^0.6.1",
     "@openzeppelin/contracts-ethereum-package": "^2.4.0",
     "@openzeppelin/upgrades": "^2.8.0",
     "bignumber.js": "^9.0.0",
@@ -46,6 +47,7 @@
     "truffle": "^5.1.28"
   },
   "dependencies": {
+    "@truffle/contract": "^4.2.7",
     "solc": "^0.5.17"
   }
 }
