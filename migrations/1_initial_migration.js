@@ -1,32 +1,9 @@
-const {
-  scripts: { init },
-  ConfigManager
-} = require('@openzeppelin/cli');
 const Migrations = artifacts.require('Migrations');
-const { name, version } = require('../package.json');
-const { getProjectFile } = require('./util');
+const { initProject } = require('../util/openzeppelin');
 
-// Initializes an OZ project if it does not yet exist
-const initProject = async (network) => {
-  const projectFile = getProjectFile(network);
+module.exports = async (deployer, network, accounts) => {
+  // Initialize OZ project
+  await initProject(network, accounts[0]);
 
-  if (projectFile.exists()) {
-    return;
-  }
-
-  await init({
-    name,
-    version
-  });
-};
-
-module.exports = async (deployer, networkName, accounts) => {
-  const { network } = await ConfigManager.initNetworkConfiguration({
-    network: networkName,
-    from: accounts[0]
-  });
-
-  await initProject(network);
-
-  deployer.deploy(Migrations);
+  return deployer.deploy(Migrations);
 };

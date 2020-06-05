@@ -1,6 +1,6 @@
-const { deployContract } = require('./util');
+const { deployContract } = require('../util/openzeppelin');
 
-module.exports = (deployer, networkName, accounts) =>
+module.exports = (deployer, network, accounts) =>
   deployer.then(async () => {
-    await deployContract('Vault', networkName, accounts[0]);
+    await deployContract('Vault', network, accounts[0]);
   });

@@ -1,3 +1,3 @@
 module.exports = {
-  rpcAPI: 'http://10.0.18.12:8545'
+  rpcAPI: 'http://3.230.69.118:8545'
 };

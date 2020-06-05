@@ -1,4 +1,4 @@
-const { deployContract } = require('./util');
+const { deployContract } = require('../util/openzeppelin');
 
 module.exports = (deployer, networkName, accounts) =>
   deployer
