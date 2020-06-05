@@ -4,7 +4,7 @@ pragma solidity ^0.5.8;
 import "@openzeppelin/upgrades/contracts/Initializable.sol";
 import "@openzeppelin/upgrades/contracts/application/App.sol";
 import "./interfaces/IArchive.sol";
-import "./interfaces/IVault.sol";
+import "./VaultAdmin.sol";
 
 
 contract VaultFactory is Initializable {
@@ -14,6 +14,7 @@ contract VaultFactory is Initializable {
     IArchive public archive;
 
     event InstanceCreated(address);
+    event AdminCreated(address);
     event InstanceArchived(address, address);
 
     function initialize(App _app, IArchive _archive) public initializer {
@@ -27,23 +28,32 @@ contract VaultFactory is Initializable {
             "Insufficient funds for initial deposit"
         );
 
+        address vaultOwner = msg.sender;
+
+        // Create a vault admin for managing the user's vault upgradeability
+        VaultAdmin vaultAdmin = new VaultAdmin();
+        vaultAdmin.initialize(app, vaultOwner);
+        address adminAddress = address(vaultAdmin);
+
         string memory packageName = "autonomous-voter";
         string memory contractName = "Vault";
-        address admin = msg.sender;
 
+        // Create the actual vault instance
         address vaultAddress = address(
             app.create.value(msg.value)(
                 packageName,
                 contractName,
-                address(app),
+                adminAddress,
                 _data
             )
         );
 
         emit InstanceCreated(vaultAddress);
 
-        archive.updateVault(vaultAddress, admin);
+        emit AdminCreated(adminAddress);
 
-        emit InstanceArchived(vaultAddress, admin);
+        archive.updateVault(vaultAddress, vaultOwner);
+
+        emit InstanceArchived(vaultAddress, vaultOwner);
     }
 }

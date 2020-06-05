@@ -31,12 +31,12 @@ describe('Vault', function () {
 
   describe('Instance', function () {
     describe('Initialize', function () {
-      it('should initialize with a Registry contract and admin address', async function () {
+      it('should initialize with a Vault admin with proper access control', async function () {
         const Vault = await BaseAdminUpgradeabilityProxy.at(this.vault.address);
-        const isAdmin = await Vault.admin.call({ from: this.address.appContract });
+        const adminAddress = await Vault.admin.call({ from: this.vaultAdmin.address });
 
-        await expect(Vault.admin.call(this.defaultTx)).to.be.rejectedWith(Error);
-        expect(isAdmin).to.equal(this.address.appContract);
+        expect(Vault.admin.call(this.defaultTx)).to.be.rejectedWith(Error);
+        expect(adminAddress).to.be.equal(this.vaultAdmin.address);
       });
 
       it('should have a registered Celo account', async function () {
@@ -44,9 +44,8 @@ describe('Vault', function () {
         expect(await accounts.isAccount(this.vault.address)).to.equal(true);
       });
 
-      it('should have the owner address whitelisted as an admin', async function () {
-        expect(await this.vault.isWhitelistAdmin(this.address.secondary)).to.equal(false);
-        expect(await this.vault.isWhitelistAdmin(this.address.primary)).to.equal(true);
+      it('should be setting the owner account as vault owner', async function () {
+        expect(await this.vault.owner()).to.equal(this.address.primary);
       });
 
       it('should have an initial deposit', async function () {
@@ -72,8 +71,24 @@ describe('Vault', function () {
             value: this.defaultTxValue
           })
         ).to.be.rejectedWith(
-          'Returned error: VM Exception while processing transaction: revert WhitelistAdminRole: caller does not have the WhitelistAdmin role -- Reason given: WhitelistAdminRole: caller does not have the WhitelistAdmin role.'
+          'Returned error: VM Exception while processing transaction: revert Ownable: caller is not the owner -- Reason given: Ownable: caller is not the owner.'
         );
+      });
+    });
+  });
+
+  describe('Admin', function () {
+    describe('Initialize', function () {
+      it('should have a vault-admin instance with valid address created for the user vault', async function () {
+        expect(await this.vault.vaultAdmin()).to.be.equal(this.vaultAdmin.address);
+      });
+
+      it('should only allow access for vault upgrade to the vault owner', async function () {
+        await expect(
+          this.vaultAdmin.upgradeVault(this.vault.address, { from: this.address.secondary })
+        ).to.be.rejectedWith('Returned error: VM Exception while processing transaction: revert');
+
+        await expect(this.vaultAdmin.upgradeVault(this.vault.address, this.defaultTx)).to.be.fulfilled;
       });
     });
   });
