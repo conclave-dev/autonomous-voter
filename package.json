@@ -4,14 +4,11 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "dev": "./ganache/baklava.sh",
-    "lint": "eslint './**/*.js' && solhint -c .solhint_config.json -ignore_path .solhintignore './contracts/**/*.sol'",
-    "format": "prettier --write './contracts/**/*.sol'",
-    "format:staged": "pretty-quick --staged",
     "setup": "./scripts/setup.sh",
-    "nuke": "rm -rf .openzeppelin/ && rm -rf build/",
-    "test": "mocha --exit --recursive --timeout 30000",
-    "test:ci": "npm run nuke && npm run setup && npm run test"
+    "lint": "eslint './**/*.js' --ignore-path .custom.eslintignore && solhint -c .solhint_config.json -ignore_path .solhintignore './contracts/**/*.sol'",
+    "format": "prettier --write './contracts/**/*.sol'",
+    "test:ci": "npm run setup",
+    "truffle": "truffle migrate --network"
   },
   "husky": {
     "hooks": {
@@ -33,7 +30,6 @@
     "@celo/contractkit": "^0.4.5",
     "@openzeppelin/cli": "^2.8.2",
     "@openzeppelin/contracts-ethereum-package": "^2.4.0",
-    "@openzeppelin/test-environment": "^0.1.4",
     "@openzeppelin/upgrades": "^2.8.0",
     "bignumber.js": "^9.0.0",
     "chai": "^4.2.0",
