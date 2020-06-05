@@ -1,95 +1,56 @@
-const { contract } = require('@openzeppelin/test-environment');
+const BigNumber = require('bignumber.js');
 const { encodeCall } = require('@openzeppelin/upgrades');
-const { expect } = require('./setup');
+const { assert, expect, loader, contracts, kit } = require('./setup');
+const { primarySenderAddress, secondarySenderAddress, registryContractAddress } = require('../config');
 
-const BaseAdminUpgradeabilityProxy = contract.fromArtifact('BaseAdminUpgradeabilityProxy');
+const { VaultFactory } = contracts;
 
-describe('Vault', function () {
-  describe('Factory', function () {
-    describe('Initialize', function () {
-      it('should initialize with an App address', async function () {
-        expect(typeof this.vaultFactory.address).to.equal('string');
-        expect(this.vaultFactory.address.length).to.equal(42);
-        expect(this.vaultFactory.address).to.not.equal(this.address.zero);
-      });
+describe('Vault', () => {
+  before(async () => {
+    const { logs } = await VaultFactory.createInstance(
+      encodeCall('initializeVault', ['address', 'address'], [registryContractAddress, primarySenderAddress]),
+      {
+        from: primarySenderAddress,
+        value: new BigNumber('1e17')
+      }
+    );
 
-      it('should not create a vault instance with insufficient initial deposit', async function () {
-        const vaultInitializeCall = encodeCall('initialize', ['address'], [this.address.registryContract]);
-        const depositAmount = '0';
+    this.vault = loader.truffle.fromArtifact('Vault', logs[0].args[0]);
+  });
 
-        await expect(
-          this.vaultFactory.createInstance(vaultInitializeCall, {
-            from: this.address.primary,
-            value: depositAmount
-          })
-        ).to.be.rejectedWith(
-          'Returned error: VM Exception while processing transaction: revert Insufficient funds for initial deposit -- Reason given: Insufficient funds for initial deposit.'
-        );
-      });
+  describe('initializeVault(address registry, address owner)', () => {
+    it('should initialize with an owner and register a Celo account', async () => {
+      const accounts = await kit.contracts.getAccounts();
+
+      assert.equal(await this.vault.owner(), primarySenderAddress, 'Does not have owner set');
+      assert.equal(await accounts.isAccount(this.vault.address), true, 'Not a registered Celo account');
     });
   });
 
-  describe('Instance', function () {
-    describe('Initialize', function () {
-      it('should initialize with a Vault admin with proper access control', async function () {
-        const Vault = await BaseAdminUpgradeabilityProxy.at(this.vault.address);
-        const adminAddress = await Vault.admin.call({ from: this.vaultAdmin.address });
+  describe('deposit()', () => {
+    it('should enable owners to make deposits', async () => {
+      const deposits = new BigNumber(await this.vault.unmanagedGold());
+      const newDeposit = 1;
 
-        expect(Vault.admin.call(this.defaultTx)).to.be.rejectedWith(Error);
-        expect(adminAddress).to.be.equal(this.vaultAdmin.address);
+      await this.vault.deposit({
+        from: primarySenderAddress,
+        value: newDeposit
       });
 
-      it('should have a registered Celo account', async function () {
-        const accounts = await this.kit.contracts.getAccounts();
-        expect(await accounts.isAccount(this.vault.address)).to.equal(true);
-      });
-
-      it('should be setting the owner account as vault owner', async function () {
-        expect(await this.vault.owner()).to.equal(this.address.primary);
-      });
-
-      it('should have an initial deposit', async function () {
-        expect((await this.vault.unmanagedGold()).toString()).to.equal(this.defaultTxValue.toString());
-      });
+      assert.equal(
+        new BigNumber(await this.vault.unmanagedGold()).toFixed(0),
+        deposits.plus(newDeposit).toFixed(0),
+        'Deposits did not increase'
+      );
     });
 
-    describe('Deposit', function () {
-      it('should be able to deposit using owner account', async function () {
-        const totalDeposit = this.defaultTxValue.plus(this.defaultTxValue).toString();
-
-        await this.vault.deposit({
-          from: this.address.primary,
-          value: this.defaultTxValue.toString()
-        });
-        expect((await this.vault.unmanagedGold()).toString()).to.equal(totalDeposit);
-      });
-
-      it('should not be able to deposit using non-owner account', async function () {
-        await expect(
-          this.vault.deposit({
-            from: this.address.secondary,
-            value: this.defaultTxValue
-          })
-        ).to.be.rejectedWith(
-          'Returned error: VM Exception while processing transaction: revert Ownable: caller is not the owner -- Reason given: Ownable: caller is not the owner.'
-        );
-      });
-    });
-  });
-
-  describe('Admin', function () {
-    describe('Initialize', function () {
-      it('should have a vault-admin instance with valid address created for the user vault', async function () {
-        expect(await this.vault.vaultAdmin()).to.be.equal(this.vaultAdmin.address);
-      });
-
-      it('should only allow access for vault upgrade to the vault owner', async function () {
-        await expect(
-          this.vaultAdmin.upgradeVault(this.vault.address, { from: this.address.secondary })
-        ).to.be.rejectedWith('Returned error: VM Exception while processing transaction: revert');
-
-        await expect(this.vaultAdmin.upgradeVault(this.vault.address, this.defaultTx)).to.be.fulfilled;
-      });
+    it('should not be able to deposit from a non-owner account', async () => {
+      await expect(
+        this.vault.deposit({
+          from: secondarySenderAddress,
+          value: 1
+        })
+      ).to.be.rejectedWith(Error);
     });
   });
 });

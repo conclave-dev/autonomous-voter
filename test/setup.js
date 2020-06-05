@@ -1,18 +1,19 @@
 const { expect, assert } = require('chai').use(require('chai-as-promised'));
 const { setupLoader } = require('@openzeppelin/contract-loader');
-const { primarySenderAddress } = require('../config');
+const { newKit } = require('@celo/contractkit');
+const { primarySenderAddress, rpcAPI } = require('../config');
 
 const loader = setupLoader({
-  provider: 'http://3.230.69.118:8545',
+  provider: rpcAPI,
   defaultSender: primarySenderAddress,
   defaultGas: '20000000',
   defaultGasPrice: '100000000000'
 });
 
-const Vault = loader.truffle.fromArtifact('Vault', '0x01cEd4440F66f91733faA2252743Af17B25F9753');
-const VaultFactory = loader.truffle.fromArtifact('VaultFactory', '0x38d4df14e5Eff055128F2128c9B94Ec423558Ac6');
-const App = loader.truffle.fromArtifact('App', '0x68E20cd7633268075BbEe4e1cd6Ce25D75aef0dd');
-const Archive = loader.truffle.fromArtifact('Archive', '0xb88435460371c754dbAEceeDc32FFb726C266111');
+const Vault = loader.truffle.fromArtifact('Vault', '0x2e99Be3b0162Ad3b5740327e85e16E9ee3d1856e');
+const VaultFactory = loader.truffle.fromArtifact('VaultFactory', '0xB0F2462850A4DedCc129C118d0d57fD204A49d2f');
+const App = loader.truffle.fromArtifact('App', '0x8a049301180abb94F53d984f9a017Cb3A5B2CC80');
+const Archive = loader.truffle.fromArtifact('Archive', '0x90D22168Aee3392F2FDfD0C66eF10F1d6ffCb7b8');
 
 module.exports = {
   expect,
@@ -23,5 +24,6 @@ module.exports = {
     VaultFactory,
     App,
     Archive
-  }
+  },
+  kit: newKit(rpcAPI)
 };
