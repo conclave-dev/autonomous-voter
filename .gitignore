@@ -104,7 +104,6 @@ dist
 .tern-port
 
 # Contracts
-.openzeppelin/.session
 build/contracts
 
 # Misc
