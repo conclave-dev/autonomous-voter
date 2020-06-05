@@ -11,7 +11,7 @@ import "./VaultAdmin.sol";
 contract VaultFactory is Initializable {
     uint256 public constant MINIMUM_DEPOSIT = 100000000000000000;
 
-    App private app;
+    App public app;
     IArchive public archive;
 
     event InstanceCreated(address);
