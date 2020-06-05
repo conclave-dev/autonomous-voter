@@ -2,7 +2,8 @@
   "manifestVersion": "2.2",
   "contracts": {
     "Vault": "Vault",
-    "VaultFactory": "VaultFactory"
+    "VaultFactory": "VaultFactory",
+    "Archive": "Archive"
   },
   "dependencies": {},
   "name": "autonomous-voter",
