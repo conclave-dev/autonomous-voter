@@ -11,7 +11,7 @@ import "@openzeppelin/contracts-ethereum-package/contracts/ownership/Ownable.sol
  * It handles the creation of proxies.
  */
 contract App is Initializable, Ownable {
-    mapping (string => address) contractImplementations;
+    mapping(string => address) contractImplementations;
 
     /**
      * @dev Emitted when a new vault proxy is created.
@@ -28,7 +28,10 @@ contract App is Initializable, Ownable {
      * @param contractName Name of the contract to be updated.
      * @param implementation Address of the contract implementation to be used.
      */
-    function setImplementation(string memory contractName, address implementation) public onlyOwner {
+    function setImplementation(
+        string memory contractName,
+        address implementation
+    ) public onlyOwner {
         require(implementation != address(0), "Invalid implementation address");
         contractImplementations[contractName] = implementation;
     }
@@ -43,11 +46,11 @@ contract App is Initializable, Ownable {
      * This parameter is optional, if no data is given the initialization call to proxied contract will be skipped.
      * @return Address of the new proxy.
      */
-    function create(string memory contractName, address admin, bytes memory data)
-        public
-        payable
-        returns (AdminUpgradeabilityProxy)
-    {
+    function create(
+        string memory contractName,
+        address admin,
+        bytes memory data
+    ) public payable returns (AdminUpgradeabilityProxy) {
         address implementation = contractImplementations[contractName];
         require(implementation != address(0), "Implementation not found");
 
