@@ -13,7 +13,8 @@
       {
         "varsIgnorePattern": "should|expect"
       }
-    ]
+    ],
+    "mocha/no-mocha-arrows": 0
   },
   "parserOptions": {
     "ecmaVersion": 8

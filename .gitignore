@@ -104,10 +104,7 @@ dist
 .tern-port
 
 # Contracts
-.openzeppelin/
 build/contracts
-
-.openzeppelin/.session
 
 # Misc
 **/.DS_Store
