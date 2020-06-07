@@ -7,7 +7,7 @@ import "./celo/common/UsingRegistry.sol";
 contract Vault is UsingRegistry {
     event UserDeposit(uint256);
 
-    address public vaultAdmin;
+    address public proxyAdmin;
     uint256 public unmanagedGold;
 
     function initializeVault(address registry, address owner)
@@ -27,9 +27,9 @@ contract Vault is UsingRegistry {
         _depositGold();
     }
 
-    function updateVaultAdmin(address admin) external onlyOwner {
+    function updateProxyAdmin(address admin) external onlyOwner {
         require(admin != address(0), "Invalid admin address");
-        vaultAdmin = admin;
+        proxyAdmin = admin;
     }
 
     function _registerAccount() internal {

@@ -5,7 +5,7 @@ import "@openzeppelin/upgrades/contracts/Initializable.sol";
 
 import "./App.sol";
 import "./interfaces/IArchive.sol";
-import "./VaultAdmin.sol";
+import "./ProxyAdmin.sol";
 
 
 contract VaultFactory is Initializable {
@@ -32,16 +32,16 @@ contract VaultFactory is Initializable {
         address vaultOwner = msg.sender;
 
         // Create a vault admin for managing the user's vault upgradeability
-        VaultAdmin vaultAdmin = new VaultAdmin();
-        vaultAdmin.initialize(app, vaultOwner);
-        address adminAddress = address(vaultAdmin);
+        ProxyAdmin proxyAdmin = new ProxyAdmin();
+        proxyAdmin.initialize(app, vaultOwner);
+        address adminAddress = address(proxyAdmin);
 
-        string memory packageName = "autonomous-voter";
+        // string memory packageName = "autonomous-voter";
         string memory contractName = "Vault";
 
         // Create the actual vault instance
         address vaultAddress = address(
-            app.create.value(msg.value)(adminAddress, _data)
+            app.create.value(msg.value)(contractName, adminAddress, _data)
         );
 
         emit InstanceCreated(vaultAddress);
