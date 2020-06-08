@@ -3,7 +3,6 @@ pragma solidity ^0.5.8;
 
 import "@openzeppelin/upgrades/contracts/Initializable.sol";
 import "@openzeppelin/contracts-ethereum-package/contracts/ownership/Ownable.sol";
-import "@openzeppelin/contracts-ethereum-package/contracts/math/SafeMath.sol" as _SafeMath;
 import "celo-monorepo/packages/protocol/contracts/common/UsingPrecompiles.sol";
 
 import "./celo/common/UsingRegistry.sol";
@@ -110,11 +109,7 @@ contract Archive is Initializable, Ownable, UsingRegistry, UsingPrecompiles {
 
     function hasEpochRewards(uint256 epochNumber) internal view returns (bool) {
         // Only checking activeVotes since there wouldn't be voter rewards if it were 0
-        if (epochRewards[epochNumber].activeVotes > 0) {
-            return true;
-        }
-
-        return false;
+        return epochRewards[epochNumber].activeVotes > 0;
     }
 
     function setEpochRewards(
@@ -126,8 +121,6 @@ contract Archive is Initializable, Ownable, UsingRegistry, UsingPrecompiles {
             epochNumber <= getEpochNumberOfBlock(block.number),
             "Invalid epochNumber"
         );
-        require(activeVotes >= 0, "Invalid activeVotes");
-        require(voterRewards >= 0, "Invalid voterRewards");
 
         epochRewards[epochNumber] = EpochRewards(activeVotes, voterRewards);
 
