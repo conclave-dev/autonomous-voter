@@ -10,10 +10,12 @@ const loader = setupLoader({
   defaultGasPrice: '100000000000'
 });
 
-const Vault = loader.truffle.fromArtifact('Vault', '0x2e99Be3b0162Ad3b5740327e85e16E9ee3d1856e');
-const VaultFactory = loader.truffle.fromArtifact('VaultFactory', '0xB0F2462850A4DedCc129C118d0d57fD204A49d2f');
-const App = loader.truffle.fromArtifact('App', '0x8a049301180abb94F53d984f9a017Cb3A5B2CC80');
-const Archive = loader.truffle.fromArtifact('Archive', '0x90D22168Aee3392F2FDfD0C66eF10F1d6ffCb7b8');
+const Vault = loader.truffle.fromArtifact('Vault', '0x872688F0CD7a5d6093D085F0f15a9986cE80dF0E');
+const VaultFactory = loader.truffle.fromArtifact('VaultFactory', '0x2cB6333633aCDA1bD1Fde9eE8b71553dAAC089BE');
+const Strategy = loader.truffle.fromArtifact('Vault', '0xe26444af8d1662697cF81672ed38212B1F4EE79E');
+const StrategyFactory = loader.truffle.fromArtifact('VaultFactory', '0x9307B271657064720952bDE4154C41EC5FCE646E');
+const App = loader.truffle.fromArtifact('App', '0x996d015a2a89228973A2805C3865684DaEd6c0e1');
+const Archive = loader.truffle.fromArtifact('Archive', '0x2623bD4fD733a10A865592C515e64771d56bC2f4');
 
 module.exports = {
   expect,
@@ -22,6 +24,8 @@ module.exports = {
   contracts: {
     Vault,
     VaultFactory,
+    Strategy,
+    StrategyFactory,
     App,
     Archive
   },

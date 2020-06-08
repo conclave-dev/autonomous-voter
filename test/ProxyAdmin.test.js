@@ -5,7 +5,7 @@ const { primarySenderAddress, secondarySenderAddress, registryContractAddress } 
 
 const { VaultFactory } = contracts;
 
-describe('VaultAdmin', () => {
+describe('ProxyAdmin', () => {
   before(async () => {
     const { logs } = await VaultFactory.createInstance(
       encodeCall('initializeVault', ['address', 'address'], [registryContractAddress, primarySenderAddress]),
@@ -17,18 +17,22 @@ describe('VaultAdmin', () => {
     const [instanceCreated, adminCreated] = logs;
 
     this.vault = loader.truffle.fromArtifact('Vault', instanceCreated.args[0]);
-
-    await this.vault.updateVaultAdmin(adminCreated.args[0]);
+    console.log(this.vault.updateProxyAdmin);
+    try {
+      await this.vault.updateProxyAdmin(adminCreated.args[0], { from: primarySenderAddress });
+    } catch (err) {
+      console.log(err);
+    }
   });
 
   describe('initialize(App _app, address _owner)', () => {
     it('should only allow the owner to upgrade', async () => {
-      const vaultAdmin = await loader.truffle.fromArtifact('VaultAdmin', await this.vault.vaultAdmin());
+      const proxyAdmin = await loader.truffle.fromArtifact('ProxyAdmin', await this.vault.proxyAdmin());
 
       await expect(
-        vaultAdmin.upgradeVault(this.vault.address, this.vault.address, { from: secondarySenderAddress })
+        proxyAdmin.upgradeProxy(this.vault.address, this.vault.address, { from: secondarySenderAddress })
       ).to.be.rejectedWith(Error);
-      await expect(vaultAdmin.upgradeVault(this.vault.address, this.vault.address)).to.be.fulfilled;
+      await expect(proxyAdmin.upgradeProxy(this.vault.address, this.vault.address)).to.be.fulfilled;
     });
   });
 });
