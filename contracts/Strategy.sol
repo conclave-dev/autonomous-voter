@@ -14,11 +14,12 @@ contract Strategy is Ownable {
 
     event VaultRegistered(address, uint256, uint256);
 
-    function initializeStrategy(IArchive _archive, address _owner, uint256 _sharePercentage, uint256 _minimumGold)
-        public
-        payable
-        initializer
-    {
+    function initializeStrategy(
+        IArchive _archive,
+        address _owner,
+        uint256 _sharePercentage,
+        uint256 _minimumGold
+    ) public payable initializer {
         Ownable.initialize(_owner);
 
         archive = _archive;

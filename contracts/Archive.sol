@@ -23,7 +23,10 @@ contract Archive is Initializable, Ownable {
     }
 
     modifier onlyStrategyFactory() {
-        require(msg.sender == strategyFactory, "Sender is not strategy factory");
+        require(
+            msg.sender == strategyFactory,
+            "Sender is not strategy factory"
+        );
         _;
     }
 
