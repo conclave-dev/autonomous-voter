@@ -1,6 +1,6 @@
 const Archive = artifacts.require('Archive');
 const VaultFactory = artifacts.require('VaultFactory');
-const StrategyFactory = artifacts.require('VaultFactory');
+const StrategyFactory = artifacts.require('StrategyFactory');
 
 module.exports = async (deployer) => {
   deployer.then(async () => {
