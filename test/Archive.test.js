@@ -1,7 +1,14 @@
 const { encodeCall } = require('@openzeppelin/upgrades');
 const BigNumber = require('bignumber.js');
 const { assert, expect, contracts } = require('./setup');
-const { primarySenderAddress, secondarySenderAddress, registryContractAddress } = require('../config');
+const {
+  primarySenderAddress,
+  secondarySenderAddress,
+  registryContractAddress,
+  baklavaRpcAPI,
+  defaultGas,
+  defaultGasPrice
+} = require('../config');
 
 describe('Archive', () => {
   before(async () => {
@@ -10,9 +17,10 @@ describe('Archive', () => {
     this.strategyFactory = await contracts.StrategyFactory.deployed();
   });
 
-  describe('initialize(address _owner)', () => {
-    it('should initialize with an owner', async () => {
+  describe('initialize(address registry)', () => {
+    it('should initialize with an owner and registry', async () => {
       assert.equal(await this.archive.owner(), primarySenderAddress, 'Owner does not match sender');
+      assert.equal(await this.archive.registry(), registryContractAddress, 'Registry was incorrectly set');
     });
   });
 
@@ -65,6 +73,26 @@ describe('Archive', () => {
       const strategy = await contracts.Strategy.at(instanceCreated.args[0]);
 
       assert.equal(await strategy.owner(), instanceArchived.args[1], 'Strategy was not initialized with correct owner');
+    });
+  });
+
+  describe('setEpoch()', () => {
+    it('should set epoch', async () => {
+      const BaklavaArchive = require('@truffle/contract')(require('../build/contracts/Archive.json'));
+
+      BaklavaArchive.setProvider(baklavaRpcAPI);
+      BaklavaArchive.defaults({
+        from: '0xB950E83464D7BB84e7420e460DEEc2A7ced656aA',
+        gas: defaultGas,
+        gasPrice: defaultGasPrice
+      });
+
+      const baklavaArchive = await BaklavaArchive.deployed();
+      const { logs } = await baklavaArchive.setEpoch();
+      const { 0: voterRewards, 1: activeVotes } = logs[0].args;
+
+      assert.equal(!new BigNumber(voterRewards).isZero(), true, 'Voter rewards should be greater than zero');
+      assert.equal(!new BigNumber(activeVotes).isZero(), true, 'Voter rewards should be greater than zero');
     });
   });
 });

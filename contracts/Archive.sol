@@ -3,19 +3,33 @@ pragma solidity ^0.5.8;
 
 import "@openzeppelin/upgrades/contracts/Initializable.sol";
 import "@openzeppelin/contracts-ethereum-package/contracts/ownership/Ownable.sol";
+import "celo-monorepo/packages/protocol/contracts/common/UsingPrecompiles.sol";
+
+import "./celo/common/UsingRegistry.sol";
 import "./Vault.sol";
 import "./Strategy.sol";
 
-contract Archive is Initializable, Ownable {
-    address public vaultFactory;
-    address public strategyFactory;
+contract Archive is Initializable, Ownable, UsingRegistry, UsingPrecompiles {
+    // Epoch are used for accurately calculating the amount of rewards accrued
+    struct Epoch {
+        // Result from EpochRewards's calculateTargetEpochRewards() (2nd return value)
+        uint256 voterRewards;
+        // Result from Election's getActiveVotes()
+        uint256 activeVotes;
+    }
+
     mapping(address => address) public vaults;
     mapping(address => address) public strategies;
+    mapping(uint256 => Epoch) private epochs;
+
+    address public vaultFactory;
+    address public strategyFactory;
 
     event VaultFactorySet(address);
     event StrategyFactorySet(address);
     event VaultUpdated(address, address);
     event StrategyUpdated(address, address);
+    event EpochSet(uint256, uint256);
 
     modifier onlyVaultFactory() {
         require(msg.sender == vaultFactory, "Sender is not vault factory");
@@ -30,8 +44,9 @@ contract Archive is Initializable, Ownable {
         _;
     }
 
-    function initialize(address _owner) public initializer {
-        Ownable.initialize(_owner);
+    function initialize(address registry) public initializer {
+        Ownable.initialize(msg.sender);
+        initializeRegistry(msg.sender, registry);
     }
 
     function setVaultFactory(address _vaultFactory) public onlyOwner {
@@ -88,5 +103,16 @@ contract Archive is Initializable, Ownable {
         strategies[account] = strategy;
 
         emit StrategyUpdated(msg.sender, strategy);
+    }
+
+    function setEpoch() public {
+        uint256 epochNumber = getEpochNumberOfBlock(block.number);
+        (, uint256 voterRewards, , ) = getEpochRewards()
+            .calculateTargetEpochRewards();
+        uint256 activeVotes = getElection().getActiveVotes();
+
+        epochs[epochNumber] = Epoch(voterRewards, activeVotes);
+
+        emit EpochSet(voterRewards, activeVotes);
     }
 }
