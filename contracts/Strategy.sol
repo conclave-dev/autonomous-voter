@@ -3,6 +3,7 @@ pragma solidity ^0.5.8;
 
 import "@openzeppelin/contracts-ethereum-package/contracts/ownership/Ownable.sol";
 import "./interfaces/IArchive.sol";
+import "./Vault.sol";
 
 contract Strategy is Ownable {
     IArchive public archive;
@@ -45,14 +46,25 @@ contract Strategy is Ownable {
         minimumManagedGold = amount;
     }
 
+    function getRewardSharePercentage() external view returns (uint256) {
+        return rewardSharePercentage;
+    }
+
+    function getMinimumManagedGold() external view returns (uint256) {
+        return minimumManagedGold;
+    }
+
     function registerVault(
-        address vaultOwner,
         uint256 strategyIndex,
         uint256 amount
     ) external {
         // Crosscheck the Archive to make sure that `msg.sender` is a valid vault instance with proper owner
-        address vaultAddress = archive.getVault(vaultOwner);
+        address vaultAddress = archive.getVault(Vault(msg.sender).owner());
         require(vaultAddress != msg.sender, "Invalid vault");
+
+        require(amount >= minimumManagedGold, "Insufficient gold");
+
+        managedGold[vaultAddress][strategyIndex] = amount;
 
         emit VaultRegistered(vaultAddress, strategyIndex, amount);
     }

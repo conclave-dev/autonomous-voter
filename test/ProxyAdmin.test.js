@@ -5,8 +5,13 @@ const { primarySenderAddress, secondarySenderAddress, registryContractAddress } 
 
 describe('ProxyAdmin', () => {
   before(async () => {
+    this.archive = await contracts.Archive.deployed();
+
     const { logs } = await (await contracts.VaultFactory.deployed()).createInstance(
-      encodeCall('initializeVault', ['address', 'address'], [registryContractAddress, primarySenderAddress]),
+      encodeCall(
+        'initializeVault',
+        ['address', 'address', 'address'],
+        [registryContractAddress, this.archive.address, primarySenderAddress]),
       {
         value: new BigNumber('1e17')
       }

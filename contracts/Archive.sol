@@ -64,6 +64,10 @@ contract Archive is Initializable, Ownable {
         return vaults[owner];
     }
 
+    function getStrategy(address owner) external view returns (address) {
+        return strategies[owner];
+    }
+
     function updateVault(address vault, address account)
         public
         onlyVaultFactory

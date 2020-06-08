@@ -32,7 +32,11 @@ describe('Archive', () => {
   describe('updateVault(address vault, address proxyAdmin)', () => {
     it('should initialize vault', async () => {
       const { logs: events } = await this.vaultFactory.createInstance(
-        encodeCall('initializeVault', ['address', 'address'], [registryContractAddress, primarySenderAddress]),
+        encodeCall(
+          'initializeVault',
+          ['address', 'address', 'address'],
+          [registryContractAddress, this.archive.address, primarySenderAddress]
+        ),
         {
           value: new BigNumber(1).multipliedBy('1e17')
         }
