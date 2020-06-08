@@ -1,7 +1,7 @@
 const BigNumber = require('bignumber.js');
 const { encodeCall } = require('@openzeppelin/upgrades');
 const { assert, expect, contracts } = require('./setup');
-const { primarySenderAddress } = require('../config');
+const { primarySenderAddress, secondarySenderAddress } = require('../config');
 
 describe('Strategy', () => {
   before(async () => {
@@ -29,7 +29,7 @@ describe('Strategy', () => {
       assert.equal(
         (await this.strategy.rewardSharePercentage()).toString(),
         this.rewardSharePercentage,
-        'Invalid share percentage'
+        'Invalid reward share percentage'
       );
 
       assert.equal(
@@ -37,6 +37,44 @@ describe('Strategy', () => {
         this.minimumManagedGold,
         'Invalid minimum managed gold'
       );
+    });
+  });
+
+  describe('updateRewardSharePercentage(uint256 rewardSharePercentage)', () => {
+    it('should update the reward share percentage', async () => {
+      this.rewardSharePercentage = '20';
+
+      await this.strategy.updateRewardSharePercentage(this.rewardSharePercentage);
+
+      assert.equal(
+        (await this.strategy.rewardSharePercentage()).toString(),
+        this.rewardSharePercentage,
+        'Failed to update reward share percentage'
+      );
+    });
+
+    it('should not be able to update the share percentage from a non-owner account', async () => {
+      await expect(this.strategy.updateRewardSharePercentage({ from: secondarySenderAddress })).to.be.rejectedWith(
+        Error
+      );
+    });
+  });
+
+  describe('updateMinimumManagedGold(uint256 minimumManagedGold)', () => {
+    it('should update the minimum managed gold', async () => {
+      this.minimumManagedGold = new BigNumber('1e17').toString();
+
+      await this.strategy.updateMinimumManagedGold(this.minimumManagedGold);
+
+      assert.equal(
+        (await this.strategy.minimumManagedGold()).toString(),
+        this.minimumManagedGold,
+        'Failed to update minimum managed gold'
+      );
+    });
+
+    it('should not be able to update the minimum managed gold from a non-owner account', async () => {
+      await expect(this.strategy.updateMinimumManagedGold({ from: secondarySenderAddress })).to.be.rejectedWith(Error);
     });
   });
 });
