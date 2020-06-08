@@ -6,7 +6,6 @@ import "@openzeppelin/contracts-ethereum-package/contracts/ownership/Ownable.sol
 
 import "./App.sol";
 
-
 contract ProxyAdmin is Ownable {
     App private app;
 

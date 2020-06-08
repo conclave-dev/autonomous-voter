@@ -7,7 +7,6 @@ import "./App.sol";
 import "./interfaces/IArchive.sol";
 import "./ProxyAdmin.sol";
 
-
 contract VaultFactory is Initializable {
     uint256 public constant MINIMUM_DEPOSIT = 100000000000000000;
 

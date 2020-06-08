@@ -6,7 +6,6 @@ import "@openzeppelin/contracts-ethereum-package/contracts/ownership/Ownable.sol
 import "./Vault.sol";
 import "./Strategy.sol";
 
-
 contract Archive is Initializable, Ownable {
     address public vaultFactory;
     address public strategyFactory;
@@ -24,7 +23,7 @@ contract Archive is Initializable, Ownable {
     }
 
     modifier onlyStrategyFactory() {
-        require(msg.sender == vaultFactory, "Sender is not vault factory");
+        require(msg.sender == strategyFactory, "Sender is not strategy factory");
         _;
     }
 

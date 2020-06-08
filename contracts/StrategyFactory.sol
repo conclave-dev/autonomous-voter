@@ -7,7 +7,6 @@ import "./App.sol";
 import "./interfaces/IArchive.sol";
 import "./ProxyAdmin.sol";
 
-
 contract StrategyFactory is Initializable {
     App public app;
     IArchive public archive;

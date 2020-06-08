@@ -4,7 +4,6 @@ pragma solidity ^0.5.8;
 import "@openzeppelin/contracts-ethereum-package/contracts/ownership/Ownable.sol";
 import "./interfaces/IArchive.sol";
 
-
 contract Strategy is Ownable {
     IArchive public archive;
     address public proxyAdmin;
@@ -15,9 +14,16 @@ contract Strategy is Ownable {
 
     event VaultRegistered(address, uint256, uint256);
 
-    function initialize(address _owner, IArchive _archive) public initializer {
+    function initializeStrategy(IArchive _archive, address _owner, uint256 _sharePercentage, uint256 _minimumGold)
+        public
+        payable
+        initializer
+    {
         Ownable.initialize(_owner);
+
         archive = _archive;
+        rewardSharePercentage = _sharePercentage;
+        minimumManagedGold = _minimumGold;
     }
 
     function updateProxyAdmin(address admin) external onlyOwner {
@@ -29,12 +35,12 @@ contract Strategy is Ownable {
         external
         onlyOwner
     {
-        require(percentage > 0, "Invalid percentage");
+        require(percentage > 0, "Invalid reward share percentage");
         rewardSharePercentage = percentage;
     }
 
     function updateMinimumManagedGold(uint256 amount) external onlyOwner {
-        require(amount > 0, "Invalid percentage");
+        require(amount > 0, "Invalid cGold amount");
         minimumManagedGold = amount;
     }
 

@@ -4,14 +4,13 @@ import "@openzeppelin/upgrades/contracts/upgradeability/AdminUpgradeabilityProxy
 import "@openzeppelin/upgrades/contracts/Initializable.sol";
 import "@openzeppelin/contracts-ethereum-package/contracts/ownership/Ownable.sol";
 
-
 /**
  * @title App
  * @dev Contract for upgradeable applications.
  * It handles the creation of proxies.
  */
 contract App is Initializable, Ownable {
-    mapping(string => address) contractImplementations;
+    mapping(string => address) private contractImplementations;
 
     /**
      * @dev Emitted when a new vault proxy is created.
