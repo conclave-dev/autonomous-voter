@@ -3,7 +3,7 @@ const Vault = artifacts.require('Vault');
 const Strategy = artifacts.require('Strategy');
 
 module.exports = async (deployer) => {
-  await deployer.deploy(App, { overwrite: false });
+  await deployer.deploy(App);
 
   const app = await App.deployed();
   const { address: vaultAddress } = await Vault.deployed();
