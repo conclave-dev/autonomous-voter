@@ -36,8 +36,8 @@ contract VaultFactory is Initializable {
         vaultAdmin.initialize(app, vaultOwner);
         address adminAddress = address(vaultAdmin);
 
-        string memory packageName = "autonomous-voter";
-        string memory contractName = "Vault";
+        // string memory packageName = "autonomous-voter";
+        // string memory contractName = "Vault";
 
         // Create the actual vault instance
         address vaultAddress = address(

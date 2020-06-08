@@ -1,6 +1,6 @@
 version: 2.1
 orbs:
-  node: circleci/node@2.1.1
+  node: circleci/node@3.0.0
 jobs:
   build-and-test:
     executor:
@@ -8,10 +8,18 @@ jobs:
       tag: '10.19.0'
     steps:
       - checkout
+      - add_ssh_keys:
+          fingerprints:
+            - '2f:69:9d:5b:a6:92:ff:8c:56:f3:32:e0:65:70:25:0f'
       - node/install-packages
       - run:
-          command: npm run test:ci
+          command: npm run build -- alfajores
+      - run:
+          command: npm run truffle:migrate -- alfajores
+      - run:
+          command: npm test
+
 workflows:
-    build-and-test:
-      jobs:
-        - build-and-test
+  build-and-test:
+    jobs:
+      - build-and-test

@@ -1,21 +1,18 @@
 const BigNumber = require('bignumber.js');
 const { encodeCall } = require('@openzeppelin/upgrades');
-const { assert, expect, loader, contracts, kit } = require('./setup');
+const { assert, expect, contracts, kit } = require('./setup');
 const { primarySenderAddress, secondarySenderAddress, registryContractAddress } = require('../config');
-
-const { VaultFactory } = contracts;
 
 describe('Vault', () => {
   before(async () => {
-    const { logs } = await VaultFactory.createInstance(
+    const { logs } = await (await contracts.VaultFactory.deployed()).createInstance(
       encodeCall('initializeVault', ['address', 'address'], [registryContractAddress, primarySenderAddress]),
       {
-        from: primarySenderAddress,
         value: new BigNumber('1e17')
       }
     );
 
-    this.vault = loader.truffle.fromArtifact('Vault', logs[0].args[0]);
+    this.vault = await contracts.Vault.at(logs[0].args[0]);
   });
 
   describe('initializeVault(address registry, address owner)', () => {
@@ -33,7 +30,6 @@ describe('Vault', () => {
       const newDeposit = 1;
 
       await this.vault.deposit({
-        from: primarySenderAddress,
         value: newDeposit
       });
 
