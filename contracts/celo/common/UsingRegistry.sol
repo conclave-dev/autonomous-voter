@@ -9,7 +9,6 @@ import "celo-monorepo/packages/protocol/contracts/common/interfaces/IFeeCurrency
 import "celo-monorepo/packages/protocol/contracts/common/interfaces/IFreezer.sol";
 import "celo-monorepo/packages/protocol/contracts/common/interfaces/IRegistry.sol";
 
-import "celo-monorepo/packages/protocol/contracts/governance/interfaces/IElection.sol";
 import "celo-monorepo/packages/protocol/contracts/governance/interfaces/IGovernance.sol";
 import "celo-monorepo/packages/protocol/contracts/governance/interfaces/ILockedGold.sol";
 import "celo-monorepo/packages/protocol/contracts/governance/interfaces/IValidators.sol";
@@ -21,6 +20,10 @@ import "celo-monorepo/packages/protocol/contracts/stability/interfaces/IExchange
 import "celo-monorepo/packages/protocol/contracts/stability/interfaces/IReserve.sol";
 import "celo-monorepo/packages/protocol/contracts/stability/interfaces/ISortedOracles.sol";
 import "celo-monorepo/packages/protocol/contracts/stability/interfaces/IStableToken.sol";
+
+// AV: Use local, modified versions of Celo protocol contract interfaces
+import "../governance/interfaces/IElection.sol";
+import "../governance/interfaces/IEpochRewards.sol";
 
 contract UsingRegistry is Ownable {
   event RegistrySet(address indexed registryAddress);
@@ -49,6 +52,10 @@ contract UsingRegistry is Ownable {
   bytes32 constant SORTED_ORACLES_REGISTRY_ID = keccak256(abi.encodePacked("SortedOracles"));
   bytes32 constant STABLE_TOKEN_REGISTRY_ID = keccak256(abi.encodePacked("StableToken"));
   bytes32 constant VALIDATORS_REGISTRY_ID = keccak256(abi.encodePacked("Validators"));
+
+  // AV: Set EpochRewards registry ID constant
+  bytes32 constant EPOCH_REWARDS_REGISTRY_ID = keccak256(abi.encodePacked("EpochRewards"));
+
   // solhint-enable state-visibility
 
   IRegistry public registry;
@@ -123,5 +130,9 @@ contract UsingRegistry is Ownable {
 
   function getValidators() internal view returns (IValidators) {
     return IValidators(registry.getAddressForOrDie(VALIDATORS_REGISTRY_ID));
+  }
+
+  function getEpochRewards() internal view returns (IEpochRewards) {
+    return IEpochRewards(registry.getAddressForOrDie(EPOCH_REWARDS_REGISTRY_ID));
   }
 }
