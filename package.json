@@ -4,11 +4,10 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "build": "npm ci && ./scripts/setup.sh",
+    "build": "./scripts/setup.sh",
     "lint": "eslint './**/*.js' --ignore-path .custom.eslintignore && solhint -c .solhint_config.json -ignore_path .solhintignore './contracts/**/*.sol'",
     "format": "prettier --write ./**/*.js ./**/*.sol",
     "test": "mocha --exit --timeout 60000",
-    "test:ci": "npm run build -- alfajores && npm run truffle:compile -- alfajores && npm test",
     "truffle:compile": "truffle compile --network",
     "truffle:migrate": "truffle migrate --network"
   },
@@ -30,9 +29,9 @@
   "homepage": "https://github.com/conclave-dev/autonomous-voter#readme",
   "devDependencies": {
     "@celo/contractkit": "^0.4.5",
-    "@openzeppelin/contract-loader": "^0.6.1",
     "@openzeppelin/contracts-ethereum-package": "^2.4.0",
     "@openzeppelin/upgrades": "^2.8.0",
+    "@truffle/contract": "^4.2.8",
     "bignumber.js": "^9.0.0",
     "chai": "^4.2.0",
     "chai-as-promised": "^7.1.1",
@@ -42,6 +41,7 @@
     "eslint-plugin-prettier": "^3.1.3",
     "husky": "^4.2.5",
     "mocha": "^7.2.0",
+    "openzeppelin-solidity": "^2.5.1",
     "prettier": "^2.0.5",
     "prettier-plugin-solidity": "^1.0.0-alpha.52",
     "pretty-quick": "^2.0.1",
@@ -49,7 +49,6 @@
     "truffle": "^5.1.28"
   },
   "dependencies": {
-    "@truffle/contract": "^4.2.7",
     "solc": "^0.5.17"
   }
 }
