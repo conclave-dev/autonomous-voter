@@ -3,6 +3,7 @@ pragma solidity ^0.5.8;
 
 import "@openzeppelin/upgrades/contracts/Initializable.sol";
 import "@openzeppelin/contracts-ethereum-package/contracts/ownership/Ownable.sol";
+import "@openzeppelin/contracts-ethereum-package/contracts/math/SafeMath.sol" as _SafeMath;
 import "celo-monorepo/packages/protocol/contracts/common/UsingPrecompiles.sol";
 
 import "./celo/common/UsingRegistry.sol";
@@ -10,8 +11,10 @@ import "./Vault.sol";
 import "./Strategy.sol";
 
 contract Archive is Initializable, Ownable, UsingRegistry, UsingPrecompiles {
-    // Epoch are used for accurately calculating the amount of rewards accrued
-    struct Epoch {
+    using SafeMath for uint256;
+
+    // EpochRewards data is used to calculate an election group's voter rewards
+    struct EpochRewards {
         // Result from EpochRewards's calculateTargetEpochRewards() (2nd return value)
         uint256 voterRewards;
         // Result from Election's getActiveVotes()
@@ -20,7 +23,7 @@ contract Archive is Initializable, Ownable, UsingRegistry, UsingPrecompiles {
 
     mapping(address => address) public vaults;
     mapping(address => address) public strategies;
-    mapping(uint256 => Epoch) private epochs;
+    mapping(uint256 => EpochRewards) private epochRewards;
 
     address public vaultFactory;
     address public strategyFactory;
@@ -29,7 +32,7 @@ contract Archive is Initializable, Ownable, UsingRegistry, UsingPrecompiles {
     event StrategyFactorySet(address);
     event VaultUpdated(address, address);
     event StrategyUpdated(address, address);
-    event EpochSet(uint256, uint256);
+    event EpochRewardsSet(uint256, uint256, uint256);
 
     modifier onlyVaultFactory() {
         require(msg.sender == vaultFactory, "Sender is not vault factory");
@@ -105,14 +108,76 @@ contract Archive is Initializable, Ownable, UsingRegistry, UsingPrecompiles {
         emit StrategyUpdated(msg.sender, strategy);
     }
 
-    function setEpoch() public {
+    function hasEpochRewards(uint256 epochNumber) internal view returns (bool) {
+        // Only checking activeVotes since there wouldn't be voter rewards if it were 0
+        if (epochRewards[epochNumber].activeVotes > 0) {
+            return true;
+        }
+
+        return false;
+    }
+
+    function setEpochRewards(
+        uint256 epochNumber,
+        uint256 activeVotes,
+        uint256 voterRewards
+    ) internal returns (EpochRewards storage) {
+        require(
+            epochNumber <= getEpochNumberOfBlock(block.number),
+            "Invalid epochNumber"
+        );
+        require(activeVotes >= 0, "Invalid activeVotes");
+        require(voterRewards >= 0, "Invalid voterRewards");
+
+        epochRewards[epochNumber] = EpochRewards(activeVotes, voterRewards);
+
+        emit EpochRewardsSet(epochNumber, activeVotes, voterRewards);
+
+        return epochRewards[epochNumber];
+    }
+
+    function getEpochRewards(uint256 epochNumber)
+        public
+        view
+        returns (
+            uint256,
+            uint256,
+            uint256
+        )
+    {
+        return (
+            epochNumber,
+            epochRewards[epochNumber].activeVotes,
+            epochRewards[epochNumber].voterRewards
+        );
+    }
+
+    function setCurrentEpochRewards()
+        public
+        returns (
+            uint256,
+            uint256,
+            uint256
+        )
+    {
         uint256 epochNumber = getEpochNumberOfBlock(block.number);
+        EpochRewards storage currentEpochRewards = epochRewards[epochNumber];
+
+        if (hasEpochRewards(epochNumber)) {
+            return getEpochRewards(epochNumber);
+        }
+
+        // Retrieve epoch rewards data from protocol contracts
+        uint256 activeVotes = getElection().getActiveVotes();
         (, uint256 voterRewards, , ) = getEpochRewards()
             .calculateTargetEpochRewards();
-        uint256 activeVotes = getElection().getActiveVotes();
 
-        epochs[epochNumber] = Epoch(voterRewards, activeVotes);
+        setEpochRewards(epochNumber, activeVotes, voterRewards);
 
-        emit EpochSet(voterRewards, activeVotes);
+        return (
+            epochNumber,
+            currentEpochRewards.activeVotes,
+            currentEpochRewards.voterRewards
+        );
     }
 }

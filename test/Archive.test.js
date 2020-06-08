@@ -76,7 +76,7 @@ describe('Archive', () => {
     });
   });
 
-  describe('setEpoch()', () => {
+  describe('setCurrentEpochRewards()', () => {
     it('should set epoch', async () => {
       const BaklavaArchive = require('@truffle/contract')(require('../build/contracts/Archive.json'));
 
@@ -88,11 +88,17 @@ describe('Archive', () => {
       });
 
       const baklavaArchive = await BaklavaArchive.deployed();
-      const { logs } = await baklavaArchive.setEpoch();
-      const { 0: voterRewards, 1: activeVotes } = logs[0].args;
 
-      assert.equal(!new BigNumber(voterRewards).isZero(), true, 'Voter rewards should be greater than zero');
-      assert.equal(!new BigNumber(activeVotes).isZero(), true, 'Voter rewards should be greater than zero');
+      await baklavaArchive.setCurrentEpochRewards();
+
+      const baklavaKit = require('@celo/contractkit').newKit(baklavaRpcAPI);
+      const { 0: epochNumber, 1: activeVotes, 2: voterRewards } = await baklavaArchive.getEpochRewards(
+        await baklavaKit.getEpochNumberOfBlock(await baklavaKit.web3.eth.getBlockNumber())
+      );
+
+      assert.equal(!new BigNumber(epochNumber).isZero(), true, 'Invalid epochNumber');
+      assert.equal(!new BigNumber(activeVotes).isZero(), true, 'Invalid activeVotes');
+      assert.equal(!new BigNumber(voterRewards).isZero(), true, 'Invalid voterRewards');
     });
   });
 });
