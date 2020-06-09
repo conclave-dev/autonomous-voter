@@ -2,22 +2,38 @@
 pragma solidity ^0.5.8;
 
 import "./celo/common/UsingRegistry.sol";
-
+import "./interfaces/IStrategy.sol";
+import "./interfaces/IArchive.sol";
+import "./Strategy.sol";
 
 contract Vault is UsingRegistry {
-    event UserDeposit(uint256);
-
-    address public vaultAdmin;
+    IArchive public archive;
+    address public proxyAdmin;
     uint256 public unmanagedGold;
 
-    function initializeVault(address registry, address owner)
-        public
-        payable
-        initializer
-    {
+    struct ManagedGold {
+        address strategyAddress;
+        uint256 amount;
+        mapping(address => uint256) groupVotes;
+        address[] groupAddresses;
+        uint256 groupVotesActiveAtEpoch;
+        uint256 rewardSharePercentage;
+    }
+
+    ManagedGold[] public managedGold;
+
+    event UserDeposit(uint256);
+    event StrategyAdded(address, uint256);
+
+    function initializeVault(
+        address registry,
+        IArchive _archive,
+        address owner
+    ) public payable initializer {
         UsingRegistry.initializeRegistry(msg.sender, registry);
         Ownable.initialize(owner);
 
+        archive = _archive;
         _registerAccount();
         _depositGold();
     }
@@ -27,9 +43,46 @@ contract Vault is UsingRegistry {
         _depositGold();
     }
 
-    function updateVaultAdmin(address admin) external onlyOwner {
+    function addManagedGold(address strategyAddress, uint256 amount)
+        external
+        onlyOwner
+    {
+        require(
+            amount > 0 && amount <= unmanagedGold,
+            "Deposited funds must be > 0 and <= unmanaged gold"
+        );
+
+        // Crosscheck the validity of the specified strategy instance
+        require(
+            archive.getStrategy(Strategy(strategyAddress).owner()) ==
+                strategyAddress,
+            "Invalid strategy specified"
+        );
+
+        IStrategy strategy = IStrategy(strategyAddress);
+        uint256 rewardSharePercentage = strategy.getRewardSharePercentage();
+
+        // Initialize a new managedGold entry
+        uint256 strategyIndex = managedGold.length;
+
+        ManagedGold memory newManagedGold;
+        newManagedGold.strategyAddress = strategyAddress;
+        newManagedGold.amount = amount;
+        newManagedGold.groupVotesActiveAtEpoch = 0;
+        newManagedGold.rewardSharePercentage = rewardSharePercentage;
+
+        managedGold.push(newManagedGold);
+
+        unmanagedGold -= amount;
+
+        strategy.registerVault(strategyIndex, amount);
+
+        emit StrategyAdded(strategyAddress, amount);
+    }
+
+    function updateProxyAdmin(address admin) external onlyOwner {
         require(admin != address(0), "Invalid admin address");
-        vaultAdmin = admin;
+        proxyAdmin = admin;
     }
 
     function _registerAccount() internal {

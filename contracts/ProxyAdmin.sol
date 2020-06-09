@@ -1,4 +1,4 @@
-// contracts/VaultAdmin.sol
+// contracts/ProxyAdmin.sol
 pragma solidity ^0.5.8;
 
 import "@openzeppelin/upgrades/contracts/upgradeability/BaseAdminUpgradeabilityProxy.sol";
@@ -6,8 +6,7 @@ import "@openzeppelin/contracts-ethereum-package/contracts/ownership/Ownable.sol
 
 import "./App.sol";
 
-
-contract VaultAdmin is Ownable {
+contract ProxyAdmin is Ownable {
     App private app;
 
     function initialize(App _app, address _owner) public initializer {
@@ -15,7 +14,7 @@ contract VaultAdmin is Ownable {
         app = _app;
     }
 
-    function upgradeVault(
+    function upgradeProxy(
         BaseAdminUpgradeabilityProxy _proxy,
         address implementation
     ) public onlyOwner {

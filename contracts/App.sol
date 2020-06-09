@@ -4,26 +4,35 @@ import "@openzeppelin/upgrades/contracts/upgradeability/AdminUpgradeabilityProxy
 import "@openzeppelin/upgrades/contracts/Initializable.sol";
 import "@openzeppelin/contracts-ethereum-package/contracts/ownership/Ownable.sol";
 
-
 /**
  * @title App
  * @dev Contract for upgradeable applications.
  * It handles the creation of proxies.
  */
 contract App is Initializable, Ownable {
-    address public vault;
+    mapping(string => address) private contractImplementations;
 
     /**
-     * @dev Emitted when a new proxy is created.
+     * @dev Emitted when a new vault proxy is created.
      * @param proxy Address of the created proxy.
      */
-    event ProxyCreated(address proxy);
+    event ProxyCreated(string contractName, address proxy);
 
-    function initialize(address _vault) public initializer {
+    function initialize() public initializer {
         Ownable.initialize(msg.sender);
+    }
 
-        // Set the vault logic contract address
-        vault = _vault;
+    /**
+     * @dev Update the implementation address for the specified contractName
+     * @param contractName Name of the contract to be updated.
+     * @param implementation Address of the contract implementation to be used.
+     */
+    function setImplementation(
+        string memory contractName,
+        address implementation
+    ) public onlyOwner {
+        require(implementation != address(0), "Invalid implementation address");
+        contractImplementations[contractName] = implementation;
     }
 
     /**
@@ -36,15 +45,18 @@ contract App is Initializable, Ownable {
      * This parameter is optional, if no data is given the initialization call to proxied contract will be skipped.
      * @return Address of the new proxy.
      */
-    function create(address admin, bytes memory data)
-        public
-        payable
-        returns (AdminUpgradeabilityProxy)
-    {
+    function create(
+        string memory contractName,
+        address admin,
+        bytes memory data
+    ) public payable returns (AdminUpgradeabilityProxy) {
+        address implementation = contractImplementations[contractName];
+        require(implementation != address(0), "Implementation not found");
+
         AdminUpgradeabilityProxy proxy = (new AdminUpgradeabilityProxy).value(
             msg.value
-        )(vault, admin, data);
-        emit ProxyCreated(address(proxy));
+        )(implementation, admin, data);
+        emit ProxyCreated(contractName, address(proxy));
         return proxy;
     }
 }

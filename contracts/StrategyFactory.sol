@@ -1,4 +1,4 @@
-// contracts/VaultFactory.sol
+// contracts/StrategyFactory.sol
 pragma solidity ^0.5.8;
 
 import "@openzeppelin/upgrades/contracts/Initializable.sol";
@@ -7,9 +7,7 @@ import "./App.sol";
 import "./interfaces/IArchive.sol";
 import "./ProxyAdmin.sol";
 
-contract VaultFactory is Initializable {
-    uint256 public constant MINIMUM_DEPOSIT = 100000000000000000;
-
+contract StrategyFactory is Initializable {
     App public app;
     IArchive public archive;
 
@@ -23,32 +21,27 @@ contract VaultFactory is Initializable {
     }
 
     function createInstance(bytes memory _data) public payable {
-        require(
-            msg.value >= MINIMUM_DEPOSIT,
-            "Insufficient funds for initial deposit"
-        );
+        address strategyOwner = msg.sender;
 
-        address vaultOwner = msg.sender;
-
-        // Create a vault admin for managing the user's vault upgradeability
+        // Create a proxy admin for managing the new strategy instance's upgradeability
         ProxyAdmin proxyAdmin = new ProxyAdmin();
-        proxyAdmin.initialize(app, vaultOwner);
+        proxyAdmin.initialize(app, strategyOwner);
         address adminAddress = address(proxyAdmin);
 
         // string memory packageName = "autonomous-voter";
-        string memory contractName = "Vault";
+        string memory contractName = "Strategy";
 
-        // Create the actual vault instance
-        address vaultAddress = address(
+        // Create the actual strategy instance
+        address strategyAddress = address(
             app.create.value(msg.value)(contractName, adminAddress, _data)
         );
 
-        emit InstanceCreated(vaultAddress);
+        emit InstanceCreated(strategyAddress);
 
         emit AdminCreated(adminAddress);
 
-        archive.updateVault(vaultAddress, vaultOwner);
+        archive.updateStrategy(strategyAddress, strategyOwner);
 
-        emit InstanceArchived(vaultAddress, vaultOwner);
+        emit InstanceArchived(strategyAddress, strategyOwner);
     }
 }

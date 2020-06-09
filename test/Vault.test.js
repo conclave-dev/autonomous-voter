@@ -5,8 +5,14 @@ const { primarySenderAddress, secondarySenderAddress, registryContractAddress } 
 
 describe('Vault', () => {
   before(async () => {
+    this.archive = await contracts.Archive.deployed();
+
     const { logs } = await (await contracts.VaultFactory.deployed()).createInstance(
-      encodeCall('initializeVault', ['address', 'address'], [registryContractAddress, primarySenderAddress]),
+      encodeCall(
+        'initializeVault',
+        ['address', 'address', 'address'],
+        [registryContractAddress, this.archive.address, primarySenderAddress]
+      ),
       {
         value: new BigNumber('1e17')
       }
@@ -47,6 +53,51 @@ describe('Vault', () => {
           value: 1
         })
       ).to.be.rejectedWith(Error);
+    });
+  });
+
+  describe('addManagedGold(address strategyAddress, uint256 amount)', () => {
+    it('should set the specified amount of managedGold to be registered under the specified strategy', async () => {
+      // Start by creating the test strategy instance
+      this.rewardSharePercentage = '10';
+      this.minimumManagedGold = new BigNumber('1e16').toString();
+
+      const { logs } = await (await contracts.StrategyFactory.deployed()).createInstance(
+        encodeCall(
+          'initializeStrategy',
+          ['address', 'address', 'uint256', 'uint256'],
+          [this.archive.address, primarySenderAddress, this.rewardSharePercentage, this.minimumManagedGold]
+        )
+      );
+
+      // Test adding managedGold to a strategy
+      const strategyAddress = logs[0].args[0];
+      const strategy = await contracts.Strategy.at(strategyAddress);
+      const managedGoldAmount = new BigNumber('2e16');
+      const initialUnmanagedGold = new BigNumber(await this.vault.unmanagedGold());
+
+      await this.vault.addManagedGold(strategyAddress, managedGoldAmount.toString());
+
+      // Also check the recorded entry for managedGold
+      const firstManagedGold = await this.vault.managedGold(0);
+
+      assert.equal(
+        (await this.vault.unmanagedGold()).toString(),
+        initialUnmanagedGold.minus(managedGoldAmount).toString(),
+        'Invalid resulting unmanagedGold amount'
+      );
+
+      assert.equal(firstManagedGold.strategyAddress, strategyAddress, 'Invalid resulting strategy address');
+      assert.equal(
+        new BigNumber(firstManagedGold.amount).toString(),
+        managedGoldAmount.toString(),
+        'Invalid resulting managedGold amount'
+      );
+      assert.equal(
+        await strategy.managedGold(this.vault.address, 0),
+        managedGoldAmount.toString(),
+        'Invalid resulting managedGold amount'
+      );
     });
   });
 });

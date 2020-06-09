@@ -20,7 +20,11 @@ describe('VaultFactory', () => {
     it('should not create an instance if the initial deposit is insufficient', async () => {
       await expect(
         this.vaultFactory.createInstance(
-          encodeCall('initializeVault', ['address', 'address'], [registryContractAddress, primarySenderAddress]),
+          encodeCall(
+            'initializeVault',
+            ['address', 'address', 'address'],
+            [registryContractAddress, this.archive.address, primarySenderAddress]
+          ),
           {
             value: 0
           }

@@ -2,7 +2,6 @@ pragma solidity ^0.5.8;
 
 import "@openzeppelin/contracts-ethereum-package/contracts/ownership/Ownable.sol";
 
-
 contract Migrations is Ownable {
     uint256 public last_completed_migration;
 
