@@ -137,7 +137,7 @@ contract Archive is Initializable, Ownable, UsingRegistry, UsingPrecompiles {
         return epochRewards[epochNumber];
     }
 
-    function getEpochRewards(uint256 epochNumber)
+    function _getEpochRewards(uint256 epochNumber)
         public
         view
         returns (
@@ -165,7 +165,7 @@ contract Archive is Initializable, Ownable, UsingRegistry, UsingPrecompiles {
         EpochRewards storage currentEpochRewards = epochRewards[epochNumber];
 
         if (hasEpochRewards(epochNumber)) {
-            return getEpochRewards(epochNumber);
+            return _getEpochRewards(epochNumber);
         }
 
         // Retrieve epoch rewards data from protocol contracts
