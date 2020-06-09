@@ -55,4 +55,36 @@ describe('Vault', () => {
       ).to.be.rejectedWith(Error);
     });
   });
+
+  describe('addManagedGold(address strategyAddress, uint256 amount)', () => {
+    it('should set the specified amount of managedGold to be registered under the specified strategy', async () => {
+      // Start by creating the test strategy instance
+      this.rewardSharePercentage = '10';
+      this.minimumManagedGold = new BigNumber('1e16').toString();
+
+      const { logs } = await (await contracts.StrategyFactory.deployed()).createInstance(
+        encodeCall(
+          'initializeStrategy',
+          ['address', 'address', 'uint256', 'uint256'],
+          [this.archive.address, primarySenderAddress, this.rewardSharePercentage, this.minimumManagedGold]
+        ),
+        {
+          value: new BigNumber('1e17')
+        }
+      );
+
+      // Test adding managedGold to a strategy
+      const strategyAddress = logs[0].args[0];
+      const managedGoldAmount = new BigNumber('2e16');
+      const initialUnmanagedGold = new BigNumber(await this.vault.unmanagedGold());
+
+      await this.vault.addManagedGold(strategyAddress, managedGoldAmount.toString());
+
+      assert.equal(
+        (await this.vault.unmanagedGold()).toString(),
+        initialUnmanagedGold.minus(managedGoldAmount).toString(),
+        'Invalid resulting unmanagedGold amount'
+      );
+    });
+  });
 });

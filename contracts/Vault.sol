@@ -23,6 +23,7 @@ contract Vault is UsingRegistry {
     ManagedGold[] public managedGold;
 
     event UserDeposit(uint256);
+    event StrategyAdded(address, uint256);
 
     function initializeVault(
         address registry,
@@ -75,6 +76,8 @@ contract Vault is UsingRegistry {
         unmanagedGold -= amount;
 
         strategy.registerVault(strategyIndex, amount);
+
+        emit StrategyAdded(strategyAddress, amount);
     }
 
     function updateProxyAdmin(address admin) external onlyOwner {
