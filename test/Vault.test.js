@@ -75,15 +75,31 @@ describe('Vault', () => {
 
       // Test adding managedGold to a strategy
       const strategyAddress = logs[0].args[0];
+      const strategy = await contracts.Strategy.at(strategyAddress);
       const managedGoldAmount = new BigNumber('2e16');
       const initialUnmanagedGold = new BigNumber(await this.vault.unmanagedGold());
 
       await this.vault.addManagedGold(strategyAddress, managedGoldAmount.toString());
 
+      // Also check the recorded entry for managedGold
+      const firstManagedGold = await this.vault.managedGold(0);
+
       assert.equal(
         (await this.vault.unmanagedGold()).toString(),
         initialUnmanagedGold.minus(managedGoldAmount).toString(),
         'Invalid resulting unmanagedGold amount'
+      );
+
+      assert.equal(firstManagedGold.strategyAddress, strategyAddress, 'Invalid resulting strategy address');
+      assert.equal(
+        new BigNumber(firstManagedGold.amount).toString(),
+        managedGoldAmount.toString(),
+        'Invalid resulting managedGold amount'
+      );
+      assert.equal(
+        await strategy.managedGold(this.vault.address, 0),
+        managedGoldAmount.toString(),
+        'Invalid resulting managedGold amount'
       );
     });
   });

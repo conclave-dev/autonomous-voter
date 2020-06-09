@@ -11,7 +11,7 @@ contract Strategy is Ownable {
 
     uint256 public rewardSharePercentage;
     uint256 public minimumManagedGold;
-    mapping(address => mapping(uint256 => uint256)) managedGold;
+    mapping(address => mapping(uint256 => uint256)) public managedGold;
 
     event VaultRegistered(address, uint256, uint256);
 
