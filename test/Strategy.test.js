@@ -77,4 +77,12 @@ describe('Strategy', () => {
       await expect(this.strategy.updateMinimumManagedGold({ from: secondarySenderAddress })).to.be.rejectedWith(Error);
     });
   });
+
+  describe('registerVault(uint256 strategyIndex, uint256 amount)', () => {
+    it('should not allow invalid vault to register', async () => {
+      await expect(this.strategy.registerVault(primarySenderAddress, this.minimumManagedGold)).to.be.rejectedWith(
+        Error
+      );
+    });
+  });
 });
