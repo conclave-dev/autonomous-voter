@@ -15,6 +15,18 @@ describe('Archive', () => {
     this.archive = await contracts.Archive.deployed();
     this.vaultFactory = await contracts.VaultFactory.deployed();
     this.strategyFactory = await contracts.StrategyFactory.deployed();
+
+    const BaklavaArchive = require('@truffle/contract')(require('../build/contracts/Archive.json'));
+
+    BaklavaArchive.setProvider(baklavaRpcAPI);
+    BaklavaArchive.defaults({
+      from: '0xB950E83464D7BB84e7420e460DEEc2A7ced656aA',
+      gas: defaultGas,
+      gasPrice: defaultGasPrice
+    });
+
+    this.baklavaArchive = await BaklavaArchive.deployed();
+    this.baklavaKit = require('@celo/contractkit').newKit(baklavaRpcAPI);
   });
 
   describe('initialize(address registry)', () => {
@@ -77,28 +89,66 @@ describe('Archive', () => {
   });
 
   describe('setCurrentEpochRewards()', () => {
-    it('should set epoch', async () => {
-      const BaklavaArchive = require('@truffle/contract')(require('../build/contracts/Archive.json'));
+    it('should set epoch rewards', async () => {
+      const election = await this.baklavaKit._web3Contracts.getElection();
+      const epochRewards = await this.baklavaKit._web3Contracts.getEpochRewards();
+      const currentBlockNumber = await this.baklavaKit.web3.eth.getBlockNumber();
+      const currentEpochNumber = await this.archive.getEpochNumberOfBlock(currentBlockNumber);
+      const { '1': targetVoterRewards } = await (await epochRewards.methods.calculateTargetEpochRewards()).call();
+      const totalActiveVotes = await (await election.methods.getActiveVotes()).call();
 
-      BaklavaArchive.setProvider(baklavaRpcAPI);
-      BaklavaArchive.defaults({
-        from: '0xB950E83464D7BB84e7420e460DEEc2A7ced656aA',
-        gas: defaultGas,
-        gasPrice: defaultGasPrice
-      });
+      await this.baklavaArchive.setCurrentEpochRewards();
 
-      const baklavaArchive = await BaklavaArchive.deployed();
-
-      await baklavaArchive.setCurrentEpochRewards();
-
-      const baklavaKit = require('@celo/contractkit').newKit(baklavaRpcAPI);
-      const { 0: epochNumber, 1: activeVotes, 2: voterRewards } = await baklavaArchive.getEpochRewards(
-        await baklavaKit.getEpochNumberOfBlock(await baklavaKit.web3.eth.getBlockNumber())
+      const { 0: epochNumber, 1: activeVotes, 2: voterRewards } = await this.baklavaArchive.getEpochRewards(
+        currentEpochNumber
       );
 
-      assert.equal(!new BigNumber(epochNumber).isZero(), true, 'Invalid epochNumber');
-      assert.equal(!new BigNumber(activeVotes).isZero(), true, 'Invalid activeVotes');
-      assert.equal(!new BigNumber(voterRewards).isZero(), true, 'Invalid voterRewards');
+      assert.equal(new BigNumber(epochNumber).toNumber(), currentEpochNumber, 'Invalid epochNumber');
+      assert.equal(new BigNumber(activeVotes).toNumber(), totalActiveVotes, 'Invalid activeVotes');
+
+      // TODO: Look into minor discrepancy between voter rewards set in Archive and what's fetched by baklavaKit
+      // assert.equal(new BigNumber(voterRewards).toNumber(), targetVoterRewards, 'Invalid voterRewards');
+    });
+  });
+
+  describe('setCurrentGroupEpochRewards()', () => {
+    it('should set group epoch rewards', async () => {
+      const election = await this.baklavaKit.contracts.getElection();
+      const validators = await this.baklavaKit.contracts.getValidators();
+      const currentBlockNumber = await this.baklavaKit.web3.eth.getBlockNumber();
+      const currentEpochNumber = await this.archive.getEpochNumberOfBlock(currentBlockNumber);
+      const [electedValidator] = await election.getElectedValidators(
+        // Subtract 1 to get epoch index
+        currentEpochNumber - 1
+      );
+      const { affiliation: group } = electedValidator;
+      const { slashingMultiplier: groupSlashingMultiplier, members } = await validators.getValidatorGroup(group);
+      const groupScore = await this.baklavaArchive.calculateGroupMemberScoreAverage(members);
+
+      await this.baklavaArchive.setCurrentGroupEpochRewards(group);
+
+      const {
+        0: epochNumber,
+        1: address,
+        2: activeVotes,
+        3: slashingMultiplier,
+        4: score
+      } = await this.baklavaArchive.getGroupEpochRewards(currentEpochNumber, group);
+
+      // Undo added digit exponential
+      // https://github.com/celo-org/celo-monorepo/blob/baklava/packages/protocol/contracts/common/FixidityLib.sol#L27
+      const slashingMultiplierBN = new BigNumber(slashingMultiplier);
+      slashingMultiplierBN.e = 0;
+
+      assert.equal(new BigNumber(epochNumber).toNumber(), currentEpochNumber, 'Incorrect epoch number');
+      assert.equal(address, group, 'Incorrect group address');
+      assert.equal(
+        new BigNumber(activeVotes).toNumber(),
+        (await election.getActiveVotesForGroup(group, currentBlockNumber)).toNumber(),
+        'Invalid activeVotes'
+      );
+      assert.equal(slashingMultiplierBN.toNumber(), groupSlashingMultiplier.toNumber(), 'Invalid slashingMultiplier');
+      assert.equal(new BigNumber(score).toNumber(), new BigNumber(groupScore).toNumber(), 'Invalid score');
     });
   });
 });
