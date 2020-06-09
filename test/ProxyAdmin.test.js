@@ -11,7 +11,8 @@ describe('ProxyAdmin', () => {
       encodeCall(
         'initializeVault',
         ['address', 'address', 'address'],
-        [registryContractAddress, this.archive.address, primarySenderAddress]),
+        [registryContractAddress, this.archive.address, primarySenderAddress]
+      ),
       {
         value: new BigNumber('1e17')
       }

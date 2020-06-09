@@ -54,10 +54,7 @@ contract Strategy is Ownable {
         return minimumManagedGold;
     }
 
-    function registerVault(
-        uint256 strategyIndex,
-        uint256 amount
-    ) external {
+    function registerVault(uint256 strategyIndex, uint256 amount) external {
         // Crosscheck the Archive to make sure that `msg.sender` is a valid vault instance with proper owner
         address vaultAddress = archive.getVault(Vault(msg.sender).owner());
         require(vaultAddress != msg.sender, "Invalid vault");

@@ -14,7 +14,7 @@ contract Vault is UsingRegistry {
     struct ManagedGold {
         address strategyAddress;
         uint256 amount;
-        mapping (address => uint256) groupVotes;
+        mapping(address => uint256) groupVotes;
         address[] groupAddresses;
         uint256 groupVotesActiveAtEpoch;
         uint256 rewardSharePercentage;
@@ -24,11 +24,11 @@ contract Vault is UsingRegistry {
 
     event UserDeposit(uint256);
 
-    function initializeVault(address registry, IArchive _archive, address owner)
-        public
-        payable
-        initializer
-    {
+    function initializeVault(
+        address registry,
+        IArchive _archive,
+        address owner
+    ) public payable initializer {
         UsingRegistry.initializeRegistry(msg.sender, registry);
         Ownable.initialize(owner);
 
@@ -42,11 +42,21 @@ contract Vault is UsingRegistry {
         _depositGold();
     }
 
-    function addManagedGold(address strategyAddress, uint256 amount) external onlyOwner {
-        require(amount > 0 && amount <= unmanagedGold, "Deposited funds must be > 0 and <= unmanaged gold");
+    function addManagedGold(address strategyAddress, uint256 amount)
+        external
+        onlyOwner
+    {
+        require(
+            amount > 0 && amount <= unmanagedGold,
+            "Deposited funds must be > 0 and <= unmanaged gold"
+        );
 
         // Crosscheck the validity of the specified strategy instance
-        require(archive.getStrategy(Strategy(strategyAddress).owner()) == strategyAddress, "Invalid strategy specified");
+        require(
+            archive.getStrategy(Strategy(strategyAddress).owner()) ==
+                strategyAddress,
+            "Invalid strategy specified"
+        );
 
         IStrategy strategy = IStrategy(strategyAddress);
         uint256 rewardSharePercentage = strategy.getRewardSharePercentage();
