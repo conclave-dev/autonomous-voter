@@ -67,10 +67,7 @@ describe('Vault', () => {
           'initializeStrategy',
           ['address', 'address', 'uint256', 'uint256'],
           [this.archive.address, primarySenderAddress, this.rewardSharePercentage, this.minimumManagedGold]
-        ),
-        {
-          value: new BigNumber('1e17')
-        }
+        )
       );
 
       // Test adding managedGold to a strategy

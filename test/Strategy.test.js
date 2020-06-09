@@ -15,10 +15,7 @@ describe('Strategy', () => {
         'initializeStrategy',
         ['address', 'address', 'uint256', 'uint256'],
         [this.archive.address, primarySenderAddress, this.rewardSharePercentage, this.minimumManagedGold]
-      ),
-      {
-        value: new BigNumber('1e17')
-      }
+      )
     );
 
     this.strategy = await contracts.Strategy.at(logs[0].args[0]);
