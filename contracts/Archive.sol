@@ -14,10 +14,14 @@ contract Archive is Initializable, Ownable, UsingRegistry, UsingPrecompiles {
 
     // EpochRewards data is used to calculate an election group's voter rewards
     struct EpochRewards {
+        // Block number which epoch rewards data was retrieved at (used for verification)
+        uint256 blockNumber;
         // Result from Election's getActiveVotes()
         uint256 activeVotes;
-        // Result from EpochRewards's calculateTargetEpochRewards() (2nd return value)
-        uint256 voterRewards;
+        // Result from EpochRewards's getTargetVoterRewards() (2nd return value)
+        uint256 targetVoterRewards;
+        // Result from EpochReward's getRewardsMultiplier()
+        uint256 rewardsMultiplier;
         mapping(address => GroupEpochRewards) groupEpochRewards;
     }
 
@@ -38,7 +42,7 @@ contract Archive is Initializable, Ownable, UsingRegistry, UsingPrecompiles {
     event StrategyFactorySet(address);
     event VaultUpdated(address, address);
     event StrategyUpdated(address, address);
-    event EpochRewardsSet(uint256, uint256, uint256);
+    event EpochRewardsSet(uint256, uint256, uint256, uint256);
     event GroupEpochRewardsSet(uint256, address, uint256, uint256, uint256);
 
     modifier onlyVaultFactory() {
@@ -122,17 +126,29 @@ contract Archive is Initializable, Ownable, UsingRegistry, UsingPrecompiles {
 
     function setEpochRewards(
         uint256 epochNumber,
+        uint256 blockNumber,
         uint256 activeVotes,
-        uint256 voterRewards
+        uint256 targetVoterRewards,
+        uint256 rewardsMultiplier
     ) internal returns (EpochRewards storage) {
         require(
-            epochNumber <= getEpochNumberOfBlock(block.number),
+            epochNumber <= getEpochNumberOfBlock(blockNumber),
             "Invalid epochNumber"
         );
 
-        epochRewards[epochNumber] = EpochRewards(activeVotes, voterRewards);
+        epochRewards[epochNumber] = EpochRewards(
+            blockNumber,
+            activeVotes,
+            targetVoterRewards,
+            rewardsMultiplier
+        );
 
-        emit EpochRewardsSet(epochNumber, activeVotes, voterRewards);
+        emit EpochRewardsSet(
+            blockNumber,
+            activeVotes,
+            targetVoterRewards,
+            rewardsMultiplier
+        );
 
         return epochRewards[epochNumber];
     }
@@ -143,19 +159,22 @@ contract Archive is Initializable, Ownable, UsingRegistry, UsingPrecompiles {
         returns (
             uint256,
             uint256,
+            uint256,
             uint256
         )
     {
         return (
-            epochNumber,
+            epochRewards[epochNumber].blockNumber,
             epochRewards[epochNumber].activeVotes,
-            epochRewards[epochNumber].voterRewards
+            epochRewards[epochNumber].targetVoterRewards,
+            epochRewards[epochNumber].rewardsMultiplier
         );
     }
 
     function setCurrentEpochRewards()
         public
         returns (
+            uint256,
             uint256,
             uint256,
             uint256
@@ -170,15 +189,22 @@ contract Archive is Initializable, Ownable, UsingRegistry, UsingPrecompiles {
 
         // Retrieve epoch rewards data from protocol contracts
         uint256 activeVotes = getElection().getActiveVotes();
-        (, uint256 voterRewards, , ) = getEpochRewards()
-            .calculateTargetEpochRewards();
+        uint256 targetVoterRewards = getEpochRewards().getTargetVoterRewards();
+        uint256 rewardsMultiplier = getEpochRewards().getRewardsMultiplier();
 
-        setEpochRewards(epochNumber, activeVotes, voterRewards);
+        setEpochRewards(
+            epochNumber,
+            block.number,
+            activeVotes,
+            targetVoterRewards,
+            rewardsMultiplier
+        );
 
         return (
-            epochNumber,
+            block.number,
             currentEpochRewards.activeVotes,
-            currentEpochRewards.voterRewards
+            currentEpochRewards.targetVoterRewards,
+            currentEpochRewards.rewardsMultiplier
         );
     }
 

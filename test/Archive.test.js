@@ -94,20 +94,35 @@ describe('Archive', () => {
       const epochRewards = await this.baklavaKit._web3Contracts.getEpochRewards();
       const currentBlockNumber = await this.baklavaKit.web3.eth.getBlockNumber();
       const currentEpochNumber = await this.archive.getEpochNumberOfBlock(currentBlockNumber);
-      const { '1': targetVoterRewards } = await (await epochRewards.methods.calculateTargetEpochRewards()).call();
-      const totalActiveVotes = await (await election.methods.getActiveVotes()).call();
 
-      await this.baklavaArchive.setCurrentEpochRewards();
+      // await this.baklavaArchive.setCurrentEpochRewards();
 
-      const { 0: epochNumber, 1: activeVotes, 2: voterRewards } = await this.baklavaArchive.getEpochRewards(
-        currentEpochNumber
-      );
+      const {
+        0: blockNumberArch,
+        1: activeVotesArch,
+        2: targetVoterRewardsArch,
+        3: rewardsMultiplierArch
+      } = await this.baklavaArchive._getEpochRewards(currentEpochNumber);
 
-      assert.equal(new BigNumber(epochNumber).toNumber(), currentEpochNumber, 'Invalid epochNumber');
-      assert.equal(new BigNumber(activeVotes).toNumber(), totalActiveVotes, 'Invalid activeVotes');
+      const epochNumberArchive = new BigNumber(await this.archive.getEpochNumberOfBlock(blockNumberArch)).toFixed(0);
+      const activeVotesArchive = new BigNumber(activeVotesArch).toFixed(0);
+      const activeVotes = await (await election.methods.getActiveVotes()).call();
+      const targetVoterRewardsArchive = new BigNumber(targetVoterRewardsArch).toFixed(0);
+      const targetVoterRewards = new BigNumber(
+        await (await epochRewards.methods.getTargetVoterRewards()).call()
+      ).toFixed(0);
 
-      // TODO: Look into minor discrepancy between voter rewards set in Archive and what's fetched by baklavaKit
-      // assert.equal(new BigNumber(voterRewards).toNumber(), targetVoterRewards, 'Invalid voterRewards');
+      // Get rounded number for rewards multiplier as they fluctuate based on gold supplies
+      // Necessary, as our test fetches the rewards multiplier at a different block (resulting in different values)
+      const rewardsMultiplierArchive = new BigNumber(rewardsMultiplierArch).dividedBy(1e24).toFixed(5);
+      const rewardsMultiplier = new BigNumber(await (await epochRewards.methods.getRewardsMultiplier()).call())
+        .dividedBy(1e24)
+        .toFixed(5);
+
+      assert.equal(epochNumberArchive, currentEpochNumber, 'Invalid epoch number');
+      assert.equal(activeVotesArchive, activeVotes, 'Invalid active votes');
+      assert.equal(targetVoterRewardsArchive, targetVoterRewards, 'Invalid target voter rewards');
+      assert.equal(rewardsMultiplierArchive, rewardsMultiplier, 'Invalid rewards multiplier');
     });
   });
 
