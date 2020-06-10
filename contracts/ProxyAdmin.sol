@@ -16,8 +16,8 @@ contract ProxyAdmin is Ownable {
 
     function upgradeProxy(
         BaseAdminUpgradeabilityProxy _proxy,
-        address implementation
+        address _implementation
     ) public onlyOwner {
-        _proxy.upgradeTo(implementation);
+        _proxy.upgradeTo(_implementation);
     }
 }

@@ -22,18 +22,17 @@ contract Vault is UsingRegistry {
 
     ManagedGold[] public managedGold;
 
-    event UserDeposit(uint256);
-    event StrategyAdded(address, uint256);
-
     function initializeVault(
-        address registry,
+        address _registry,
         IArchive _archive,
-        address owner
+        address _owner,
+        address _admin
     ) public payable initializer {
-        UsingRegistry.initializeRegistry(msg.sender, registry);
-        Ownable.initialize(owner);
+        UsingRegistry.initializeRegistry(msg.sender, _registry);
+        Ownable.initialize(_owner);
 
         archive = _archive;
+        proxyAdmin = _admin;
         _registerAccount();
         _depositGold();
     }
@@ -43,46 +42,44 @@ contract Vault is UsingRegistry {
         _depositGold();
     }
 
-    function addManagedGold(address strategyAddress, uint256 amount)
+    function addManagedGold(address _strategyAddress, uint256 _amount)
         external
         onlyOwner
     {
         require(
-            amount > 0 && amount <= unmanagedGold,
+            _amount > 0 && _amount <= unmanagedGold,
             "Deposited funds must be > 0 and <= unmanaged gold"
         );
 
         // Crosscheck the validity of the specified strategy instance
         require(
-            archive.getStrategy(Strategy(strategyAddress).owner()) ==
-                strategyAddress,
+            archive.getStrategy(Strategy(_strategyAddress).owner()) ==
+                _strategyAddress,
             "Invalid strategy specified"
         );
 
-        IStrategy strategy = IStrategy(strategyAddress);
+        IStrategy strategy = IStrategy(_strategyAddress);
         uint256 rewardSharePercentage = strategy.getRewardSharePercentage();
 
         // Initialize a new managedGold entry
         uint256 strategyIndex = managedGold.length;
 
         ManagedGold memory newManagedGold;
-        newManagedGold.strategyAddress = strategyAddress;
-        newManagedGold.amount = amount;
+        newManagedGold.strategyAddress = _strategyAddress;
+        newManagedGold.amount = _amount;
         newManagedGold.groupVotesActiveAtEpoch = 0;
         newManagedGold.rewardSharePercentage = rewardSharePercentage;
 
         managedGold.push(newManagedGold);
 
-        unmanagedGold -= amount;
+        unmanagedGold -= _amount;
 
-        strategy.registerVault(strategyIndex, amount);
-
-        emit StrategyAdded(strategyAddress, amount);
+        strategy.registerVault(strategyIndex, _amount);
     }
 
-    function updateProxyAdmin(address admin) external onlyOwner {
-        require(admin != address(0), "Invalid admin address");
-        proxyAdmin = admin;
+    function setProxyAdmin(address _admin) external onlyOwner {
+        require(_admin != address(0), "Invalid admin address");
+        proxyAdmin = _admin;
     }
 
     function _registerAccount() internal {
@@ -98,6 +95,5 @@ contract Vault is UsingRegistry {
 
         // Immediately lock the deposit
         getLockedGold().lock.value(msg.value)();
-        emit UserDeposit(msg.value);
     }
 }

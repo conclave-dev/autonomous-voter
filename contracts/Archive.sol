@@ -12,11 +12,6 @@ contract Archive is Initializable, Ownable {
     mapping(address => address) public vaults;
     mapping(address => address) public strategies;
 
-    event VaultFactorySet(address);
-    event StrategyFactorySet(address);
-    event VaultUpdated(address, address);
-    event StrategyUpdated(address, address);
-
     modifier onlyVaultFactory() {
         require(msg.sender == vaultFactory, "Sender is not vault factory");
         _;
@@ -36,57 +31,49 @@ contract Archive is Initializable, Ownable {
 
     function setVaultFactory(address _vaultFactory) public onlyOwner {
         vaultFactory = _vaultFactory;
-
-        emit VaultFactorySet(vaultFactory);
     }
 
     function setStrategyFactory(address _strategyFactory) public onlyOwner {
         strategyFactory = _strategyFactory;
-
-        emit StrategyFactorySet(strategyFactory);
     }
 
-    function _isVaultOwner(address vault, address account) internal view {
+    function _isVaultOwner(address _vault, address _account) internal view {
         require(
-            Vault(vault).owner() == account,
+            Vault(_vault).owner() == _account,
             "Account is not the vault owner"
         );
     }
 
-    function _isStrategyOwner(address strategy, address account) internal view {
+    function _isStrategyOwner(address _strategy, address _account) internal view {
         require(
-            Strategy(strategy).owner() == account,
+            Strategy(_strategy).owner() == _account,
             "Account is not the strategy owner"
         );
     }
 
-    function getVault(address owner) external view returns (address) {
-        return vaults[owner];
+    function getVault(address _owner) external view returns (address) {
+        return vaults[_owner];
     }
 
-    function getStrategy(address owner) external view returns (address) {
-        return strategies[owner];
+    function getStrategy(address _owner) external view returns (address) {
+        return strategies[_owner];
     }
 
-    function updateVault(address vault, address account)
+    function setVault(address _vault, address _account)
         public
         onlyVaultFactory
     {
-        _isVaultOwner(vault, account);
+        _isVaultOwner(_vault, _account);
 
-        vaults[account] = vault;
-
-        emit VaultUpdated(msg.sender, vault);
+        vaults[_account] = _vault;
     }
 
-    function updateStrategy(address strategy, address account)
+    function setStrategy(address _strategy, address _account)
         public
         onlyStrategyFactory
     {
-        _isStrategyOwner(strategy, account);
+        _isStrategyOwner(_strategy, _account);
 
-        strategies[account] = strategy;
-
-        emit StrategyUpdated(msg.sender, strategy);
+        strategies[_account] = _strategy;
     }
 }
