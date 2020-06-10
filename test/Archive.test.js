@@ -25,7 +25,7 @@ describe('Archive', () => {
       gasPrice: defaultGasPrice
     });
 
-    this.baklavaArchive = await BaklavaArchive.deployed();
+    this.baklavaArchive = await BaklavaArchive.at('0x8733199963eF29b544ec8F116be1039679Df1Ff9');
     this.baklavaKit = require('@celo/contractkit').newKit(baklavaRpcAPI);
   });
 
@@ -95,7 +95,7 @@ describe('Archive', () => {
       const currentBlockNumber = await this.baklavaKit.web3.eth.getBlockNumber();
       const currentEpochNumber = await this.archive.getEpochNumberOfBlock(currentBlockNumber);
 
-      // await this.baklavaArchive.setCurrentEpochRewards();
+      await this.baklavaArchive.setCurrentEpochRewards();
 
       const {
         0: blockNumberArch,
