@@ -44,7 +44,10 @@ contract Archive is Initializable, Ownable {
         );
     }
 
-    function _isStrategyOwner(address _strategy, address _account) internal view {
+    function _isStrategyOwner(address _strategy, address _account)
+        internal
+        view
+    {
         require(
             Strategy(_strategy).owner() == _account,
             "Account is not the strategy owner"

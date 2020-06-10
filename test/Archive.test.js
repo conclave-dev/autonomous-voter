@@ -1,4 +1,3 @@
-const { encodeCall } = require('@openzeppelin/upgrades');
 const BigNumber = require('bignumber.js');
 const { assert, expect, contracts } = require('./setup');
 const { primarySenderAddress, secondarySenderAddress, registryContractAddress } = require('../config');
@@ -30,41 +29,31 @@ describe('Archive', () => {
     });
   });
 
-  describe('updateVault(address vault, address proxyAdmin)', () => {
+  describe('setVault(address vault, address proxyAdmin)', () => {
     it('should initialize vault', async () => {
-      const { logs: events } = await this.vaultFactory.createInstance(
-        encodeCall(
-          'initializeVault',
-          ['address', 'address', 'address'],
-          [registryContractAddress, this.archive.address, primarySenderAddress]
-        ),
-        {
-          value: new BigNumber(1).multipliedBy('1e17')
-        }
-      );
-      const [instanceCreated, , instanceArchived] = events;
-      const vault = await contracts.Vault.at(instanceCreated.args[0]);
+      await this.vaultFactory.createInstance(registryContractAddress, this.archive.address, primarySenderAddress, {
+        value: new BigNumber(1).multipliedBy('1e17')
+      });
+      const vault = await contracts.Vault.at(await this.archive.getVault(primarySenderAddress));
 
-      assert.equal(await vault.owner(), instanceArchived.args[1], 'Vault was not initialized with correct owner');
+      assert.equal(await vault.owner(), primarySenderAddress, 'Vault was not initialized with correct owner');
     });
   });
 
-  describe('updateStrategy(address strategy, address proxyAdmin)', () => {
+  describe('setStrategy(address strategy, address proxyAdmin)', () => {
     it('should initialize strategy', async () => {
       const rewardSharePercentage = '10';
       const minimumManagedGold = new BigNumber('1e16').toString();
 
-      const { logs: events } = await this.strategyFactory.createInstance(
-        encodeCall(
-          'initializeStrategy',
-          ['address', 'address', 'uint256', 'uint256'],
-          [this.archive.address, primarySenderAddress, rewardSharePercentage, minimumManagedGold]
-        )
+      await this.strategyFactory.createInstance(
+        this.archive.address,
+        primarySenderAddress,
+        rewardSharePercentage,
+        minimumManagedGold
       );
-      const [instanceCreated, , instanceArchived] = events;
-      const strategy = await contracts.Strategy.at(instanceCreated.args[0]);
+      const strategy = await contracts.Strategy.at(await this.archive.getStrategy(primarySenderAddress));
 
-      assert.equal(await strategy.owner(), instanceArchived.args[1], 'Strategy was not initialized with correct owner');
+      assert.equal(await strategy.owner(), primarySenderAddress, 'Strategy was not initialized with correct owner');
     });
   });
 });

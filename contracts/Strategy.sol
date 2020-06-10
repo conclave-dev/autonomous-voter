@@ -33,10 +33,7 @@ contract Strategy is Ownable {
         proxyAdmin = _admin;
     }
 
-    function setRewardSharePercentage(uint256 _percentage)
-        external
-        onlyOwner
-    {
+    function setRewardSharePercentage(uint256 _percentage) external onlyOwner {
         require(_percentage > 0, "Invalid reward share percentage");
         rewardSharePercentage = _percentage;
     }

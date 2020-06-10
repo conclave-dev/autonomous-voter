@@ -1,5 +1,4 @@
 const BigNumber = require('bignumber.js');
-const { encodeCall } = require('@openzeppelin/upgrades');
 const { assert, expect, contracts, kit } = require('./setup');
 const { primarySenderAddress, secondarySenderAddress, registryContractAddress } = require('../config');
 
@@ -7,18 +6,16 @@ describe('Vault', () => {
   before(async () => {
     this.archive = await contracts.Archive.deployed();
 
-    const { logs } = await (await contracts.VaultFactory.deployed()).createInstance(
-      encodeCall(
-        'initializeVault',
-        ['address', 'address', 'address'],
-        [registryContractAddress, this.archive.address, primarySenderAddress]
-      ),
+    await (await contracts.VaultFactory.deployed()).createInstance(
+      registryContractAddress,
+      this.archive.address,
+      primarySenderAddress,
       {
         value: new BigNumber('1e17')
       }
     );
 
-    this.vault = await contracts.Vault.at(logs[0].args[0]);
+    this.vault = await contracts.Vault.at(await this.archive.getVault(primarySenderAddress));
   });
 
   describe('initializeVault(address registry, address owner)', () => {
@@ -62,16 +59,15 @@ describe('Vault', () => {
       this.rewardSharePercentage = '10';
       this.minimumManagedGold = new BigNumber('1e16').toString();
 
-      const { logs } = await (await contracts.StrategyFactory.deployed()).createInstance(
-        encodeCall(
-          'initializeStrategy',
-          ['address', 'address', 'uint256', 'uint256'],
-          [this.archive.address, primarySenderAddress, this.rewardSharePercentage, this.minimumManagedGold]
-        )
+      await (await contracts.StrategyFactory.deployed()).createInstance(
+        this.archive.address,
+        primarySenderAddress,
+        this.rewardSharePercentage,
+        this.minimumManagedGold
       );
 
       // Test adding managedGold to a strategy
-      const strategyAddress = logs[0].args[0];
+      const strategyAddress = await this.archive.getStrategy(primarySenderAddress);
       const strategy = await contracts.Strategy.at(strategyAddress);
       const managedGoldAmount = new BigNumber('2e16');
       const initialUnmanagedGold = new BigNumber(await this.vault.unmanagedGold());

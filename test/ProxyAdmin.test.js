@@ -1,5 +1,4 @@
 const BigNumber = require('bignumber.js');
-const { encodeCall } = require('@openzeppelin/upgrades');
 const { expect, contracts } = require('./setup');
 const { primarySenderAddress, secondarySenderAddress, registryContractAddress } = require('../config');
 
@@ -7,21 +6,16 @@ describe('ProxyAdmin', () => {
   before(async () => {
     this.archive = await contracts.Archive.deployed();
 
-    const { logs } = await (await contracts.VaultFactory.deployed()).createInstance(
-      encodeCall(
-        'initializeVault',
-        ['address', 'address', 'address'],
-        [registryContractAddress, this.archive.address, primarySenderAddress]
-      ),
+    await (await contracts.VaultFactory.deployed()).createInstance(
+      registryContractAddress,
+      this.archive.address,
+      primarySenderAddress,
       {
         value: new BigNumber('1e17')
       }
     );
-    const [instanceCreated, adminCreated] = logs;
 
-    this.vault = await contracts.Vault.at(instanceCreated.args[0]);
-
-    await this.vault.updateProxyAdmin(adminCreated.args[0]);
+    this.vault = await contracts.Vault.at(await this.archive.getVault(primarySenderAddress));
   });
 
   describe('initialize(App _app, address _owner)', () => {

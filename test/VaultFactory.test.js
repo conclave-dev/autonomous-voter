@@ -1,4 +1,3 @@
-const { encodeCall } = require('@openzeppelin/upgrades');
 const { assert, expect, contracts } = require('./setup');
 const { primarySenderAddress, registryContractAddress } = require('../config');
 
@@ -19,16 +18,7 @@ describe('VaultFactory', () => {
   describe('createInstance(bytes memory _data)', () => {
     it('should not create an instance if the initial deposit is insufficient', async () => {
       await expect(
-        this.vaultFactory.createInstance(
-          encodeCall(
-            'initializeVault',
-            ['address', 'address', 'address'],
-            [registryContractAddress, this.archive.address, primarySenderAddress]
-          ),
-          {
-            value: 0
-          }
-        )
+        this.vaultFactory.createInstance(registryContractAddress, this.archive.address, primarySenderAddress)
       ).to.be.rejectedWith(Error);
     });
   });

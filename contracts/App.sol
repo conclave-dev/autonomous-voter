@@ -25,7 +25,10 @@ contract App is Initializable, Ownable {
         string memory _contractName,
         address _implementation
     ) public onlyOwner {
-        require(_implementation != address(0), "Invalid implementation address");
+        require(
+            _implementation != address(0),
+            "Invalid implementation address"
+        );
         contractImplementations[_contractName] = _implementation;
     }
 
