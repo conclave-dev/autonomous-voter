@@ -13,6 +13,12 @@ contract Strategy is Ownable {
     uint256 public minimumManagedGold;
     mapping(address => mapping(uint256 => uint256)) public managedGold;
 
+    modifier onlyVault() {
+        // Confirm that Vault is in the AV network (i.e. stored within the Archive contract)
+        require(archive.getVault(Vault(msg.sender).owner()) == msg.sender, "Invalid vault");
+        _;
+    }
+
     function initialize(
         IArchive _archive,
         address owner,
@@ -51,13 +57,9 @@ contract Strategy is Ownable {
         return minimumManagedGold;
     }
 
-    function registerVault(uint256 strategyIndex, uint256 amount) external {
-        // Crosscheck the Archive to make sure that `msg.sender` is a valid vault instance with proper owner
-        address vaultAddress = archive.getVault(Vault(msg.sender).owner());
-        require(vaultAddress == msg.sender, "Invalid vault");
+    function registerVault(uint256 _strategyIndex, uint256 _amount) external onlyVault {
+        require(_amount >= minimumManagedGold, "Amount does not meet this strategy's minimum");
 
-        require(amount >= minimumManagedGold, "Insufficient gold");
-
-        managedGold[vaultAddress][strategyIndex] = amount;
+        managedGold[msg.sender][_strategyIndex] = _amount;
     }
 }
