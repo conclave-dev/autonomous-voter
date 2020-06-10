@@ -72,43 +72,43 @@ describe('Archive', () => {
     });
   });
 
-  // describe('setCurrentEpochRewards()', () => {
-  //   it('should set epoch rewards', async () => {
-  //     const election = await this.baklavaKit._web3Contracts.getElection();
-  //     const epochRewards = await this.baklavaKit._web3Contracts.getEpochRewards();
-  //     const currentBlockNumber = await this.baklavaKit.web3.eth.getBlockNumber();
-  //     const currentEpochNumber = await this.archive.getEpochNumberOfBlock(currentBlockNumber);
+  describe('setCurrentEpochRewards()', () => {
+    it('should set epoch rewards', async () => {
+      const election = await this.baklavaKit._web3Contracts.getElection();
+      const epochRewards = await this.baklavaKit._web3Contracts.getEpochRewards();
+      const currentBlockNumber = await this.baklavaKit.web3.eth.getBlockNumber();
+      const currentEpochNumber = await this.archive.getEpochNumberOfBlock(currentBlockNumber);
 
-  //     await this.baklavaArchive.setCurrentEpochRewards();
+      await this.baklavaArchive.setCurrentEpochRewards();
 
-  //     const {
-  //       0: blockNumberArch,
-  //       1: activeVotesArch,
-  //       2: targetVoterRewardsArch,
-  //       3: rewardsMultiplierArch
-  //     } = await this.baklavaArchive._getEpochRewards(currentEpochNumber);
+      const {
+        0: blockNumberArch,
+        1: activeVotesArch,
+        2: targetVoterRewardsArch,
+        3: rewardsMultiplierArch
+      } = await this.baklavaArchive._getEpochRewards(currentEpochNumber);
 
-  //     const epochNumberArchive = new BigNumber(await this.archive.getEpochNumberOfBlock(blockNumberArch)).toFixed(0);
-  //     const activeVotesArchive = new BigNumber(activeVotesArch).toFixed(0);
-  //     const activeVotes = await (await election.methods.getActiveVotes()).call();
-  //     const targetVoterRewardsArchive = new BigNumber(targetVoterRewardsArch).toFixed(0);
-  //     const targetVoterRewards = new BigNumber(
-  //       await (await epochRewards.methods.getTargetVoterRewards()).call()
-  //     ).toFixed(0);
+      const epochNumberArchive = new BigNumber(await this.archive.getEpochNumberOfBlock(blockNumberArch)).toFixed(0);
+      const activeVotesArchive = new BigNumber(activeVotesArch).toFixed(0);
+      const activeVotes = await (await election.methods.getActiveVotes()).call();
+      const targetVoterRewardsArchive = new BigNumber(targetVoterRewardsArch).toFixed(0);
+      const targetVoterRewards = new BigNumber(
+        await (await epochRewards.methods.getTargetVoterRewards()).call()
+      ).toFixed(0);
 
-  //     // Get rounded number for rewards multiplier as they fluctuate based on gold supplies
-  //     // Necessary, as our test fetches the rewards multiplier at a different block (resulting in different values)
-  //     const rewardsMultiplierArchive = new BigNumber(rewardsMultiplierArch).dividedBy(1e24).toFixed(5);
-  //     const rewardsMultiplier = new BigNumber(await (await epochRewards.methods.getRewardsMultiplier()).call())
-  //       .dividedBy(1e24)
-  //       .toFixed(5);
+      // Get rounded number for rewards multiplier as they fluctuate based on gold supplies
+      // Necessary, as our test fetches the rewards multiplier at a different block (resulting in different values)
+      const rewardsMultiplierArchive = new BigNumber(rewardsMultiplierArch).dividedBy(1e24).toFixed(2);
+      const rewardsMultiplier = new BigNumber(await (await epochRewards.methods.getRewardsMultiplier()).call())
+        .dividedBy(1e24)
+        .toFixed(2);
 
-  //     assert.equal(epochNumberArchive, currentEpochNumber, 'Invalid epoch number');
-  //     assert.equal(activeVotesArchive, activeVotes, 'Invalid active votes');
-  //     assert.equal(targetVoterRewardsArchive, targetVoterRewards, 'Invalid target voter rewards');
-  //     assert.equal(rewardsMultiplierArchive, rewardsMultiplier, 'Invalid rewards multiplier');
-  //   });
-  // });
+      assert.equal(epochNumberArchive, currentEpochNumber, 'Invalid epoch number');
+      assert.equal(activeVotesArchive, activeVotes, 'Invalid active votes');
+      assert.equal(targetVoterRewardsArchive, targetVoterRewards, 'Invalid target voter rewards');
+      assert.equal(rewardsMultiplierArchive, rewardsMultiplier, 'Invalid rewards multiplier');
+    });
+  });
 
   describe('setCurrentGroupEpochRewards()', () => {
     it('should set group epoch rewards', async () => {
