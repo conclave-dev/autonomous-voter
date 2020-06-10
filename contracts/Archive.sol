@@ -66,6 +66,7 @@ contract Archive is Initializable, Ownable, UsingRegistry, UsingPrecompiles {
         strategyFactory = _strategyFactory;
     }
 
+<<<<<<< HEAD
     function _isVaultOwner(address vault, address account) internal view {
         require(
             Vault(vault).owner() == account,
@@ -82,25 +83,28 @@ contract Archive is Initializable, Ownable, UsingRegistry, UsingPrecompiles {
 
     function getVault(address owner) external view returns (address) {
         return vaults[owner];
+=======
+    function getVault(address _owner) external view returns (address) {
+        return vaults[_owner];
+>>>>>>> Remove unnecessary vault and strategy owner checks
     }
 
     function getStrategy(address owner) external view returns (address) {
         return strategies[owner];
     }
 
-    function setVault(address vault, address account) public onlyVaultFactory {
-        _isVaultOwner(vault, account);
-
-        vaults[account] = vault;
+    function setVault(address vault, address vaultOwner)
+        public
+        onlyVaultFactory
+    {
+        vaults[vaultOwner] = vault;
     }
 
-    function setStrategy(address strategy, address account)
+    function setStrategy(address strategy, address strategyOwner)
         public
         onlyStrategyFactory
     {
-        _isStrategyOwner(strategy, account);
-
-        strategies[account] = strategy;
+        strategies[strategyOwner] = strategy;
     }
 
     function hasEpochRewards(uint256 epochNumber) public view returns (bool) {
