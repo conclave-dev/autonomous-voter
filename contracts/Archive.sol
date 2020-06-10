@@ -51,9 +51,11 @@ contract Archive is Initializable, Ownable, UsingRegistry, UsingPrecompiles {
         _;
     }
 
-    function initialize(address registry) public initializer {
+    function initialize(address registry_) public initializer {
         Ownable.initialize(msg.sender);
-        initializeRegistry(msg.sender, registry);
+
+        // registry_ has a trailing underscore to avoid collision with inherited prop from UsingRegistry
+        initializeRegistry(msg.sender, registry_);
     }
 
     function setVaultFactory(address _vaultFactory) public onlyOwner {
