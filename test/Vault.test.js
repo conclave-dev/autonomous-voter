@@ -24,17 +24,26 @@ describe('Vault', () => {
 
   describe('deposit()', () => {
     it('should enable owners to make deposits', async () => {
-      const deposits = new BigNumber(await this.vault.unmanagedGold());
-      const newDeposit = 1;
+      const manageableBalance = new BigNumber(await this.vault.getManageableBalance());
+      const nonvotingBalance = new BigNumber(await this.vault.getNonvotingBalance());
+      const deposit = 1;
 
       await this.vault.deposit({
-        value: newDeposit
+        value: deposit
       });
 
+      const newManageableBalance = new BigNumber(await this.vault.getManageableBalance());
+      const newNonvotingBalance = new BigNumber(await this.vault.getNonvotingBalance());
+
       assert.equal(
-        new BigNumber(await this.vault.unmanagedGold()).toFixed(0),
-        deposits.plus(newDeposit).toFixed(0),
-        'Deposits did not increase'
+        newManageableBalance.toFixed(0),
+        manageableBalance.plus(1).toFixed(0),
+        'Manageable balance did not increase'
+      );
+      assert.equal(
+        newNonvotingBalance.toFixed(0),
+        nonvotingBalance.plus(1).toFixed(0),
+        'Nonvoting balance did not increase'
       );
     });
 

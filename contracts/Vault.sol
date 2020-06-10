@@ -7,7 +7,7 @@ import "./interfaces/IArchive.sol";
 import "./Strategy.sol";
 
 contract Vault is UsingRegistry {
-    IArchive public archive;
+    IArchive private archive;
     address public proxyAdmin;
     uint256 public unmanagedGold;
 
@@ -34,12 +34,24 @@ contract Vault is UsingRegistry {
         archive = _archive;
         proxyAdmin = admin;
         _registerAccount();
-        _depositGold();
+        deposit();
     }
 
-    function deposit() public payable onlyOwner {
-        require(msg.value > 0, "Deposited funds must be larger than 0");
-        _depositGold();
+    function deposit() public payable {
+        require(msg.value > 0, "Deposit must be greater than zero");
+
+        // Immediately lock the deposit
+        getLockedGold().lock.value(msg.value)();
+    }
+
+    // Gets the Vault's locked gold amount (both voting and nonvoting)
+    function getManageableBalance() public view returns (uint256) {
+        return getLockedGold().getAccountTotalLockedGold(address(this));
+    }
+
+    // Gets the Vault's nonvoting locked gold amount
+    function getNonvotingBalance() public view returns (uint256) {
+        return getLockedGold().getAccountNonvotingLockedGold(address(this));
     }
 
     function addManagedGold(address strategyAddress, uint256 amount)
@@ -87,13 +99,5 @@ contract Vault is UsingRegistry {
             getAccounts().createAccount(),
             "Failed to register vault account"
         );
-    }
-
-    function _depositGold() internal {
-        // Update total unmanaged gold
-        unmanagedGold += msg.value;
-
-        // Immediately lock the deposit
-        getLockedGold().lock.value(msg.value)();
     }
 }
