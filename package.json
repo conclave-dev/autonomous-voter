@@ -29,7 +29,7 @@
   "homepage": "https://github.com/conclave-dev/autonomous-voter#readme",
   "devDependencies": {
     "@celo/contractkit": "^0.4.5",
-    "@openzeppelin/contracts-ethereum-package": "^2.4.0",
+    "@openzeppelin/contracts-ethereum-package": "^2.5.0",
     "@openzeppelin/upgrades": "^2.8.0",
     "@truffle/contract": "^4.2.8",
     "bignumber.js": "^9.0.0",
