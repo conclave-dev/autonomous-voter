@@ -211,7 +211,8 @@ contract Archive is Initializable, Ownable, UsingRegistry, UsingPrecompiles {
         returns (bool)
     {
         return
-            epochRewards[_epochNumber].groupEpochRewards[_group].activeVotes > 0;
+            epochRewards[_epochNumber].groupEpochRewards[_group].activeVotes >
+            0;
     }
 
     function setGroupEpochRewards(
@@ -231,7 +232,8 @@ contract Archive is Initializable, Ownable, UsingRegistry, UsingPrecompiles {
             "Not a validator group"
         );
 
-        epochRewards[_epochNumber].groupEpochRewards[_group] = GroupEpochRewards(
+        epochRewards[_epochNumber]
+            .groupEpochRewards[_group] = GroupEpochRewards(
             _activeVotes,
             _slashingMultiplier,
             _score

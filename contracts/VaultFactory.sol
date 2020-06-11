@@ -18,10 +18,10 @@ contract VaultFactory is Initializable {
         archive = _archive;
     }
 
-    function createInstance(
-        address _registry,
-        address _archive
-    ) public payable {
+    function createInstance(address _registry, address _archive)
+        public
+        payable
+    {
         require(
             msg.value >= MINIMUM_DEPOSIT,
             "Insufficient funds for initial deposit"
