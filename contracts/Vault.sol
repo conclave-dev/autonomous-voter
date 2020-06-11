@@ -25,14 +25,14 @@ contract Vault is UsingRegistry {
     function initialize(
         address _registry,
         IArchive _archive,
-        address _owner,
-        address _admin
+        address owner,
+        address admin
     ) public payable initializer {
         UsingRegistry.initializeRegistry(msg.sender, _registry);
-        Ownable.initialize(_owner);
+        Ownable.initialize(owner);
 
         archive = _archive;
-        proxyAdmin = _admin;
+        proxyAdmin = admin;
         _registerAccount();
         _depositGold();
     }
@@ -42,44 +42,44 @@ contract Vault is UsingRegistry {
         _depositGold();
     }
 
-    function addManagedGold(address _strategyAddress, uint256 _amount)
+    function addManagedGold(address strategyAddress, uint256 amount)
         external
         onlyOwner
     {
         require(
-            _amount > 0 && _amount <= unmanagedGold,
+            amount > 0 && amount <= unmanagedGold,
             "Deposited funds must be > 0 and <= unmanaged gold"
         );
 
         // Crosscheck the validity of the specified strategy instance
         require(
-            archive.getStrategy(Strategy(_strategyAddress).owner()) ==
-                _strategyAddress,
+            archive.getStrategy(Strategy(strategyAddress).owner()) ==
+                strategyAddress,
             "Invalid strategy specified"
         );
 
-        IStrategy strategy = IStrategy(_strategyAddress);
+        IStrategy strategy = IStrategy(strategyAddress);
         uint256 rewardSharePercentage = strategy.getRewardSharePercentage();
 
         // Initialize a new managedGold entry
         uint256 strategyIndex = managedGold.length;
 
         ManagedGold memory newManagedGold;
-        newManagedGold.strategyAddress = _strategyAddress;
-        newManagedGold.amount = _amount;
+        newManagedGold.strategyAddress = strategyAddress;
+        newManagedGold.amount = amount;
         newManagedGold.groupVotesActiveAtEpoch = 0;
         newManagedGold.rewardSharePercentage = rewardSharePercentage;
 
         managedGold.push(newManagedGold);
 
-        unmanagedGold -= _amount;
+        unmanagedGold -= amount;
 
-        strategy.registerVault(strategyIndex, _amount);
+        strategy.registerVault(strategyIndex, amount);
     }
 
-    function setProxyAdmin(address _admin) external onlyOwner {
-        require(_admin != address(0), "Invalid admin address");
-        proxyAdmin = _admin;
+    function setProxyAdmin(address admin) external onlyOwner {
+        require(admin != address(0), "Invalid admin address");
+        proxyAdmin = admin;
     }
 
     function _registerAccount() internal {

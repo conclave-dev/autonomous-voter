@@ -15,32 +15,32 @@ contract Strategy is Ownable {
 
     function initialize(
         IArchive _archive,
-        address _owner,
-        address _admin,
-        uint256 _sharePercentage,
-        uint256 _minimumGold
+        address owner,
+        address admin,
+        uint256 sharePercentage,
+        uint256 minimumGold
     ) public payable initializer {
-        Ownable.initialize(_owner);
+        Ownable.initialize(owner);
 
         archive = _archive;
-        proxyAdmin = _admin;
-        rewardSharePercentage = _sharePercentage;
-        minimumManagedGold = _minimumGold;
+        proxyAdmin = admin;
+        rewardSharePercentage = sharePercentage;
+        minimumManagedGold = minimumGold;
     }
 
-    function setProxyAdmin(address _admin) external onlyOwner {
-        require(_admin != address(0), "Invalid admin address");
-        proxyAdmin = _admin;
+    function setProxyAdmin(address admin) external onlyOwner {
+        require(admin != address(0), "Invalid admin address");
+        proxyAdmin = admin;
     }
 
-    function setRewardSharePercentage(uint256 _percentage) external onlyOwner {
-        require(_percentage > 0, "Invalid reward share percentage");
-        rewardSharePercentage = _percentage;
+    function setRewardSharePercentage(uint256 percentage) external onlyOwner {
+        require(percentage > 0, "Invalid reward share percentage");
+        rewardSharePercentage = percentage;
     }
 
-    function setMinimumManagedGold(uint256 _amount) external onlyOwner {
-        require(_amount > 0, "Invalid cGold amount");
-        minimumManagedGold = _amount;
+    function setMinimumManagedGold(uint256 amount) external onlyOwner {
+        require(amount > 0, "Invalid cGold amount");
+        minimumManagedGold = amount;
     }
 
     function getRewardSharePercentage() external view returns (uint256) {
@@ -51,13 +51,13 @@ contract Strategy is Ownable {
         return minimumManagedGold;
     }
 
-    function registerVault(uint256 _strategyIndex, uint256 _amount) external {
+    function registerVault(uint256 strategyIndex, uint256 amount) external {
         // Crosscheck the Archive to make sure that `msg.sender` is a valid vault instance with proper owner
         address vaultAddress = archive.getVault(Vault(msg.sender).owner());
         require(vaultAddress == msg.sender, "Invalid vault");
 
-        require(_amount >= minimumManagedGold, "Insufficient gold");
+        require(amount >= minimumManagedGold, "Insufficient gold");
 
-        managedGold[vaultAddress][_strategyIndex] = _amount;
+        managedGold[vaultAddress][strategyIndex] = amount;
     }
 }

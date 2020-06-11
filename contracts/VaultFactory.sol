@@ -18,10 +18,7 @@ contract VaultFactory is Initializable {
         archive = _archive;
     }
 
-    function createInstance(address _registry, address _archive)
-        public
-        payable
-    {
+    function createInstance(address registry) public payable {
         require(
             msg.value >= MINIMUM_DEPOSIT,
             "Insufficient funds for initial deposit"
@@ -44,8 +41,8 @@ contract VaultFactory is Initializable {
                 adminAddress,
                 abi.encodeWithSignature(
                     "initialize(address,address,address,address)",
-                    _registry,
-                    _archive,
+                    registry,
+                    address(archive),
                     vaultOwner,
                     adminAddress
                 )

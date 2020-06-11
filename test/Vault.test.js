@@ -6,7 +6,7 @@ describe('Vault', () => {
   before(async () => {
     this.archive = await contracts.Archive.deployed();
 
-    await (await contracts.VaultFactory.deployed()).createInstance(registryContractAddress, this.archive.address, {
+    await (await contracts.VaultFactory.deployed()).createInstance(registryContractAddress, {
       value: new BigNumber('1e17')
     });
 
@@ -55,7 +55,6 @@ describe('Vault', () => {
       this.minimumManagedGold = new BigNumber('1e16').toString();
 
       await (await contracts.StrategyFactory.deployed()).createInstance(
-        this.archive.address,
         this.rewardSharePercentage,
         this.minimumManagedGold
       );

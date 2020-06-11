@@ -10,7 +10,6 @@ describe('Strategy', () => {
     this.archive = await contracts.Archive.deployed();
 
     await (await contracts.StrategyFactory.deployed()).createInstance(
-      this.archive.address,
       this.rewardSharePercentage,
       this.minimumManagedGold
     );

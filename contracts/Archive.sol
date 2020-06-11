@@ -51,9 +51,9 @@ contract Archive is Initializable, Ownable, UsingRegistry, UsingPrecompiles {
         _;
     }
 
-    function initialize(address _registry) public initializer {
+    function initialize(address registry) public initializer {
         Ownable.initialize(msg.sender);
-        initializeRegistry(msg.sender, _registry);
+        initializeRegistry(msg.sender, registry);
     }
 
     function setVaultFactory(address _vaultFactory) public onlyOwner {
@@ -64,77 +64,71 @@ contract Archive is Initializable, Ownable, UsingRegistry, UsingPrecompiles {
         strategyFactory = _strategyFactory;
     }
 
-    function _isVaultOwner(address _vault, address _account) internal view {
+    function _isVaultOwner(address vault, address account) internal view {
         require(
-            Vault(_vault).owner() == _account,
+            Vault(vault).owner() == account,
             "Account is not the vault owner"
         );
     }
 
-    function _isStrategyOwner(address _strategy, address _account)
-        internal
-        view
-    {
+    function _isStrategyOwner(address strategy, address account) internal view {
         require(
-            Strategy(_strategy).owner() == _account,
+            Strategy(strategy).owner() == account,
             "Account is not the strategy owner"
         );
     }
 
-    function getVault(address _owner) external view returns (address) {
-        return vaults[_owner];
+    function getVault(address owner) external view returns (address) {
+        return vaults[owner];
     }
 
-    function getStrategy(address _owner) external view returns (address) {
-        return strategies[_owner];
+    function getStrategy(address owner) external view returns (address) {
+        return strategies[owner];
     }
 
-    function setVault(address _vault, address _account)
-        public
-        onlyVaultFactory
-    {
-        _isVaultOwner(_vault, _account);
+    function setVault(address vault, address account) public onlyVaultFactory {
+        _isVaultOwner(vault, account);
 
-        vaults[_account] = _vault;
+        vaults[account] = vault;
     }
 
-    function setStrategy(address _strategy, address _account)
+    function setStrategy(address strategy, address account)
         public
         onlyStrategyFactory
     {
-        _isStrategyOwner(_strategy, _account);
+        _isStrategyOwner(strategy, account);
 
-        strategies[_account] = _strategy;
+        strategies[account] = strategy;
     }
 
-    function hasEpochRewards(uint256 _epochNumber) public view returns (bool) {
+    function hasEpochRewards(uint256 epochNumber) public view returns (bool) {
         // Only checking activeVotes since there wouldn't be voter rewards if it were 0
-        return epochRewards[_epochNumber].activeVotes > 0;
+        return epochRewards[epochNumber].activeVotes > 0;
     }
 
     function setEpochRewards(
-        uint256 _epochNumber,
-        uint256 _blockNumber,
-        uint256 _activeVotes,
-        uint256 _targetVoterRewards,
-        uint256 _rewardsMultiplier
+        uint256 epochNumber,
+        uint256 blockNumber,
+        uint256 activeVotes,
+        uint256 targetVoterRewards,
+        uint256 rewardsMultiplier
     ) internal returns (EpochRewards storage) {
         require(
-            _epochNumber <= getEpochNumberOfBlock(_blockNumber),
+            epochNumber <= getEpochNumberOfBlock(blockNumber),
             "Invalid epochNumber"
         );
 
-        epochRewards[_epochNumber] = EpochRewards(
-            _blockNumber,
-            _activeVotes,
-            _targetVoterRewards,
-            _rewardsMultiplier
+        epochRewards[epochNumber] = EpochRewards(
+            blockNumber,
+            activeVotes,
+            targetVoterRewards,
+            rewardsMultiplier
         );
 
-        return epochRewards[_epochNumber];
+        return epochRewards[epochNumber];
     }
 
-    function _getEpochRewards(uint256 _epochNumber)
+    function _getEpochRewards(uint256 epochNumber)
         public
         view
         returns (
@@ -145,10 +139,10 @@ contract Archive is Initializable, Ownable, UsingRegistry, UsingPrecompiles {
         )
     {
         return (
-            epochRewards[_epochNumber].blockNumber,
-            epochRewards[_epochNumber].activeVotes,
-            epochRewards[_epochNumber].targetVoterRewards,
-            epochRewards[_epochNumber].rewardsMultiplier
+            epochRewards[epochNumber].blockNumber,
+            epochRewards[epochNumber].activeVotes,
+            epochRewards[epochNumber].targetVoterRewards,
+            epochRewards[epochNumber].rewardsMultiplier
         );
     }
 
@@ -191,58 +185,56 @@ contract Archive is Initializable, Ownable, UsingRegistry, UsingPrecompiles {
 
     // Modified version of calculateGroupEpochScore (link) to calculate the group score (average of its members' score)
     // https://github.com/celo-org/celo-monorepo/blob/baklava/packages/protocol/contracts/governance/Validators.sol#L408
-    function calculateGroupMemberScoreAverage(address[] memory _members)
+    function calculateGroupMemberScoreAverage(address[] memory members)
         public
         view
         returns (uint256)
     {
-        require(_members.length > 0, "Members array empty");
+        require(members.length > 0, "Members array empty");
         uint256 groupScore;
-        for (uint256 i = 0; i < _members.length; i = i.add(1)) {
-            (, , , uint256 score, ) = getValidators().getValidator(_members[i]);
+        for (uint256 i = 0; i < members.length; i = i.add(1)) {
+            (, , , uint256 score, ) = getValidators().getValidator(members[i]);
             groupScore = groupScore.add(score);
         }
-        return groupScore.div(_members.length);
+        return groupScore.div(members.length);
     }
 
-    function hasGroupEpochRewards(uint256 _epochNumber, address _group)
+    function hasGroupEpochRewards(uint256 epochNumber, address group)
         public
         view
         returns (bool)
     {
         return
-            epochRewards[_epochNumber].groupEpochRewards[_group].activeVotes >
-            0;
+            epochRewards[epochNumber].groupEpochRewards[group].activeVotes > 0;
     }
 
     function setGroupEpochRewards(
-        uint256 _epochNumber,
-        address _group,
-        uint256 _activeVotes,
-        uint256 _slashingMultiplier,
-        uint256 _score
+        uint256 epochNumber,
+        address group,
+        uint256 activeVotes,
+        uint256 slashingMultiplier,
+        uint256 score
     ) internal returns (EpochRewards storage) {
         require(
-            _epochNumber <= getEpochNumberOfBlock(block.number),
+            epochNumber <= getEpochNumberOfBlock(block.number),
             "Invalid epochNumber"
         );
-        require(hasEpochRewards(_epochNumber), "Epoch rewards are not set");
+        require(hasEpochRewards(epochNumber), "Epoch rewards are not set");
         require(
-            getValidators().isValidatorGroup(_group),
+            getValidators().isValidatorGroup(group),
             "Not a validator group"
         );
 
-        epochRewards[_epochNumber]
-            .groupEpochRewards[_group] = GroupEpochRewards(
-            _activeVotes,
-            _slashingMultiplier,
-            _score
+        epochRewards[epochNumber].groupEpochRewards[group] = GroupEpochRewards(
+            activeVotes,
+            slashingMultiplier,
+            score
         );
 
-        return epochRewards[_epochNumber];
+        return epochRewards[epochNumber];
     }
 
-    function getGroupEpochRewards(uint256 _epochNumber, address _group)
+    function getGroupEpochRewards(uint256 epochNumber, address group)
         public
         view
         returns (
@@ -254,16 +246,16 @@ contract Archive is Initializable, Ownable, UsingRegistry, UsingPrecompiles {
         )
     {
         return (
-            _epochNumber,
-            _group,
-            epochRewards[_epochNumber].groupEpochRewards[_group].activeVotes,
-            epochRewards[_epochNumber].groupEpochRewards[_group]
+            epochNumber,
+            group,
+            epochRewards[epochNumber].groupEpochRewards[group].activeVotes,
+            epochRewards[epochNumber].groupEpochRewards[group]
                 .slashingMultiplier,
-            epochRewards[_epochNumber].groupEpochRewards[_group].score
+            epochRewards[epochNumber].groupEpochRewards[group].score
         );
     }
 
-    function setCurrentGroupEpochRewards(address _group)
+    function setCurrentGroupEpochRewards(address group)
         public
         returns (
             uint256,
@@ -276,11 +268,11 @@ contract Archive is Initializable, Ownable, UsingRegistry, UsingPrecompiles {
         uint256 epochNumber = getEpochNumberOfBlock(block.number);
 
         // If exists, return existing group epoch rewards to reduce gas for caller
-        if (hasGroupEpochRewards(epochNumber, _group)) {
-            return getGroupEpochRewards(epochNumber, _group);
+        if (hasGroupEpochRewards(epochNumber, group)) {
+            return getGroupEpochRewards(epochNumber, group);
         }
 
-        uint256 activeVotes = getElection().getActiveVotesForGroup(_group);
+        uint256 activeVotes = getElection().getActiveVotesForGroup(group);
         (
             address[] memory members,
             ,
@@ -289,7 +281,7 @@ contract Archive is Initializable, Ownable, UsingRegistry, UsingPrecompiles {
             ,
             uint256 slashingMultiplier,
 
-        ) = getValidators().getValidatorGroup(_group);
+        ) = getValidators().getValidatorGroup(group);
         uint256 groupScore = calculateGroupMemberScoreAverage(members);
 
         if (!hasEpochRewards(epochNumber)) {
@@ -297,7 +289,7 @@ contract Archive is Initializable, Ownable, UsingRegistry, UsingPrecompiles {
         }
 
         EpochRewards storage currentEpochRewards = epochRewards[epochNumber];
-        currentEpochRewards.groupEpochRewards[_group] = GroupEpochRewards(
+        currentEpochRewards.groupEpochRewards[group] = GroupEpochRewards(
             activeVotes,
             slashingMultiplier,
             groupScore
@@ -305,7 +297,7 @@ contract Archive is Initializable, Ownable, UsingRegistry, UsingPrecompiles {
 
         return (
             epochNumber,
-            _group,
+            group,
             activeVotes,
             slashingMultiplier,
             groupScore

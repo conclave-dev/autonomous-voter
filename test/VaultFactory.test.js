@@ -1,5 +1,5 @@
 const { assert, expect, contracts } = require('./setup');
-const { primarySenderAddress, registryContractAddress } = require('../config');
+const { registryContractAddress } = require('../config');
 
 describe('VaultFactory', () => {
   before(async () => {
@@ -17,9 +17,7 @@ describe('VaultFactory', () => {
 
   describe('createInstance(bytes memory _data)', () => {
     it('should not create an instance if the initial deposit is insufficient', async () => {
-      await expect(this.vaultFactory.createInstance(registryContractAddress, this.archive.address)).to.be.rejectedWith(
-        Error
-      );
+      await expect(this.vaultFactory.createInstance(registryContractAddress)).to.be.rejectedWith(Error);
     });
   });
 });

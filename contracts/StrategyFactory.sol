@@ -16,11 +16,10 @@ contract StrategyFactory is Initializable {
         archive = _archive;
     }
 
-    function createInstance(
-        address _archive,
-        uint256 _sharePercentage,
-        uint256 _minimumGold
-    ) public payable {
+    function createInstance(uint256 sharePercentage, uint256 minimumGold)
+        public
+        payable
+    {
         address strategyOwner = msg.sender;
 
         // Create a proxy admin for managing the new strategy instance's upgradeability
@@ -38,11 +37,11 @@ contract StrategyFactory is Initializable {
                 adminAddress,
                 abi.encodeWithSignature(
                     "initialize(address,address,address,uint256,uint256)",
-                    _archive,
+                    address(archive),
                     strategyOwner,
                     adminAddress,
-                    _sharePercentage,
-                    _minimumGold
+                    sharePercentage,
+                    minimumGold
                 )
             )
         );
