@@ -2,25 +2,23 @@
 pragma solidity ^0.5.8;
 
 import "./celo/common/UsingRegistry.sol";
-import "./interfaces/IStrategy.sol";
 import "./interfaces/IArchive.sol";
 import "./Strategy.sol";
 
 contract Vault is UsingRegistry {
     IArchive private archive;
     address public proxyAdmin;
-    uint256 public unmanagedGold;
 
-    struct ManagedGold {
-        address strategyAddress;
-        uint256 amount;
-        mapping(address => uint256) groupVotes;
-        address[] groupAddresses;
-        uint256 groupVotesActiveAtEpoch;
+    struct Managers {
+        VotingManager voting;
+    }
+
+    struct VotingManager {
+        address contractAddress;
         uint256 rewardSharePercentage;
     }
 
-    ManagedGold[] public managedGold;
+    Managers private managers;
 
     function initialize(
         address _registry,
@@ -54,39 +52,28 @@ contract Vault is UsingRegistry {
         return getLockedGold().getAccountNonvotingLockedGold(address(this));
     }
 
-    function addManagedGold(address strategyAddress, uint256 amount)
-        external
-        onlyOwner
-    {
+    function validateVotingManager(Strategy strategy) internal view {
         require(
-            amount > 0 && amount <= unmanagedGold,
-            "Deposited funds must be > 0 and <= unmanaged gold"
+            archive.getStrategy(strategy.owner()) == address(strategy),
+            "Voting manager is invalid"
         );
+    }
 
-        // Crosscheck the validity of the specified strategy instance
-        require(
-            archive.getStrategy(Strategy(strategyAddress).owner()) ==
-                strategyAddress,
-            "Invalid strategy specified"
+    function setVotingManager(Strategy strategy) external onlyOwner {
+        validateVotingManager(strategy);
+
+        managers.voting.contractAddress = address(strategy);
+        managers.voting.rewardSharePercentage = strategy
+            .rewardSharePercentage();
+
+        strategy.registerVault(this);
+    }
+
+    function getVotingManager() public view returns (address, uint256) {
+        return (
+            managers.voting.contractAddress,
+            managers.voting.rewardSharePercentage
         );
-
-        IStrategy strategy = IStrategy(strategyAddress);
-        uint256 rewardSharePercentage = strategy.getRewardSharePercentage();
-
-        // Initialize a new managedGold entry
-        uint256 strategyIndex = managedGold.length;
-
-        ManagedGold memory newManagedGold;
-        newManagedGold.strategyAddress = strategyAddress;
-        newManagedGold.amount = amount;
-        newManagedGold.groupVotesActiveAtEpoch = 0;
-        newManagedGold.rewardSharePercentage = rewardSharePercentage;
-
-        managedGold.push(newManagedGold);
-
-        unmanagedGold -= amount;
-
-        strategy.registerVault(strategyIndex, amount);
     }
 
     function setProxyAdmin(address admin) external onlyOwner {

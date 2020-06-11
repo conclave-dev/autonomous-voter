@@ -1,6 +1,6 @@
 const BigNumber = require('bignumber.js');
 const { assert, expect, contracts, kit } = require('./setup');
-const { primarySenderAddress, secondarySenderAddress, registryContractAddress } = require('../config');
+const { primarySenderAddress, registryContractAddress } = require('../config');
 
 describe('Vault', () => {
   before(async () => {
@@ -46,56 +46,35 @@ describe('Vault', () => {
         'Nonvoting balance did not increase'
       );
     });
-
-    it('should not be able to deposit from a non-owner account', async () => {
-      await expect(
-        this.vault.deposit({
-          from: secondarySenderAddress,
-          value: 1
-        })
-      ).to.be.rejectedWith(Error);
-    });
   });
 
-  describe('addManagedGold(address strategyAddress, uint256 amount)', () => {
-    it('should set the specified amount of managedGold to be registered under the specified strategy', async () => {
+  describe('setVotingManager(Strategy strategy)', () => {
+    it('should set a voting manager', async () => {
       // Start by creating the test strategy instance
-      this.rewardSharePercentage = '10';
-      this.minimumManagedGold = new BigNumber('1e16').toString();
-
       await (await contracts.StrategyFactory.deployed()).createInstance(
-        this.rewardSharePercentage,
-        this.minimumManagedGold
+        this.archive.address,
+        primarySenderAddress,
+        '10',
+        new BigNumber('1e16').toString()
       );
 
       // Test adding managedGold to a strategy
-      const strategyAddress = await this.archive.getStrategy(primarySenderAddress);
-      const strategy = await contracts.Strategy.at(strategyAddress);
-      const managedGoldAmount = new BigNumber('2e16');
-      const initialUnmanagedGold = new BigNumber(await this.vault.unmanagedGold());
+      const strategy = await contracts.Strategy.at(await this.archive.getStrategy(primarySenderAddress));
 
-      await this.vault.addManagedGold(strategyAddress, managedGoldAmount.toString());
+      await this.vault.setVotingManager(strategy.address);
 
-      // Also check the recorded entry for managedGold
-      const firstManagedGold = await this.vault.managedGold(0);
+      const { 0: contractAddress, 1: rewardSharePercentage } = await this.vault.getVotingManager();
+      const strategyRewardSharePercentage = new BigNumber(await strategy.rewardSharePercentage());
+      const hasVault = await strategy.hasVault(this.vault.address);
 
-      assert.equal(
-        (await this.vault.unmanagedGold()).toString(),
-        initialUnmanagedGold.minus(managedGoldAmount).toString(),
-        'Invalid resulting unmanagedGold amount'
+      await expect(this.vault.setVotingManager(strategy.address)).to.be.rejectedWith(Error);
+      assert(contractAddress, strategy.address, `Voting manager address should be ${strategy.address}`);
+      assert(
+        new BigNumber(rewardSharePercentage).toFixed(0),
+        strategyRewardSharePercentage.toFixed(0),
+        `Reward share percentage should be ${strategyRewardSharePercentage}`
       );
-
-      assert.equal(firstManagedGold.strategyAddress, strategyAddress, 'Invalid resulting strategy address');
-      assert.equal(
-        new BigNumber(firstManagedGold.amount).toString(),
-        managedGoldAmount.toString(),
-        'Invalid resulting managedGold amount'
-      );
-      assert.equal(
-        await strategy.managedGold(this.vault.address, 0),
-        managedGoldAmount.toString(),
-        'Invalid resulting managedGold amount'
-      );
+      assert(hasVault, true, 'Vault was not registered with voting manager');
     });
   });
 });

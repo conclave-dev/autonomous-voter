@@ -4,18 +4,25 @@ pragma solidity ^0.5.8;
 import "@openzeppelin/contracts-ethereum-package/contracts/ownership/Ownable.sol";
 import "./interfaces/IArchive.sol";
 import "./Vault.sol";
+import "./celo/common/libraries/AddressLinkedList.sol";
 
 contract Strategy is Ownable {
-    IArchive public archive;
-    address public proxyAdmin;
+    using AddressLinkedList for LinkedList.List;
 
+    IArchive private archive;
+
+    address public proxyAdmin;
     uint256 public rewardSharePercentage;
-    uint256 public minimumManagedGold;
-    mapping(address => mapping(uint256 => uint256)) public managedGold;
+    uint256 public minimumManageableBalanceRequirement;
+
+    LinkedList.List public vaults;
 
     modifier onlyVault() {
         // Confirm that Vault is in the AV network (i.e. stored within the Archive contract)
-        require(archive.getVault(Vault(msg.sender).owner()) == msg.sender, "Invalid vault");
+        require(
+            archive.getVault(Vault(msg.sender).owner()) == msg.sender,
+            "Invalid vault"
+        );
         _;
     }
 
@@ -29,9 +36,9 @@ contract Strategy is Ownable {
         Ownable.initialize(owner);
 
         archive = _archive;
-        proxyAdmin = admin;
-        rewardSharePercentage = sharePercentage;
-        minimumManagedGold = minimumGold;
+        proxyAdmin = _admin;
+        rewardSharePercentage = _sharePercentage;
+        minimumManageableBalanceRequirement = _minimumGold;
     }
 
     function setProxyAdmin(address admin) external onlyOwner {
@@ -44,22 +51,29 @@ contract Strategy is Ownable {
         rewardSharePercentage = percentage;
     }
 
-    function setMinimumManagedGold(uint256 amount) external onlyOwner {
-        require(amount > 0, "Invalid cGold amount");
-        minimumManagedGold = amount;
+    function setMinimumManageableBalanceRequirement(uint256 _amount)
+        external
+        onlyOwner
+    {
+        require(_amount > 0, "Invalid cGold amount");
+        minimumManageableBalanceRequirement = _amount;
     }
 
-    function getRewardSharePercentage() external view returns (uint256) {
-        return rewardSharePercentage;
+    function hasVault(address vault) public view returns (bool) {
+        return vaults.contains(vault);
     }
 
-    function getMinimumManagedGold() external view returns (uint256) {
-        return minimumManagedGold;
+    function validateVault(Vault vault) internal view {
+        require(!hasVault(address(vault)), "Already registered");
+        require(
+            vault.getManageableBalance() >= minimumManageableBalanceRequirement,
+            "Does not meet minimum manageable balance requirement"
+        );
     }
 
-    function registerVault(uint256 _strategyIndex, uint256 _amount) external onlyVault {
-        require(_amount >= minimumManagedGold, "Amount does not meet this strategy's minimum");
+    function registerVault(Vault vault) external onlyVault {
+        validateVault(vault);
 
-        managedGold[msg.sender][_strategyIndex] = _amount;
+        vaults.push(msg.sender);
     }
 }

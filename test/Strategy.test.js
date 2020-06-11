@@ -6,18 +6,18 @@ describe('Strategy', () => {
   before(async () => {
     // Test values for strategy parameters
     this.rewardSharePercentage = '10';
-    this.minimumManagedGold = new BigNumber('1e16').toString();
+    this.minimumManageableBalanceRequirement = new BigNumber('1e16').toString();
     this.archive = await contracts.Archive.deployed();
 
     await (await contracts.StrategyFactory.deployed()).createInstance(
       this.rewardSharePercentage,
-      this.minimumManagedGold
+      this.minimumManageableBalanceRequirement
     );
 
     this.strategy = await contracts.Strategy.at(await this.archive.getStrategy(primarySenderAddress));
   });
 
-  describe('initialize(address archive, address owner, uint256 rewardSharePercentage, uint256 minimumManagedGold)', () => {
+  describe('initialize(address archive, address owner, uint256 rewardSharePercentage, uint256 minimumManageableBalanceRequirement)', () => {
     it('should initialize with an owner, initial share percentage, and mininum managed gold', async () => {
       assert.equal(
         (await this.strategy.rewardSharePercentage()).toString(),
@@ -26,8 +26,8 @@ describe('Strategy', () => {
       );
 
       assert.equal(
-        (await this.strategy.minimumManagedGold()).toString(),
-        this.minimumManagedGold,
+        (await this.strategy.minimumManageableBalanceRequirement()).toString(),
+        this.minimumManageableBalanceRequirement,
         'Invalid minimum managed gold'
       );
     });
@@ -51,29 +51,31 @@ describe('Strategy', () => {
     });
   });
 
-  describe('setMinimumManagedGold(uint256 minimumManagedGold)', () => {
+  describe('setMinimumManageableBalanceRequirement(uint256 minimumManageableBalanceRequirement)', () => {
     it('should update the minimum managed gold', async () => {
-      this.minimumManagedGold = new BigNumber('1e17').toString();
+      this.minimumManageableBalanceRequirement = new BigNumber('1e17').toString();
 
-      await this.strategy.setMinimumManagedGold(this.minimumManagedGold);
+      await this.strategy.setMinimumManageableBalanceRequirement(this.minimumManageableBalanceRequirement);
 
       assert.equal(
-        (await this.strategy.minimumManagedGold()).toString(),
-        this.minimumManagedGold,
+        (await this.strategy.minimumManageableBalanceRequirement()).toString(),
+        this.minimumManageableBalanceRequirement,
         'Failed to update minimum managed gold'
       );
     });
 
     it('should not be able to update the minimum managed gold from a non-owner account', async () => {
-      await expect(this.strategy.setMinimumManagedGold({ from: secondarySenderAddress })).to.be.rejectedWith(Error);
+      await expect(
+        this.strategy.setMinimumManageableBalanceRequirement({ from: secondarySenderAddress })
+      ).to.be.rejectedWith(Error);
     });
   });
 
   describe('registerVault(uint256 strategyIndex, uint256 amount)', () => {
     it('should not allow invalid vault to register', async () => {
-      await expect(this.strategy.registerVault(primarySenderAddress, this.minimumManagedGold)).to.be.rejectedWith(
-        Error
-      );
+      await expect(
+        this.strategy.registerVault(primarySenderAddress, this.minimumManageableBalanceRequirement)
+      ).to.be.rejectedWith(Error);
     });
   });
 });
