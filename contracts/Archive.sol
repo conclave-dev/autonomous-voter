@@ -103,6 +103,22 @@ contract Archive is Initializable, Ownable, UsingRegistry, UsingPrecompiles {
         return vaultManagerOwners[owner_].getKeys();
     }
 
+    function hasVault(address owner_, address vault)
+        external
+        view
+        returns (bool)
+    {
+        return vaultOwners[owner_].contains(vault);
+    }
+
+    function hasVaultManager(address owner_, address vaultManager)
+        external
+        view
+        returns (bool)
+    {
+        return vaultManagerOwners[owner_].contains(vaultManager);
+    }
+
     function associateVaultWithOwner(address vault, address owner_)
         public
         onlyVaultFactory

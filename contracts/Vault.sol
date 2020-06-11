@@ -2,18 +2,18 @@
 pragma solidity ^0.5.8;
 
 import "./celo/common/UsingRegistry.sol";
-import "./interfaces/IArchive.sol";
+import "./Archive.sol";
 import "./VaultManager.sol";
 
 contract Vault is UsingRegistry {
-    IArchive private archive;
+    Archive private archive;
     address public proxyAdmin;
 
     struct Managers {
-        VotingManager voting;
+        VotingVaultManager voting;
     }
 
-    struct VotingManager {
+    struct VotingVaultManager {
         address contractAddress;
         uint256 rewardSharePercentage;
     }
@@ -22,7 +22,7 @@ contract Vault is UsingRegistry {
 
     function initialize(
         address registry_,
-        IArchive archive_,
+        Archive archive_,
         address owner_,
         address admin
     ) public payable initializer {
@@ -54,7 +54,7 @@ contract Vault is UsingRegistry {
 
     function verifyVaultManager(VaultManager manager) internal view {
         require(
-            archive.getVaultManagerOwner(manager.owner()) == address(manager),
+            archive.hasVaultManager(manager.owner(), address(manager)),
             "Voting manager is invalid"
         );
     }

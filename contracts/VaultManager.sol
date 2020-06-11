@@ -2,14 +2,14 @@
 pragma solidity ^0.5.8;
 
 import "@openzeppelin/contracts-ethereum-package/contracts/ownership/Ownable.sol";
-import "./interfaces/IArchive.sol";
+import "./Archive.sol";
 import "./Vault.sol";
 import "./celo/common/libraries/AddressLinkedList.sol";
 
 contract VaultManager is Ownable {
     using AddressLinkedList for LinkedList.List;
 
-    IArchive private archive;
+    Archive private archive;
 
     address public proxyAdmin;
     uint256 public rewardSharePercentage;
@@ -20,14 +20,14 @@ contract VaultManager is Ownable {
     modifier onlyVault() {
         // Confirm that Vault is in the AV network (i.e. stored within the Archive contract)
         require(
-            archive.getVaultOwner(Vault(msg.sender).owner()) == msg.sender,
+            archive.hasVault(Vault(msg.sender).owner(), msg.sender),
             "Invalid vault"
         );
         _;
     }
 
     function initialize(
-        IArchive _archive,
+        Archive _archive,
         address owner_,
         address admin,
         uint256 sharePercentage,
