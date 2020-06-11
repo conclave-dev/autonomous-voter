@@ -82,11 +82,5 @@ describe('App', () => {
       // Reset the factory for other tests
       await this.app.setContractFactory('Vault', this.vaultFactory.address);
     });
-
-    // it('should not allow setting zero-address as factory', async () => {
-    //   await expect(
-    //     this.app.setContractFactory('Vault', '0x0000000000000000000000000000000000000000')
-    //   ).to.be.rejectedWith(Error);
-    // });
   });
 });
