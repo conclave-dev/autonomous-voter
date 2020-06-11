@@ -22,7 +22,7 @@ contract Vault is UsingRegistry {
 
     ManagedGold[] public managedGold;
 
-    function initializeVault(
+    function initialize(
         address _registry,
         IArchive _archive,
         address _owner,

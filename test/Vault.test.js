@@ -6,19 +6,14 @@ describe('Vault', () => {
   before(async () => {
     this.archive = await contracts.Archive.deployed();
 
-    await (await contracts.VaultFactory.deployed()).createInstance(
-      registryContractAddress,
-      this.archive.address,
-      primarySenderAddress,
-      {
-        value: new BigNumber('1e17')
-      }
-    );
+    await (await contracts.VaultFactory.deployed()).createInstance(registryContractAddress, this.archive.address, {
+      value: new BigNumber('1e17')
+    });
 
     this.vault = await contracts.Vault.at(await this.archive.getVault(primarySenderAddress));
   });
 
-  describe('initializeVault(address registry, address owner)', () => {
+  describe('initialize(address registry, address owner)', () => {
     it('should initialize with an owner and register a Celo account', async () => {
       const accounts = await kit.contracts.getAccounts();
 
@@ -61,7 +56,6 @@ describe('Vault', () => {
 
       await (await contracts.StrategyFactory.deployed()).createInstance(
         this.archive.address,
-        primarySenderAddress,
         this.rewardSharePercentage,
         this.minimumManagedGold
       );

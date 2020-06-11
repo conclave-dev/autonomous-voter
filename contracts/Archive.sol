@@ -51,9 +51,9 @@ contract Archive is Initializable, Ownable, UsingRegistry, UsingPrecompiles {
         _;
     }
 
-    function initialize(address registry) public initializer {
+    function initialize(address _registry) public initializer {
         Ownable.initialize(msg.sender);
-        initializeRegistry(msg.sender, registry);
+        initializeRegistry(msg.sender, _registry);
     }
 
     function setVaultFactory(address _vaultFactory) public onlyOwner {
@@ -107,34 +107,34 @@ contract Archive is Initializable, Ownable, UsingRegistry, UsingPrecompiles {
         strategies[_account] = _strategy;
     }
 
-    function hasEpochRewards(uint256 epochNumber) public view returns (bool) {
+    function hasEpochRewards(uint256 _epochNumber) public view returns (bool) {
         // Only checking activeVotes since there wouldn't be voter rewards if it were 0
-        return epochRewards[epochNumber].activeVotes > 0;
+        return epochRewards[_epochNumber].activeVotes > 0;
     }
 
     function setEpochRewards(
-        uint256 epochNumber,
-        uint256 blockNumber,
-        uint256 activeVotes,
-        uint256 targetVoterRewards,
-        uint256 rewardsMultiplier
+        uint256 _epochNumber,
+        uint256 _blockNumber,
+        uint256 _activeVotes,
+        uint256 _targetVoterRewards,
+        uint256 _rewardsMultiplier
     ) internal returns (EpochRewards storage) {
         require(
-            epochNumber <= getEpochNumberOfBlock(blockNumber),
+            _epochNumber <= getEpochNumberOfBlock(_blockNumber),
             "Invalid epochNumber"
         );
 
-        epochRewards[epochNumber] = EpochRewards(
-            blockNumber,
-            activeVotes,
-            targetVoterRewards,
-            rewardsMultiplier
+        epochRewards[_epochNumber] = EpochRewards(
+            _blockNumber,
+            _activeVotes,
+            _targetVoterRewards,
+            _rewardsMultiplier
         );
 
-        return epochRewards[epochNumber];
+        return epochRewards[_epochNumber];
     }
 
-    function _getEpochRewards(uint256 epochNumber)
+    function _getEpochRewards(uint256 _epochNumber)
         public
         view
         returns (
@@ -145,10 +145,10 @@ contract Archive is Initializable, Ownable, UsingRegistry, UsingPrecompiles {
         )
     {
         return (
-            epochRewards[epochNumber].blockNumber,
-            epochRewards[epochNumber].activeVotes,
-            epochRewards[epochNumber].targetVoterRewards,
-            epochRewards[epochNumber].rewardsMultiplier
+            epochRewards[_epochNumber].blockNumber,
+            epochRewards[_epochNumber].activeVotes,
+            epochRewards[_epochNumber].targetVoterRewards,
+            epochRewards[_epochNumber].rewardsMultiplier
         );
     }
 
@@ -191,56 +191,56 @@ contract Archive is Initializable, Ownable, UsingRegistry, UsingPrecompiles {
 
     // Modified version of calculateGroupEpochScore (link) to calculate the group score (average of its members' score)
     // https://github.com/celo-org/celo-monorepo/blob/baklava/packages/protocol/contracts/governance/Validators.sol#L408
-    function calculateGroupMemberScoreAverage(address[] memory members)
+    function calculateGroupMemberScoreAverage(address[] memory _members)
         public
         view
         returns (uint256)
     {
-        require(members.length > 0, "Members array empty");
+        require(_members.length > 0, "Members array empty");
         uint256 groupScore;
-        for (uint256 i = 0; i < members.length; i = i.add(1)) {
-            (, , , uint256 score, ) = getValidators().getValidator(members[i]);
+        for (uint256 i = 0; i < _members.length; i = i.add(1)) {
+            (, , , uint256 score, ) = getValidators().getValidator(_members[i]);
             groupScore = groupScore.add(score);
         }
-        return groupScore.div(members.length);
+        return groupScore.div(_members.length);
     }
 
-    function hasGroupEpochRewards(uint256 epochNumber, address group)
+    function hasGroupEpochRewards(uint256 _epochNumber, address _group)
         public
         view
         returns (bool)
     {
         return
-            epochRewards[epochNumber].groupEpochRewards[group].activeVotes > 0;
+            epochRewards[_epochNumber].groupEpochRewards[_group].activeVotes > 0;
     }
 
     function setGroupEpochRewards(
-        uint256 epochNumber,
-        address group,
-        uint256 activeVotes,
-        uint256 slashingMultiplier,
-        uint256 score
+        uint256 _epochNumber,
+        address _group,
+        uint256 _activeVotes,
+        uint256 _slashingMultiplier,
+        uint256 _score
     ) internal returns (EpochRewards storage) {
         require(
-            epochNumber <= getEpochNumberOfBlock(block.number),
+            _epochNumber <= getEpochNumberOfBlock(block.number),
             "Invalid epochNumber"
         );
-        require(hasEpochRewards(epochNumber), "Epoch rewards are not set");
+        require(hasEpochRewards(_epochNumber), "Epoch rewards are not set");
         require(
-            getValidators().isValidatorGroup(group),
+            getValidators().isValidatorGroup(_group),
             "Not a validator group"
         );
 
-        epochRewards[epochNumber].groupEpochRewards[group] = GroupEpochRewards(
-            activeVotes,
-            slashingMultiplier,
-            score
+        epochRewards[_epochNumber].groupEpochRewards[_group] = GroupEpochRewards(
+            _activeVotes,
+            _slashingMultiplier,
+            _score
         );
 
-        return epochRewards[epochNumber];
+        return epochRewards[_epochNumber];
     }
 
-    function getGroupEpochRewards(uint256 epochNumber, address group)
+    function getGroupEpochRewards(uint256 _epochNumber, address _group)
         public
         view
         returns (
@@ -252,16 +252,16 @@ contract Archive is Initializable, Ownable, UsingRegistry, UsingPrecompiles {
         )
     {
         return (
-            epochNumber,
-            group,
-            epochRewards[epochNumber].groupEpochRewards[group].activeVotes,
-            epochRewards[epochNumber].groupEpochRewards[group]
+            _epochNumber,
+            _group,
+            epochRewards[_epochNumber].groupEpochRewards[_group].activeVotes,
+            epochRewards[_epochNumber].groupEpochRewards[_group]
                 .slashingMultiplier,
-            epochRewards[epochNumber].groupEpochRewards[group].score
+            epochRewards[_epochNumber].groupEpochRewards[_group].score
         );
     }
 
-    function setCurrentGroupEpochRewards(address group)
+    function setCurrentGroupEpochRewards(address _group)
         public
         returns (
             uint256,
@@ -274,11 +274,11 @@ contract Archive is Initializable, Ownable, UsingRegistry, UsingPrecompiles {
         uint256 epochNumber = getEpochNumberOfBlock(block.number);
 
         // If exists, return existing group epoch rewards to reduce gas for caller
-        if (hasGroupEpochRewards(epochNumber, group)) {
-            return getGroupEpochRewards(epochNumber, group);
+        if (hasGroupEpochRewards(epochNumber, _group)) {
+            return getGroupEpochRewards(epochNumber, _group);
         }
 
-        uint256 activeVotes = getElection().getActiveVotesForGroup(group);
+        uint256 activeVotes = getElection().getActiveVotesForGroup(_group);
         (
             address[] memory members,
             ,
@@ -287,7 +287,7 @@ contract Archive is Initializable, Ownable, UsingRegistry, UsingPrecompiles {
             ,
             uint256 slashingMultiplier,
 
-        ) = getValidators().getValidatorGroup(group);
+        ) = getValidators().getValidatorGroup(_group);
         uint256 groupScore = calculateGroupMemberScoreAverage(members);
 
         if (!hasEpochRewards(epochNumber)) {
@@ -295,7 +295,7 @@ contract Archive is Initializable, Ownable, UsingRegistry, UsingPrecompiles {
         }
 
         EpochRewards storage currentEpochRewards = epochRewards[epochNumber];
-        currentEpochRewards.groupEpochRewards[group] = GroupEpochRewards(
+        currentEpochRewards.groupEpochRewards[_group] = GroupEpochRewards(
             activeVotes,
             slashingMultiplier,
             groupScore
@@ -303,7 +303,7 @@ contract Archive is Initializable, Ownable, UsingRegistry, UsingPrecompiles {
 
         return (
             epochNumber,
-            group,
+            _group,
             activeVotes,
             slashingMultiplier,
             groupScore

@@ -11,7 +11,6 @@ describe('Strategy', () => {
 
     await (await contracts.StrategyFactory.deployed()).createInstance(
       this.archive.address,
-      primarySenderAddress,
       this.rewardSharePercentage,
       this.minimumManagedGold
     );
@@ -19,7 +18,7 @@ describe('Strategy', () => {
     this.strategy = await contracts.Strategy.at(await this.archive.getStrategy(primarySenderAddress));
   });
 
-  describe('initializeStrategy(address archive, address owner, uint256 rewardSharePercentage, uint256 minimumManagedGold)', () => {
+  describe('initialize(address archive, address owner, uint256 rewardSharePercentage, uint256 minimumManagedGold)', () => {
     it('should initialize with an owner, initial share percentage, and mininum managed gold', async () => {
       assert.equal(
         (await this.strategy.rewardSharePercentage()).toString(),

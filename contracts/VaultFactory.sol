@@ -20,8 +20,7 @@ contract VaultFactory is Initializable {
 
     function createInstance(
         address _registry,
-        address _archive,
-        address _owner
+        address _archive
     ) public payable {
         require(
             msg.value >= MINIMUM_DEPOSIT,
@@ -44,10 +43,10 @@ contract VaultFactory is Initializable {
                 contractName,
                 adminAddress,
                 abi.encodeWithSignature(
-                    "initializeVault(address,address,address,address)",
+                    "initialize(address,address,address,address)",
                     _registry,
                     _archive,
-                    _owner,
+                    vaultOwner,
                     adminAddress
                 )
             )

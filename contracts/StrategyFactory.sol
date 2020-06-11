@@ -18,7 +18,6 @@ contract StrategyFactory is Initializable {
 
     function createInstance(
         address _archive,
-        address _owner,
         uint256 _sharePercentage,
         uint256 _minimumGold
     ) public payable {
@@ -38,9 +37,9 @@ contract StrategyFactory is Initializable {
                 contractName,
                 adminAddress,
                 abi.encodeWithSignature(
-                    "initializeStrategy(address,address,address,uint256,uint256)",
+                    "initialize(address,address,address,uint256,uint256)",
                     _archive,
-                    _owner,
+                    strategyOwner,
                     adminAddress,
                     _sharePercentage,
                     _minimumGold

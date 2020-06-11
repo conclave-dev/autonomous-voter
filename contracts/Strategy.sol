@@ -13,7 +13,7 @@ contract Strategy is Ownable {
     uint256 public minimumManagedGold;
     mapping(address => mapping(uint256 => uint256)) public managedGold;
 
-    function initializeStrategy(
+    function initialize(
         IArchive _archive,
         address _owner,
         address _admin,

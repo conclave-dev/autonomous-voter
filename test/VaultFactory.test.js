@@ -17,9 +17,7 @@ describe('VaultFactory', () => {
 
   describe('createInstance(bytes memory _data)', () => {
     it('should not create an instance if the initial deposit is insufficient', async () => {
-      await expect(
-        this.vaultFactory.createInstance(registryContractAddress, this.archive.address, primarySenderAddress)
-      ).to.be.rejectedWith(Error);
+      await expect(this.vaultFactory.createInstance(registryContractAddress, this.archive.address)).to.be.rejectedWith(Error);
     });
   });
 });

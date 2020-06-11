@@ -51,7 +51,7 @@ describe('Archive', () => {
 
   describe('setVault(address vault, address proxyAdmin)', () => {
     it('should initialize vault', async () => {
-      await this.vaultFactory.createInstance(registryContractAddress, this.archive.address, primarySenderAddress, {
+      await this.vaultFactory.createInstance(registryContractAddress, this.archive.address, {
         value: new BigNumber(1).multipliedBy('1e17')
       });
       const vault = await contracts.Vault.at(await this.archive.getVault(primarySenderAddress));
@@ -65,12 +65,7 @@ describe('Archive', () => {
       const rewardSharePercentage = '10';
       const minimumManagedGold = new BigNumber('1e16').toString();
 
-      await this.strategyFactory.createInstance(
-        this.archive.address,
-        primarySenderAddress,
-        rewardSharePercentage,
-        minimumManagedGold
-      );
+      await this.strategyFactory.createInstance(this.archive.address, rewardSharePercentage, minimumManagedGold);
       const strategy = await contracts.Strategy.at(await this.archive.getStrategy(primarySenderAddress));
 
       assert.equal(await strategy.owner(), primarySenderAddress, 'Strategy was not initialized with correct owner');
