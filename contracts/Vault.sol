@@ -22,18 +22,17 @@ contract Vault is UsingRegistry {
 
     ManagedGold[] public managedGold;
 
-    event UserDeposit(uint256);
-    event StrategyAdded(address, uint256);
-
-    function initializeVault(
-        address registry,
+    function initialize(
+        address _registry,
         IArchive _archive,
-        address owner
+        address owner,
+        address admin
     ) public payable initializer {
-        UsingRegistry.initializeRegistry(msg.sender, registry);
+        UsingRegistry.initializeRegistry(msg.sender, _registry);
         Ownable.initialize(owner);
 
         archive = _archive;
+        proxyAdmin = admin;
         _registerAccount();
         _depositGold();
     }
@@ -76,11 +75,9 @@ contract Vault is UsingRegistry {
         unmanagedGold -= amount;
 
         strategy.registerVault(strategyIndex, amount);
-
-        emit StrategyAdded(strategyAddress, amount);
     }
 
-    function updateProxyAdmin(address admin) external onlyOwner {
+    function setProxyAdmin(address admin) external onlyOwner {
         require(admin != address(0), "Invalid admin address");
         proxyAdmin = admin;
     }
@@ -98,6 +95,5 @@ contract Vault is UsingRegistry {
 
         // Immediately lock the deposit
         getLockedGold().lock.value(msg.value)();
-        emit UserDeposit(msg.value);
     }
 }

@@ -38,13 +38,6 @@ contract Archive is Initializable, Ownable, UsingRegistry, UsingPrecompiles {
     address public vaultFactory;
     address public strategyFactory;
 
-    event VaultFactorySet(address);
-    event StrategyFactorySet(address);
-    event VaultUpdated(address, address);
-    event StrategyUpdated(address, address);
-    event EpochRewardsSet(uint256, uint256, uint256, uint256);
-    event GroupEpochRewardsSet(uint256, address, uint256, uint256, uint256);
-
     modifier onlyVaultFactory() {
         require(msg.sender == vaultFactory, "Sender is not vault factory");
         _;
@@ -65,14 +58,10 @@ contract Archive is Initializable, Ownable, UsingRegistry, UsingPrecompiles {
 
     function setVaultFactory(address _vaultFactory) public onlyOwner {
         vaultFactory = _vaultFactory;
-
-        emit VaultFactorySet(vaultFactory);
     }
 
     function setStrategyFactory(address _strategyFactory) public onlyOwner {
         strategyFactory = _strategyFactory;
-
-        emit StrategyFactorySet(strategyFactory);
     }
 
     function _isVaultOwner(address vault, address account) internal view {
@@ -97,26 +86,19 @@ contract Archive is Initializable, Ownable, UsingRegistry, UsingPrecompiles {
         return strategies[owner];
     }
 
-    function updateVault(address vault, address account)
-        public
-        onlyVaultFactory
-    {
+    function setVault(address vault, address account) public onlyVaultFactory {
         _isVaultOwner(vault, account);
 
         vaults[account] = vault;
-
-        emit VaultUpdated(msg.sender, vault);
     }
 
-    function updateStrategy(address strategy, address account)
+    function setStrategy(address strategy, address account)
         public
         onlyStrategyFactory
     {
         _isStrategyOwner(strategy, account);
 
         strategies[account] = strategy;
-
-        emit StrategyUpdated(msg.sender, strategy);
     }
 
     function hasEpochRewards(uint256 epochNumber) public view returns (bool) {
@@ -137,13 +119,6 @@ contract Archive is Initializable, Ownable, UsingRegistry, UsingPrecompiles {
         );
 
         epochRewards[epochNumber] = EpochRewards(
-            blockNumber,
-            activeVotes,
-            targetVoterRewards,
-            rewardsMultiplier
-        );
-
-        emit EpochRewardsSet(
             blockNumber,
             activeVotes,
             targetVoterRewards,
@@ -256,14 +231,6 @@ contract Archive is Initializable, Ownable, UsingRegistry, UsingPrecompiles {
             score
         );
 
-        emit GroupEpochRewardsSet(
-            epochNumber,
-            group,
-            activeVotes,
-            slashingMultiplier,
-            score
-        );
-
         return epochRewards[epochNumber];
     }
 
@@ -323,14 +290,6 @@ contract Archive is Initializable, Ownable, UsingRegistry, UsingPrecompiles {
 
         EpochRewards storage currentEpochRewards = epochRewards[epochNumber];
         currentEpochRewards.groupEpochRewards[group] = GroupEpochRewards(
-            activeVotes,
-            slashingMultiplier,
-            groupScore
-        );
-
-        emit GroupEpochRewardsSet(
-            epochNumber,
-            group,
             activeVotes,
             slashingMultiplier,
             groupScore

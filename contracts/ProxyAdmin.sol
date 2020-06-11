@@ -9,15 +9,15 @@ import "./App.sol";
 contract ProxyAdmin is Ownable {
     App private app;
 
-    function initialize(App _app, address _owner) public initializer {
-        Ownable.initialize(_owner);
+    function initialize(App _app, address owner) public initializer {
+        Ownable.initialize(owner);
         app = _app;
     }
 
     function upgradeProxy(
-        BaseAdminUpgradeabilityProxy _proxy,
+        BaseAdminUpgradeabilityProxy proxy,
         address implementation
     ) public onlyOwner {
-        _proxy.upgradeTo(implementation);
+        proxy.upgradeTo(implementation);
     }
 }

@@ -12,12 +12,6 @@ import "@openzeppelin/contracts-ethereum-package/contracts/ownership/Ownable.sol
 contract App is Initializable, Ownable {
     mapping(string => address) private contractImplementations;
 
-    /**
-     * @dev Emitted when a new vault proxy is created.
-     * @param proxy Address of the created proxy.
-     */
-    event ProxyCreated(string contractName, address proxy);
-
     function initialize() public initializer {
         Ownable.initialize(msg.sender);
     }
@@ -38,6 +32,7 @@ contract App is Initializable, Ownable {
     /**
      * @dev Creates a new proxy for the given contract and forwards a function call to it.
      * This is useful to initialize the proxied contract.
+     * @param contractName Name of the contract used as an identifier.
      * @param admin Address of the proxy administrator.
      * @param data Data to send as msg.data to the corresponding implementation to initialize the proxied contract.
      * It should include the signature and the parameters of the function to be called, as described in
@@ -56,7 +51,7 @@ contract App is Initializable, Ownable {
         AdminUpgradeabilityProxy proxy = (new AdminUpgradeabilityProxy).value(
             msg.value
         )(implementation, admin, data);
-        emit ProxyCreated(contractName, address(proxy));
+
         return proxy;
     }
 }

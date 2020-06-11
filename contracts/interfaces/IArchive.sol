@@ -7,7 +7,7 @@ interface IArchive {
 
     function getStrategy(address owner) external view returns (address);
 
-    function updateVault(address vault, address owner) external;
+    function setVault(address vault, address owner) external;
 
-    function updateStrategy(address strategy, address owner) external;
+    function setStrategy(address strategy, address owner) external;
 }

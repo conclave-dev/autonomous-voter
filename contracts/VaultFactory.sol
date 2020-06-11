@@ -13,16 +13,12 @@ contract VaultFactory is Initializable {
     App public app;
     IArchive public archive;
 
-    event InstanceCreated(address);
-    event AdminCreated(address);
-    event InstanceArchived(address, address);
-
     function initialize(App _app, IArchive _archive) public initializer {
         app = _app;
         archive = _archive;
     }
 
-    function createInstance(bytes memory _data) public payable {
+    function createInstance(address registry) public payable {
         require(
             msg.value >= MINIMUM_DEPOSIT,
             "Insufficient funds for initial deposit"
@@ -40,15 +36,19 @@ contract VaultFactory is Initializable {
 
         // Create the actual vault instance
         address vaultAddress = address(
-            app.create.value(msg.value)(contractName, adminAddress, _data)
+            app.create.value(msg.value)(
+                contractName,
+                adminAddress,
+                abi.encodeWithSignature(
+                    "initialize(address,address,address,address)",
+                    registry,
+                    address(archive),
+                    vaultOwner,
+                    adminAddress
+                )
+            )
         );
 
-        emit InstanceCreated(vaultAddress);
-
-        emit AdminCreated(adminAddress);
-
-        archive.updateVault(vaultAddress, vaultOwner);
-
-        emit InstanceArchived(vaultAddress, vaultOwner);
+        archive.setVault(vaultAddress, vaultOwner);
     }
 }

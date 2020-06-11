@@ -13,35 +13,32 @@ contract Strategy is Ownable {
     uint256 public minimumManagedGold;
     mapping(address => mapping(uint256 => uint256)) public managedGold;
 
-    event VaultRegistered(address, uint256, uint256);
-
-    function initializeStrategy(
+    function initialize(
         IArchive _archive,
-        address _owner,
-        uint256 _sharePercentage,
-        uint256 _minimumGold
+        address owner,
+        address admin,
+        uint256 sharePercentage,
+        uint256 minimumGold
     ) public payable initializer {
-        Ownable.initialize(_owner);
+        Ownable.initialize(owner);
 
         archive = _archive;
-        rewardSharePercentage = _sharePercentage;
-        minimumManagedGold = _minimumGold;
+        proxyAdmin = admin;
+        rewardSharePercentage = sharePercentage;
+        minimumManagedGold = minimumGold;
     }
 
-    function updateProxyAdmin(address admin) external onlyOwner {
+    function setProxyAdmin(address admin) external onlyOwner {
         require(admin != address(0), "Invalid admin address");
         proxyAdmin = admin;
     }
 
-    function updateRewardSharePercentage(uint256 percentage)
-        external
-        onlyOwner
-    {
+    function setRewardSharePercentage(uint256 percentage) external onlyOwner {
         require(percentage > 0, "Invalid reward share percentage");
         rewardSharePercentage = percentage;
     }
 
-    function updateMinimumManagedGold(uint256 amount) external onlyOwner {
+    function setMinimumManagedGold(uint256 amount) external onlyOwner {
         require(amount > 0, "Invalid cGold amount");
         minimumManagedGold = amount;
     }
@@ -62,7 +59,5 @@ contract Strategy is Ownable {
         require(amount >= minimumManagedGold, "Insufficient gold");
 
         managedGold[vaultAddress][strategyIndex] = amount;
-
-        emit VaultRegistered(vaultAddress, strategyIndex, amount);
     }
 }
