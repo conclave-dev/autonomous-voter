@@ -1,4 +1,4 @@
-// contracts/StrategyFactory.sol
+// contracts/VaultManagerFactory.sol
 pragma solidity ^0.5.8;
 
 import "@openzeppelin/upgrades/contracts/Initializable.sol";
@@ -7,38 +7,38 @@ import "./App.sol";
 import "./interfaces/IArchive.sol";
 import "./ProxyAdmin.sol";
 
-contract StrategyFactory is Initializable {
+contract VaultManagerFactory is Initializable {
     App public app;
     IArchive public archive;
 
-    function initialize(App _app, IArchive _archive) public initializer {
-        app = _app;
-        archive = _archive;
+    function initialize(App app_, IArchive archive_) public initializer {
+        app = app_;
+        archive = archive_;
     }
 
     function createInstance(uint256 sharePercentage, uint256 minimumGold)
         public
         payable
     {
-        address strategyOwner = msg.sender;
+        address vaultManagerOwner = msg.sender;
 
-        // Create a proxy admin for managing the new strategy instance's upgradeability
+        // Create a proxy admin for managing the new vault manager instance's upgradeability
         ProxyAdmin proxyAdmin = new ProxyAdmin();
-        proxyAdmin.initialize(app, strategyOwner);
+        proxyAdmin.initialize(app, vaultManagerOwner);
         address adminAddress = address(proxyAdmin);
 
         // string memory packageName = "autonomous-voter";
-        string memory contractName = "Strategy";
+        string memory contractName = "VaultManager";
 
-        // Create the actual strategy instance
-        address strategyAddress = address(
+        // Create the actual vault manager instance
+        address vaultManagerAddress = address(
             app.create.value(msg.value)(
                 contractName,
                 adminAddress,
                 abi.encodeWithSignature(
                     "initialize(address,address,address,uint256,uint256)",
                     address(archive),
-                    strategyOwner,
+                    vaultManagerOwner,
                     adminAddress,
                     sharePercentage,
                     minimumGold
@@ -46,6 +46,9 @@ contract StrategyFactory is Initializable {
             )
         );
 
-        archive.setStrategy(strategyAddress, strategyOwner);
+        archive.associateVaultManagerWithOwner(
+            vaultManagerAddress,
+            vaultManagerOwner
+        );
     }
 }

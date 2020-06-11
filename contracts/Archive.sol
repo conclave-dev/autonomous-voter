@@ -7,7 +7,7 @@ import "celo-monorepo/packages/protocol/contracts/common/UsingPrecompiles.sol";
 
 import "./celo/common/UsingRegistry.sol";
 import "./Vault.sol";
-import "./Strategy.sol";
+import "./VaultManager.sol";
 
 contract Archive is Initializable, Ownable, UsingRegistry, UsingPrecompiles {
     using AddressLinkedList for LinkedList.List;
@@ -32,22 +32,22 @@ contract Archive is Initializable, Ownable, UsingRegistry, UsingPrecompiles {
         uint256 score;
     }
 
-    mapping(address => LinkedList.List) public vaults;
-    mapping(address => LinkedList.List) public managers;
+    mapping(address => LinkedList.List) public vaultOwners;
+    mapping(address => LinkedList.List) public vaultManagerOwners;
     mapping(uint256 => EpochRewards) private epochRewards;
 
     address public vaultFactory;
-    address public strategyFactory;
+    address public vaultManagerFactory;
 
     modifier onlyVaultFactory() {
         require(msg.sender == vaultFactory, "Sender is not vault factory");
         _;
     }
 
-    modifier onlyStrategyFactory() {
+    modifier onlyVaultManagerFactory() {
         require(
-            msg.sender == strategyFactory,
-            "Sender is not strategy factory"
+            msg.sender == vaultManagerFactory,
+            "Not the vault manager factory"
         );
         _;
     }
@@ -59,52 +59,70 @@ contract Archive is Initializable, Ownable, UsingRegistry, UsingPrecompiles {
         initializeRegistry(msg.sender, registry_);
     }
 
-    function setVaultFactory(address _vaultFactory) public onlyOwner {
-        vaultFactory = _vaultFactory;
+    function setVaultFactory(address vaultFactory_) public onlyOwner {
+        vaultFactory = vaultFactory_;
     }
 
-    function setStrategyFactory(address _strategyFactory) public onlyOwner {
-        strategyFactory = _strategyFactory;
+    function setVaultManagerFactory(address vaultManagerFactory_)
+        public
+        onlyOwner
+    {
+        vaultManagerFactory = vaultManagerFactory_;
     }
 
-    function _isVaultOwner(address vault, address account) internal view {
+    function _isVaultOwner(address vault, address owner_) internal view {
         require(
-            Vault(vault).owner() == account,
+            Vault(vault).owner() == owner_,
             "Account is not the vault owner"
         );
     }
 
-    function _isStrategyOwner(address strategy, address account) internal view {
+    function _isVaultManagerOwner(address vaultManager, address owner_)
+        internal
+        view
+    {
         require(
-            Strategy(strategy).owner() == account,
-            "Account is not the strategy owner"
+            VaultManager(vaultManager).owner() == owner_,
+            "Account is not the vaultManager owner"
         );
     }
 
-    function getVault(address _owner) external view returns (address[] memory) {
-        return vaults[_owner].getKeys();
-    }
-
-    function getStrategy(address _owner)
+    function getVaultOwner(address owner_)
         external
         view
         returns (address[] memory)
     {
-        return managers[_owner].getKeys();
+        return vaultOwners[owner_].getKeys();
     }
 
-    function setVault(address vault, address vaultOwner)
+    function getVaultManagerOwner(address owner_)
+        external
+        view
+        returns (address[] memory)
+    {
+        return vaultManagerOwners[owner_].getKeys();
+    }
+
+    function associateVaultWithOwner(address vault, address owner_)
         public
         onlyVaultFactory
     {
-        vaults[vaultOwner].push(vault);
+        require(
+            !vaultOwners[owner_].contains(vault),
+            "Vault has already been set"
+        );
+        vaultOwners[owner_].push(vault);
     }
 
-    function setStrategy(address strategy, address strategyOwner)
-        public
-        onlyStrategyFactory
-    {
-        managers[strategyOwner].push(strategy);
+    function associateVaultManagerWithOwner(
+        address vaultManager,
+        address owner_
+    ) public onlyVaultManagerFactory {
+        require(
+            !vaultManagerOwners[owner_].contains(vaultManager),
+            "VaultManager has already been set"
+        );
+        vaultManagerOwners[owner_].push(vaultManager);
     }
 
     function hasEpochRewards(uint256 epochNumber) public view returns (bool) {

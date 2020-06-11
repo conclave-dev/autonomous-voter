@@ -13,9 +13,9 @@ contract VaultFactory is Initializable {
     App public app;
     IArchive public archive;
 
-    function initialize(App _app, IArchive _archive) public initializer {
-        app = _app;
-        archive = _archive;
+    function initialize(App app_, IArchive archive_) public initializer {
+        app = app_;
+        archive = archive_;
     }
 
     function createInstance(address registry) public payable {
@@ -49,6 +49,6 @@ contract VaultFactory is Initializable {
             )
         );
 
-        archive.setVault(vaultAddress, vaultOwner);
+        archive.associateVaultWithOwner(vaultAddress, vaultOwner);
     }
 }

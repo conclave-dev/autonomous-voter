@@ -3,11 +3,11 @@ pragma solidity ^0.5.8;
 
 
 interface IArchive {
-    function getVault(address owner) external view returns (address);
+    function getVaultOwner(address owner_) external view returns (address);
 
-    function getStrategy(address owner) external view returns (address);
+    function getVaultManagerOwner(address owner_) external view returns (address);
 
-    function setVault(address vault, address owner) external;
+    function associateVaultWithOwner(address vault, address owner_) external;
 
-    function setStrategy(address strategy, address owner) external;
+    function associateVaultManagerWithOwner(address vaultManager, address owner_) external;
 }

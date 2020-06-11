@@ -9,8 +9,8 @@ import "./App.sol";
 contract ProxyAdmin is Ownable {
     App private app;
 
-    function initialize(App _app, address owner) public initializer {
-        Ownable.initialize(owner);
+    function initialize(App _app, address owner_) public initializer {
+        Ownable.initialize(owner_);
         app = _app;
     }
 

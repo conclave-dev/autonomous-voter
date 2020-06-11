@@ -3,7 +3,7 @@ pragma solidity ^0.5.8;
 
 import "./celo/common/UsingRegistry.sol";
 import "./interfaces/IArchive.sol";
-import "./Strategy.sol";
+import "./VaultManager.sol";
 
 contract Vault is UsingRegistry {
     IArchive private archive;
@@ -21,15 +21,15 @@ contract Vault is UsingRegistry {
     Managers private managers;
 
     function initialize(
-        address _registry,
-        IArchive _archive,
-        address owner,
+        address registry_,
+        IArchive archive_,
+        address owner_,
         address admin
     ) public payable initializer {
-        UsingRegistry.initializeRegistry(msg.sender, _registry);
-        Ownable.initialize(owner);
+        UsingRegistry.initializeRegistry(msg.sender, registry_);
+        Ownable.initialize(owner_);
 
-        archive = _archive;
+        archive = archive_;
         proxyAdmin = admin;
         _registerAccount();
         deposit();
@@ -52,24 +52,23 @@ contract Vault is UsingRegistry {
         return getLockedGold().getAccountNonvotingLockedGold(address(this));
     }
 
-    function validateVotingManager(Strategy strategy) internal view {
+    function verifyVaultManager(VaultManager manager) internal view {
         require(
-            archive.getStrategy(strategy.owner()) == address(strategy),
+            archive.getVaultManagerOwner(manager.owner()) == address(manager),
             "Voting manager is invalid"
         );
     }
 
-    function setVotingManager(Strategy strategy) external onlyOwner {
-        validateVotingManager(strategy);
+    function setVotingVaultManager(VaultManager manager) external onlyOwner {
+        verifyVaultManager(manager);
 
-        managers.voting.contractAddress = address(strategy);
-        managers.voting.rewardSharePercentage = strategy
-            .rewardSharePercentage();
+        managers.voting.contractAddress = address(manager);
+        managers.voting.rewardSharePercentage = manager.rewardSharePercentage();
 
-        strategy.registerVault(this);
+        manager.registerVault(this);
     }
 
-    function getVotingManager() public view returns (address, uint256) {
+    function getVotingVaultManager() public view returns (address, uint256) {
         return (
             managers.voting.contractAddress,
             managers.voting.rewardSharePercentage

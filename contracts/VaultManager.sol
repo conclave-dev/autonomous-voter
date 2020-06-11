@@ -1,4 +1,4 @@
-// contracts/Strategy.sol
+// contracts/VaultManager.sol
 pragma solidity ^0.5.8;
 
 import "@openzeppelin/contracts-ethereum-package/contracts/ownership/Ownable.sol";
@@ -6,7 +6,7 @@ import "./interfaces/IArchive.sol";
 import "./Vault.sol";
 import "./celo/common/libraries/AddressLinkedList.sol";
 
-contract Strategy is Ownable {
+contract VaultManager is Ownable {
     using AddressLinkedList for LinkedList.List;
 
     IArchive private archive;
@@ -20,7 +20,7 @@ contract Strategy is Ownable {
     modifier onlyVault() {
         // Confirm that Vault is in the AV network (i.e. stored within the Archive contract)
         require(
-            archive.getVault(Vault(msg.sender).owner()) == msg.sender,
+            archive.getVaultOwner(Vault(msg.sender).owner()) == msg.sender,
             "Invalid vault"
         );
         _;
@@ -28,17 +28,17 @@ contract Strategy is Ownable {
 
     function initialize(
         IArchive _archive,
-        address owner,
+        address owner_,
         address admin,
         uint256 sharePercentage,
-        uint256 minimumGold
+        uint256 minimumRequirement
     ) public payable initializer {
-        Ownable.initialize(owner);
+        Ownable.initialize(owner_);
 
         archive = _archive;
-        proxyAdmin = _admin;
-        rewardSharePercentage = _sharePercentage;
-        minimumManageableBalanceRequirement = _minimumGold;
+        proxyAdmin = admin;
+        rewardSharePercentage = sharePercentage;
+        minimumManageableBalanceRequirement = minimumRequirement;
     }
 
     function setProxyAdmin(address admin) external onlyOwner {
@@ -51,12 +51,12 @@ contract Strategy is Ownable {
         rewardSharePercentage = percentage;
     }
 
-    function setMinimumManageableBalanceRequirement(uint256 _amount)
+    function setMinimumManageableBalanceRequirement(uint256 amount)
         external
         onlyOwner
     {
-        require(_amount > 0, "Invalid cGold amount");
-        minimumManageableBalanceRequirement = _amount;
+        require(amount > 0, "Invalid cGold amount");
+        minimumManageableBalanceRequirement = amount;
     }
 
     function hasVault(address vault) public view returns (bool) {
