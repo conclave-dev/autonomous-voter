@@ -9,6 +9,7 @@ describe('ProxyAdmin', () => {
     await (await contracts.VaultFactory.deployed()).createInstance(registryContractAddress, {
       value: new BigNumber('1e17')
     });
+
     const vaults = await this.archive.getVaultOwner(primarySenderAddress);
     this.vault = await contracts.Vault.at(vaults[vaults.length - 1]);
   });

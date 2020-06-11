@@ -10,7 +10,8 @@ describe('Vault', () => {
       value: new BigNumber('1e17')
     });
 
-    this.vault = await contracts.Vault.at(await this.archive.getVault(primarySenderAddress));
+    const vaults = await this.archive.getVaultOwner(primarySenderAddress);
+    this.vault = await contracts.Vault.at(vaults[vaults.length - 1]);
   });
 
   describe('initialize(address registry, address owner)', () => {
@@ -48,31 +49,27 @@ describe('Vault', () => {
     });
   });
 
-  describe('setVotingManager(Strategy strategy)', () => {
+  describe('setVotingVaultManager(VaultManager vaultManager)', () => {
     it('should set a voting manager', async () => {
-      // Start by creating the test strategy instance
-      await (await contracts.StrategyFactory.deployed()).createInstance(
-        this.archive.address,
-        primarySenderAddress,
-        '10',
-        new BigNumber('1e16').toString()
-      );
+      // Start by creating the test vaultManager instance
+      await (await contracts.VaultManagerFactory.deployed()).createInstance('10', new BigNumber('1e16').toString());
 
-      // Test adding managedGold to a strategy
-      const strategy = await contracts.Strategy.at(await this.archive.getStrategy(primarySenderAddress));
+      // Test adding managedGold to a vaultManager
+      const vaultManagers = await this.archive.getVaultManagerOwner(primarySenderAddress);
+      const vaultManager = await contracts.VaultManager.at(vaultManagers[vaultManagers.length - 1]);
 
-      await this.vault.setVotingManager(strategy.address);
+      await this.vault.setVotingVaultManager(vaultManager.address);
 
-      const { 0: contractAddress, 1: rewardSharePercentage } = await this.vault.getVotingManager();
-      const strategyRewardSharePercentage = new BigNumber(await strategy.rewardSharePercentage());
-      const hasVault = await strategy.hasVault(this.vault.address);
+      const { 0: contractAddress, 1: rewardSharePercentage } = await this.vault.getVotingVaultManager();
+      const vaultManagerRewardSharePercentage = new BigNumber(await vaultManager.rewardSharePercentage());
+      const hasVault = await vaultManager.hasVault(this.vault.address);
 
-      await expect(this.vault.setVotingManager(strategy.address)).to.be.rejectedWith(Error);
-      assert(contractAddress, strategy.address, `Voting manager address should be ${strategy.address}`);
+      await expect(this.vault.setVotingVaultManager(vaultManager.address)).to.be.rejectedWith(Error);
+      assert(contractAddress, vaultManager.address, `Voting manager address should be ${vaultManager.address}`);
       assert(
         new BigNumber(rewardSharePercentage).toFixed(0),
-        strategyRewardSharePercentage.toFixed(0),
-        `Reward share percentage should be ${strategyRewardSharePercentage}`
+        vaultManagerRewardSharePercentage.toFixed(0),
+        `Reward share percentage should be ${vaultManagerRewardSharePercentage}`
       );
       assert(hasVault, true, 'Vault was not registered with voting manager');
     });

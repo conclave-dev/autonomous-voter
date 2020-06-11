@@ -27,7 +27,7 @@ contract VaultManager is Ownable {
     }
 
     function initialize(
-        Archive _archive,
+        Archive archive_,
         address owner_,
         address admin,
         uint256 sharePercentage,
@@ -35,7 +35,7 @@ contract VaultManager is Ownable {
     ) public payable initializer {
         Ownable.initialize(owner_);
 
-        archive = _archive;
+        archive = archive_;
         proxyAdmin = admin;
         rewardSharePercentage = sharePercentage;
         minimumManageableBalanceRequirement = minimumRequirement;
