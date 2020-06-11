@@ -10,6 +10,7 @@ import "./Vault.sol";
 import "./Strategy.sol";
 
 contract Archive is Initializable, Ownable, UsingRegistry, UsingPrecompiles {
+    using AddressLinkedList for LinkedList.List;
     using SafeMath for uint256;
 
     // EpochRewards data is used to calculate an election group's voter rewards
@@ -31,8 +32,8 @@ contract Archive is Initializable, Ownable, UsingRegistry, UsingPrecompiles {
         uint256 score;
     }
 
-    mapping(address => address) public vaults;
-    mapping(address => address) public strategies;
+    mapping(address => LinkedList.List) public vaults;
+    mapping(address => LinkedList.List) public managers;
     mapping(uint256 => EpochRewards) private epochRewards;
 
     address public vaultFactory;
@@ -66,7 +67,6 @@ contract Archive is Initializable, Ownable, UsingRegistry, UsingPrecompiles {
         strategyFactory = _strategyFactory;
     }
 
-<<<<<<< HEAD
     function _isVaultOwner(address vault, address account) internal view {
         require(
             Vault(vault).owner() == account,
@@ -81,30 +81,30 @@ contract Archive is Initializable, Ownable, UsingRegistry, UsingPrecompiles {
         );
     }
 
-    function getVault(address owner) external view returns (address) {
-        return vaults[owner];
-=======
-    function getVault(address _owner) external view returns (address) {
-        return vaults[_owner];
->>>>>>> Remove unnecessary vault and strategy owner checks
+    function getVault(address _owner) external view returns (address[] memory) {
+        return vaults[_owner].getKeys();
     }
 
-    function getStrategy(address owner) external view returns (address) {
-        return strategies[owner];
+    function getStrategy(address _owner)
+        external
+        view
+        returns (address[] memory)
+    {
+        return managers[_owner].getKeys();
     }
 
     function setVault(address vault, address vaultOwner)
         public
         onlyVaultFactory
     {
-        vaults[vaultOwner] = vault;
+        vaults[vaultOwner].push(vault);
     }
 
     function setStrategy(address strategy, address strategyOwner)
         public
         onlyStrategyFactory
     {
-        strategies[strategyOwner] = strategy;
+        managers[strategyOwner].push(strategy);
     }
 
     function hasEpochRewards(uint256 epochNumber) public view returns (bool) {
