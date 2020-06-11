@@ -11,6 +11,7 @@ import "@openzeppelin/contracts-ethereum-package/contracts/ownership/Ownable.sol
  */
 contract App is Initializable, Ownable {
     mapping(string => address) private contractImplementations;
+    mapping(string => address) private contractFactories;
 
     function initialize() public initializer {
         Ownable.initialize(msg.sender);
@@ -21,12 +22,25 @@ contract App is Initializable, Ownable {
      * @param contractName Name of the contract to be updated.
      * @param implementation Address of the contract implementation to be used.
      */
-    function setImplementation(
+    function setContractImplementation(
         string memory contractName,
         address implementation
     ) public onlyOwner {
         require(implementation != address(0), "Invalid implementation address");
         contractImplementations[contractName] = implementation;
+    }
+
+    /**
+     * @dev Update the factory address for the specified contractName
+     * @param contractName Name of the contract to be updated.
+     * @param factory Address of the factory contract responsible to create new contract instances.
+     */
+    function setContractFactory(string memory contractName, address factory)
+        public
+        onlyOwner
+    {
+        require(factory != address(0), "Invalid factory address");
+        contractFactories[contractName] = factory;
     }
 
     /**
@@ -45,6 +59,10 @@ contract App is Initializable, Ownable {
         address admin,
         bytes memory data
     ) public payable returns (AdminUpgradeabilityProxy) {
+        require(
+            msg.sender == contractFactories[contractName],
+            "Invalid factory contract"
+        );
         address implementation = contractImplementations[contractName];
         require(implementation != address(0), "Implementation not found");
 

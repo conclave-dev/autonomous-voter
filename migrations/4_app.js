@@ -10,6 +10,6 @@ module.exports = async (deployer) => {
   const { address: strategyAddress } = await Strategy.deployed();
 
   await app.initialize();
-  await app.setImplementation('Vault', vaultAddress);
-  await app.setImplementation('Strategy', strategyAddress);
+  await app.setContractImplementation('Vault', vaultAddress);
+  await app.setContractImplementation('Strategy', strategyAddress);
 };
