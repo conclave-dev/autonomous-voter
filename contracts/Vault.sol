@@ -2,79 +2,77 @@
 pragma solidity ^0.5.8;
 
 import "./celo/common/UsingRegistry.sol";
-import "./interfaces/IStrategy.sol";
-import "./interfaces/IArchive.sol";
-import "./Strategy.sol";
+import "./Archive.sol";
+import "./VaultManager.sol";
 
 contract Vault is UsingRegistry {
-    IArchive public archive;
+    Archive private archive;
     address public proxyAdmin;
-    uint256 public unmanagedGold;
 
-    struct ManagedGold {
-        address strategyAddress;
-        uint256 amount;
-        mapping(address => uint256) groupVotes;
-        address[] groupAddresses;
-        uint256 groupVotesActiveAtEpoch;
+    struct Managers {
+        VotingVaultManager voting;
+    }
+
+    struct VotingVaultManager {
+        address contractAddress;
         uint256 rewardSharePercentage;
     }
 
-    ManagedGold[] public managedGold;
+    Managers private managers;
 
     function initialize(
-        address _registry,
-        IArchive _archive,
-        address owner,
+        address registry_,
+        Archive archive_,
+        address owner_,
         address admin
     ) public payable initializer {
-        UsingRegistry.initializeRegistry(msg.sender, _registry);
-        Ownable.initialize(owner);
+        UsingRegistry.initializeRegistry(msg.sender, registry_);
+        Ownable.initialize(owner_);
 
-        archive = _archive;
+        archive = archive_;
         proxyAdmin = admin;
         _registerAccount();
-        _depositGold();
+        deposit();
     }
 
-    function deposit() public payable onlyOwner {
-        require(msg.value > 0, "Deposited funds must be larger than 0");
-        _depositGold();
+    function deposit() public payable {
+        require(msg.value > 0, "Deposit must be greater than zero");
+
+        // Immediately lock the deposit
+        getLockedGold().lock.value(msg.value)();
     }
 
-    function addManagedGold(address strategyAddress, uint256 amount)
-        external
-        onlyOwner
-    {
+    // Gets the Vault's locked gold amount (both voting and nonvoting)
+    function getManageableBalance() public view returns (uint256) {
+        return getLockedGold().getAccountTotalLockedGold(address(this));
+    }
+
+    // Gets the Vault's nonvoting locked gold amount
+    function getNonvotingBalance() public view returns (uint256) {
+        return getLockedGold().getAccountNonvotingLockedGold(address(this));
+    }
+
+    function verifyVaultManager(VaultManager manager) internal view {
         require(
-            amount > 0 && amount <= unmanagedGold,
-            "Deposited funds must be > 0 and <= unmanaged gold"
+            archive.hasVaultManager(manager.owner(), address(manager)),
+            "Voting manager is invalid"
         );
+    }
 
-        // Crosscheck the validity of the specified strategy instance
-        require(
-            archive.getStrategy(Strategy(strategyAddress).owner()) ==
-                strategyAddress,
-            "Invalid strategy specified"
+    function setVotingVaultManager(VaultManager manager) external onlyOwner {
+        verifyVaultManager(manager);
+
+        managers.voting.contractAddress = address(manager);
+        managers.voting.rewardSharePercentage = manager.rewardSharePercentage();
+
+        manager.registerVault(this);
+    }
+
+    function getVotingVaultManager() public view returns (address, uint256) {
+        return (
+            managers.voting.contractAddress,
+            managers.voting.rewardSharePercentage
         );
-
-        IStrategy strategy = IStrategy(strategyAddress);
-        uint256 rewardSharePercentage = strategy.getRewardSharePercentage();
-
-        // Initialize a new managedGold entry
-        uint256 strategyIndex = managedGold.length;
-
-        ManagedGold memory newManagedGold;
-        newManagedGold.strategyAddress = strategyAddress;
-        newManagedGold.amount = amount;
-        newManagedGold.groupVotesActiveAtEpoch = 0;
-        newManagedGold.rewardSharePercentage = rewardSharePercentage;
-
-        managedGold.push(newManagedGold);
-
-        unmanagedGold -= amount;
-
-        strategy.registerVault(strategyIndex, amount);
     }
 
     function setProxyAdmin(address admin) external onlyOwner {
@@ -87,13 +85,5 @@ contract Vault is UsingRegistry {
             getAccounts().createAccount(),
             "Failed to register vault account"
         );
-    }
-
-    function _depositGold() internal {
-        // Update total unmanaged gold
-        unmanagedGold += msg.value;
-
-        // Immediately lock the deposit
-        getLockedGold().lock.value(msg.value)();
     }
 }

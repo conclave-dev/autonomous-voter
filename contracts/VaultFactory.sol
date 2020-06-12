@@ -4,18 +4,18 @@ pragma solidity ^0.5.8;
 import "@openzeppelin/upgrades/contracts/Initializable.sol";
 
 import "./App.sol";
-import "./interfaces/IArchive.sol";
+import "./Archive.sol";
 import "./ProxyAdmin.sol";
 
 contract VaultFactory is Initializable {
     uint256 public constant MINIMUM_DEPOSIT = 100000000000000000;
 
     App public app;
-    IArchive public archive;
+    Archive public archive;
 
-    function initialize(App _app, IArchive _archive) public initializer {
-        app = _app;
-        archive = _archive;
+    function initialize(App app_, Archive archive_) public initializer {
+        app = app_;
+        archive = archive_;
     }
 
     function createInstance(address registry) public payable {
@@ -49,6 +49,6 @@ contract VaultFactory is Initializable {
             )
         );
 
-        archive.setVault(vaultAddress, vaultOwner);
+        archive.associateVaultWithOwner(vaultAddress, vaultOwner);
     }
 }

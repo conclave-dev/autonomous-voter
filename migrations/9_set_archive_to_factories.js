@@ -1,14 +1,14 @@
 const Archive = artifacts.require('Archive');
 const VaultFactory = artifacts.require('VaultFactory');
-const StrategyFactory = artifacts.require('StrategyFactory');
+const VaultManagerFactory = artifacts.require('VaultManagerFactory');
 
 module.exports = async (deployer) => {
   deployer.then(async () => {
     const archive = await Archive.deployed();
     const vaultFactory = await VaultFactory.deployed();
-    const strategyFactory = await StrategyFactory.deployed();
+    const vaultManagerFactory = await VaultManagerFactory.deployed();
 
     await archive.setVaultFactory(vaultFactory.address);
-    await archive.setStrategyFactory(strategyFactory.address);
+    await archive.setVaultManagerFactory(vaultManagerFactory.address);
   });
 };
