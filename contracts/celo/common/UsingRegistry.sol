@@ -10,7 +10,6 @@ import "celo-monorepo/packages/protocol/contracts/common/interfaces/IFreezer.sol
 import "celo-monorepo/packages/protocol/contracts/common/interfaces/IRegistry.sol";
 
 import "celo-monorepo/packages/protocol/contracts/governance/interfaces/IGovernance.sol";
-import "celo-monorepo/packages/protocol/contracts/governance/interfaces/ILockedGold.sol";
 
 import "celo-monorepo/packages/protocol/contracts/identity/interfaces/IRandom.sol";
 import "celo-monorepo/packages/protocol/contracts/identity/interfaces/IAttestations.sol";
@@ -24,6 +23,7 @@ import "celo-monorepo/packages/protocol/contracts/stability/interfaces/IStableTo
 import "../governance/interfaces/IElection.sol";
 import "../governance/interfaces/IValidators.sol";
 import "../governance/interfaces/IEpochRewards.sol";
+import "../governance/interfaces/ILockedGold.sol";
 
 contract UsingRegistry is Ownable {
     event RegistrySet(address indexed registryAddress);
@@ -89,11 +89,11 @@ contract UsingRegistry is Ownable {
     IRegistry public registry;
 
     // The base initialize() method for UsingRegistry to comply with Initializable
-    function initializeRegistry(address owner, address registryAddress)
+    function initializeRegistry(address owner_, address registryAddress)
         public
         initializer
     {
-        Ownable.initialize(owner);
+        Ownable.initialize(owner_);
         setRegistry(registryAddress);
     }
 
