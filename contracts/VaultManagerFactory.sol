@@ -4,14 +4,14 @@ pragma solidity ^0.5.8;
 import "@openzeppelin/upgrades/contracts/Initializable.sol";
 
 import "./App.sol";
-import "./interfaces/IArchive.sol";
+import "./Archive.sol";
 import "./ProxyAdmin.sol";
 
 contract VaultManagerFactory is Initializable {
     App public app;
-    IArchive public archive;
+    Archive public archive;
 
-    function initialize(App app_, IArchive archive_) public initializer {
+    function initialize(App app_, Archive archive_) public initializer {
         app = app_;
         archive = archive_;
     }

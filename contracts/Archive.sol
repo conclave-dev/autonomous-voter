@@ -125,10 +125,7 @@ contract Archive is Initializable, Ownable, UsingRegistry, UsingPrecompiles {
         public
         onlyVaultFactory
     {
-        require(
-            !vaults[owner_].contains(vault),
-            "Vault has already been set"
-        );
+        require(!vaults[owner_].contains(vault), "Vault has already been set");
         vaults[owner_].push(vault);
     }
 

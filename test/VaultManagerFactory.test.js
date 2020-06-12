@@ -7,7 +7,7 @@ describe('VaultManagerFactory', () => {
     this.vaultManagerFactory = await contracts.VaultManagerFactory.deployed();
   });
 
-  describe('initialize(App _app, IArchive _archive)', () => {
+  describe('initialize(App _app, Archive _archive)', () => {
     it('should initialize with deployed App and Archive addresses', async () => {
       assert.equal(await this.vaultManagerFactory.app(), this.app.address, 'Did not match deployed App address');
       assert.equal(
