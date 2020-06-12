@@ -8,9 +8,8 @@ describe('App', () => {
     this.app = await contracts.App.deployed();
     this.archive = await contracts.Archive.deployed();
     this.vault = await contracts.Vault.deployed();
-    this.strategy = await contracts.Strategy.deployed();
+    this.vaultManager = await contracts.VaultManager.deployed();
     this.vaultFactory = await contracts.VaultFactory.deployed();
-    this.strategyFactory = await contracts.StrategyFactory.deployed();
   });
 
   describe('initialize()', () => {

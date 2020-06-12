@@ -11,5 +11,5 @@ module.exports = async (deployer) => {
 
   await app.initialize();
   await app.setContractImplementation('Vault', vaultAddress);
-  await app.setContractImplementation('Strategy', vaultManagerAddress);
+  await app.setContractImplementation('VaultManager', vaultManagerAddress);
 };

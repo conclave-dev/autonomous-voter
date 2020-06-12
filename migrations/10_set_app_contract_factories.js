@@ -9,6 +9,6 @@ module.exports = async (deployer) => {
     const vaultManagerFactory = await VaultManagerFactory.deployed();
 
     await app.setContractFactory('Vault', vaultFactory.address);
-    await app.setContractFactory('Strategy', vaultManagerFactory.address);
+    await app.setContractFactory('VaultManager', vaultManagerFactory.address);
   });
 };
