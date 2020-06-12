@@ -32,12 +32,14 @@ contract Archive is Initializable, Ownable, UsingRegistry, UsingPrecompiles {
         uint256 score;
     }
 
-    mapping(address => LinkedList.List) public vaultOwners;
-    mapping(address => LinkedList.List) public vaultManagerOwners;
-    mapping(uint256 => EpochRewards) private epochRewards;
-
+    // Factory contracts that are able to modify the lists below
     address public vaultFactory;
     address public vaultManagerFactory;
+
+    // Vaults and vault managers mapped by their owner's address
+    mapping(address => LinkedList.List) public vaults;
+    mapping(address => LinkedList.List) public vaultManagers;
+    mapping(uint256 => EpochRewards) private epochRewards;
 
     modifier onlyVaultFactory() {
         require(msg.sender == vaultFactory, "Sender is not vault factory");
@@ -87,20 +89,20 @@ contract Archive is Initializable, Ownable, UsingRegistry, UsingPrecompiles {
         );
     }
 
-    function getVaultOwner(address owner_)
+    function getVaultsByOwner(address owner_)
         external
         view
         returns (address[] memory)
     {
-        return vaultOwners[owner_].getKeys();
+        return vaults[owner_].getKeys();
     }
 
-    function getVaultManagerOwner(address owner_)
+    function getVaultManagersByOwner(address owner_)
         external
         view
         returns (address[] memory)
     {
-        return vaultManagerOwners[owner_].getKeys();
+        return vaultManagers[owner_].getKeys();
     }
 
     function hasVault(address owner_, address vault)
@@ -108,7 +110,7 @@ contract Archive is Initializable, Ownable, UsingRegistry, UsingPrecompiles {
         view
         returns (bool)
     {
-        return vaultOwners[owner_].contains(vault);
+        return vaults[owner_].contains(vault);
     }
 
     function hasVaultManager(address owner_, address vaultManager)
@@ -116,7 +118,7 @@ contract Archive is Initializable, Ownable, UsingRegistry, UsingPrecompiles {
         view
         returns (bool)
     {
-        return vaultManagerOwners[owner_].contains(vaultManager);
+        return vaultManagers[owner_].contains(vaultManager);
     }
 
     function associateVaultWithOwner(address vault, address owner_)
@@ -124,10 +126,10 @@ contract Archive is Initializable, Ownable, UsingRegistry, UsingPrecompiles {
         onlyVaultFactory
     {
         require(
-            !vaultOwners[owner_].contains(vault),
+            !vaults[owner_].contains(vault),
             "Vault has already been set"
         );
-        vaultOwners[owner_].push(vault);
+        vaults[owner_].push(vault);
     }
 
     function associateVaultManagerWithOwner(
@@ -135,10 +137,10 @@ contract Archive is Initializable, Ownable, UsingRegistry, UsingPrecompiles {
         address owner_
     ) public onlyVaultManagerFactory {
         require(
-            !vaultManagerOwners[owner_].contains(vaultManager),
+            !vaultManagers[owner_].contains(vaultManager),
             "VaultManager has already been set"
         );
-        vaultManagerOwners[owner_].push(vaultManager);
+        vaultManagers[owner_].push(vaultManager);
     }
 
     function hasEpochRewards(uint256 epochNumber) public view returns (bool) {

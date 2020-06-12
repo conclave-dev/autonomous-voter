@@ -10,7 +10,7 @@ describe('Vault', () => {
       value: new BigNumber('1e17')
     });
 
-    const vaults = await this.archive.getVaultOwner(primarySenderAddress);
+    const vaults = await this.archive.getVaultsByOwner(primarySenderAddress);
     this.vault = await contracts.Vault.at(vaults[vaults.length - 1]);
   });
 
@@ -55,7 +55,7 @@ describe('Vault', () => {
       await (await contracts.VaultManagerFactory.deployed()).createInstance('10', new BigNumber('1e16').toString());
 
       // Test adding managedGold to a vaultManager
-      const vaultManagers = await this.archive.getVaultManagerOwner(primarySenderAddress);
+      const vaultManagers = await this.archive.getVaultManagersByOwner(primarySenderAddress);
       const vaultManager = await contracts.VaultManager.at(vaultManagers[vaultManagers.length - 1]);
 
       await this.vault.setVotingVaultManager(vaultManager.address);

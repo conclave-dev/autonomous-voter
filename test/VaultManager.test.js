@@ -14,7 +14,7 @@ describe('VaultManager', () => {
       this.minimumManageableBalanceRequirement
     );
 
-    const vaultManagers = await this.archive.getVaultManagerOwner(primarySenderAddress);
+    const vaultManagers = await this.archive.getVaultManagersByOwner(primarySenderAddress);
     this.vaultManager = await contracts.VaultManager.at(vaultManagers[vaultManagers.length - 1]);
   });
 

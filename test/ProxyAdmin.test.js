@@ -10,7 +10,7 @@ describe('ProxyAdmin', () => {
       value: new BigNumber('1e17')
     });
 
-    const vaults = await this.archive.getVaultOwner(primarySenderAddress);
+    const vaults = await this.archive.getVaultsByOwner(primarySenderAddress);
     this.vault = await contracts.Vault.at(vaults[vaults.length - 1]);
   });
 
