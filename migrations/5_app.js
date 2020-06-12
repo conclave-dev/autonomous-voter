@@ -10,6 +10,6 @@ module.exports = async (deployer) => {
   const { address: vaultManagerAddress } = await VaultManager.deployed();
 
   await app.initialize();
-  await app.setImplementation('Vault', vaultAddress);
-  await app.setImplementation('VaultManager', vaultManagerAddress);
+  await app.setContractImplementation('Vault', vaultAddress);
+  await app.setContractImplementation('VaultManager', vaultManagerAddress);
 };
