@@ -60,26 +60,19 @@ describe('App', () => {
     });
 
     it('should allow factories to create instance', async () => {
-      // For testing purpose, set our primary test account as the vault factory
+      // Set contract factory to an address that is not the vault factory
       await this.app.setContractFactory('Vault', primarySenderAddress);
 
+      // Attempting to create an instance should now throw an error
       await expect(
-        this.app.create(
-          'Vault',
-          primarySenderAddress,
-          encodeCall(
-            'initialize',
-            ['address', 'address', 'address', 'address'],
-            [registryContractAddress, this.archive.address, primarySenderAddress, primarySenderAddress]
-          ),
-          {
-            value: new BigNumber('1e17')
-          }
-        )
-      ).to.be.fulfilled;
+        this.vaultFactory.createInstance(registryContractAddress, { value: new BigNumber('1e17') })
+      ).to.be.rejectedWith(Error);
 
-      // Reset the factory for other tests
+      // Set App's contract factory back to the VaultFactory's address
       await this.app.setContractFactory('Vault', this.vaultFactory.address);
+
+      await expect(this.vaultFactory.createInstance(registryContractAddress, { value: new BigNumber('1e17') })).to.be
+        .fulfilled;
     });
   });
 });
