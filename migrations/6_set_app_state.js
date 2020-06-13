@@ -11,9 +11,24 @@ module.exports = (deployer) =>
     const { address: vaultManagerAddress } = await VaultManager.deployed();
     const { address: vaultFactoryAddress } = await VaultFactory.deployed();
     const { address: vaultManagerFactoryAddress } = await VaultManagerFactory.deployed();
+    const hasVault = (await app.contractImplementations('Vault')) === vaultAddress;
+    const hasVaultManager = (await app.contractImplementations('VaultManager')) === vaultManagerAddress;
+    const hasVaultFactory = (await app.contractFactories('Vault')) === vaultFactoryAddress;
+    const hasVaultManagerFactory = (await app.contractFactories('VaultManager')) === vaultManagerFactoryAddress;
 
-    await app.setContractImplementation('Vault', vaultAddress);
-    await app.setContractImplementation('VaultManager', vaultManagerAddress);
-    await app.setContractFactory('Vault', vaultFactoryAddress);
-    await app.setContractFactory('VaultManager', vaultManagerFactoryAddress);
+    if (!hasVault) {
+      await app.setContractImplementation('Vault', vaultAddress);
+    }
+
+    if (!hasVaultManager) {
+      await app.setContractImplementation('VaultManager', vaultManagerAddress);
+    }
+
+    if (!hasVaultFactory) {
+      await app.setContractFactory('Vault', vaultFactoryAddress);
+    }
+
+    if (!hasVaultManagerFactory) {
+      await app.setContractFactory('VaultManager', vaultManagerFactoryAddress);
+    }
   });
