@@ -56,7 +56,23 @@ describe('Vault', function () {
         vaultManagerRewardSharePercentage.toFixed(0),
         `Reward share percentage should be ${vaultManagerRewardSharePercentage}`
       );
-      return assert.equal(hasVault, true, 'Vault was not registered with voting manager');
+      assert.equal(hasVault, true, 'Vault was not registered with voting manager');
+    });
+
+    it('should remove the voting vault manager with removeVotingVaultManager', async () => {
+      const votingVaultManagerBeforeRemoval = (await this.vault.getVotingVaultManager())[0];
+
+      assert.equal(votingVaultManagerBeforeRemoval, this.vaultManager.address, 'Voting vault manager incorrectly set');
+
+      await this.vault.removeVotingVaultManager();
+
+      const votingVaultManagerAfterRemoval = (await this.vault.getVotingVaultManager())[0];
+
+      assert.notEqual(
+        votingVaultManagerAfterRemoval,
+        this.vaultManager.address,
+        'Voting vault manager was not removed'
+      );
     });
   });
 });

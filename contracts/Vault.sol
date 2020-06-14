@@ -9,7 +9,7 @@ contract Vault is UsingRegistry {
     Archive private archive;
     address public proxyAdmin;
 
-    struct Managers {
+    struct VaultManagers {
         VotingVaultManager voting;
     }
 
@@ -18,7 +18,7 @@ contract Vault is UsingRegistry {
         uint256 rewardSharePercentage;
     }
 
-    Managers private managers;
+    VaultManagers private vaultManagers;
 
     function initialize(
         address registry_,
@@ -62,17 +62,22 @@ contract Vault is UsingRegistry {
     function setVotingVaultManager(VaultManager manager) external onlyOwner {
         verifyVaultManager(manager);
 
-        managers.voting.contractAddress = address(manager);
-        managers.voting.rewardSharePercentage = manager.rewardSharePercentage();
+        vaultManagers.voting.contractAddress = address(manager);
+        vaultManagers.voting.rewardSharePercentage = manager
+            .rewardSharePercentage();
 
         manager.registerVault(this);
     }
 
     function getVotingVaultManager() public view returns (address, uint256) {
         return (
-            managers.voting.contractAddress,
-            managers.voting.rewardSharePercentage
+            vaultManagers.voting.contractAddress,
+            vaultManagers.voting.rewardSharePercentage
         );
+    }
+
+    function removeVotingVaultManager() external onlyOwner {
+        delete vaultManagers.voting;
     }
 
     function setProxyAdmin(address admin) external onlyOwner {
