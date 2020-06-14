@@ -26,12 +26,12 @@ contract Vault is UsingRegistry {
         address owner_,
         address admin
     ) public payable initializer {
-        UsingRegistry.initializeRegistry(msg.sender, registry_);
-        Ownable.initialize(owner_);
-
         archive = archive_;
         proxyAdmin = admin;
-        _registerAccount();
+
+        UsingRegistry.initializeRegistry(msg.sender, registry_);
+        Ownable.initialize(owner_);
+        getAccounts().createAccount();
         deposit();
     }
 
@@ -83,12 +83,5 @@ contract Vault is UsingRegistry {
     function setProxyAdmin(address admin) external onlyOwner {
         require(admin != address(0), "Invalid admin address");
         proxyAdmin = admin;
-    }
-
-    function _registerAccount() internal {
-        require(
-            getAccounts().createAccount(),
-            "Failed to register vault account"
-        );
     }
 }
