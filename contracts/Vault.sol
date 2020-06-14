@@ -6,8 +6,7 @@ import "./Archive.sol";
 import "./VaultManager.sol";
 
 contract Vault is UsingRegistry {
-    Archive private archive;
-    address public proxyAdmin;
+    using SafeMath for uint256;
 
     struct VaultManagers {
         VotingVaultManager voting;
@@ -15,10 +14,26 @@ contract Vault is UsingRegistry {
 
     struct VotingVaultManager {
         address contractAddress;
+        // The voting vault manager's reward share percentage when they were added
+        // This protects the vault owner from increases by the voting vault manager
         uint256 rewardSharePercentage;
+        // Pending withdrawal indexes associated with a voting vault manager's rewards
+        uint256[] pendingRewardIndexes;
     }
 
+    Archive private archive;
     VaultManagers private vaultManagers;
+
+    address public proxyAdmin;
+    mapping(address => uint256) public votes;
+
+    modifier onlyVotingVaultManager() {
+        require(
+            msg.sender == vaultManagers.voting.contractAddress,
+            "Not the voting vault manager"
+        );
+        _;
+    }
 
     function initialize(
         address registry_,
@@ -33,6 +48,11 @@ contract Vault is UsingRegistry {
         Ownable.initialize(owner_);
         getAccounts().createAccount();
         deposit();
+    }
+
+    function setProxyAdmin(address admin) external onlyOwner {
+        require(admin != address(0), "Invalid admin address");
+        proxyAdmin = admin;
     }
 
     function deposit() public payable {
@@ -77,11 +97,53 @@ contract Vault is UsingRegistry {
     }
 
     function removeVotingVaultManager() external onlyOwner {
+        // TODO: Update to distribute voting vault manager rewards first
         delete vaultManagers.voting;
     }
 
-    function setProxyAdmin(address admin) external onlyOwner {
-        require(admin != address(0), "Invalid admin address");
-        proxyAdmin = admin;
+    function distributeVotingVaultManagerRewards(
+        address group,
+        address adjacentGroupWithLessVotes,
+        address adjacentGroupWithMoreVotes,
+        uint256 vaultGroupIndex
+    ) public {
+        IElection election = getElection();
+        uint256 activeGroupVotes = election.getActiveVotesForGroupByAccount(
+            group,
+            address(this)
+        );
+
+        require(activeGroupVotes > 0, "Group does not have active votes");
+
+        uint256 vaultManagerRewards = activeGroupVotes.sub(votes[group]);
+
+        // Revoke group votes equal to vault manager rewards
+        require(
+            election.revokeActive(
+                group,
+                vaultManagerRewards,
+                adjacentGroupWithLessVotes,
+                adjacentGroupWithMoreVotes,
+                vaultGroupIndex
+            ),
+            "Unable to distribute voting vault manager rewards"
+        );
+
+        ILockedGold lockedGold = getLockedGold();
+        // Unlock tokens equal to rewards (adds it to the Vault's account's pendingWithdrawals)
+        lockedGold.unlock(vaultManagerRewards);
+
+        // Store the index of the last pending withdrawal (i.e. the reward)
+        // This index is used when the vault manager retrieves their rewards
+        (uint256[] memory values, ) = lockedGold.getPendingWithdrawals(
+            address(this)
+        );
+        vaultManagers.voting.pendingRewardIndexes.push(values.length - 1);
+
+        // Update the group's votes, which should be active votes minus rewards
+        votes[group] = election.getActiveVotesForGroupByAccount(
+            group,
+            address(this)
+        );
     }
 }
