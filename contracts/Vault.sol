@@ -6,6 +6,8 @@ import "./Archive.sol";
 import "./VaultManager.sol";
 
 contract Vault is UsingRegistry {
+    using SafeMath for uint256;
+
     Archive private archive;
     address public proxyAdmin;
 
@@ -73,6 +75,29 @@ contract Vault is UsingRegistry {
             managers.voting.contractAddress,
             managers.voting.rewardSharePercentage
         );
+    }
+
+    function initiateWithdrawal(uint256 amount) external onlyOwner {
+        require(amount > 0 && amount <= getManageableBalance(), "Invalid amount specified");
+        getLockedGold().unlock(amount);
+    }
+
+    function cancelWithdrawal(uint256 index, uint256 amount) external onlyOwner {
+        getLockedGold().relock(index, amount);
+    }
+
+    function withdraw() external onlyOwner {
+        (
+            uint256[] memory amounts,
+            uint256[] memory timestamps
+        ) = getLockedGold().getPendingWithdrawals(address(this));
+
+        for (uint256 i = 0; i < amounts.length; i = i.add(1)) {
+            if (timestamps[i] < now) {
+                // Proceed to the fund transfer only if the withdrawal has been fully unlocked
+                getLockedGold().withdraw(i);
+            }
+        }
     }
 
     function setProxyAdmin(address admin) external onlyOwner {

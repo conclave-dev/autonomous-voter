@@ -1,5 +1,4 @@
 const BigNumber = require('bignumber.js');
-const { encodeCall } = require('@openzeppelin/upgrades');
 const { assert, expect, contracts } = require('./setup');
 const { primarySenderAddress, secondarySenderAddress, registryContractAddress } = require('../config');
 
