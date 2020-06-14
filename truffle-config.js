@@ -4,10 +4,14 @@ const { newKit } = require('@celo/contractkit');
 const { alfajoresRpcAPI, baklavaRpcAPI, defaultGas, defaultGasPrice } = require('./config');
 
 const {
-  web3: { currentProvider: alfajoresProvider }
+  web3: {
+    _provider: { existingProvider: alfajoresProvider }
+  }
 } = newKit(alfajoresRpcAPI);
 const {
-  web3: { currentProvider: baklavaProvider }
+  web3: {
+    _provider: { existingProvider: baklavaProvider }
+  }
 } = newKit(baklavaRpcAPI);
 
 module.exports = {

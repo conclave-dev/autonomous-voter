@@ -10,8 +10,8 @@ import "@openzeppelin/contracts-ethereum-package/contracts/ownership/Ownable.sol
  * It handles the creation of proxies.
  */
 contract App is Initializable, Ownable {
-    mapping(string => address) private contractImplementations;
-    mapping(string => address) private contractFactories;
+    mapping(string => address) public contractImplementations;
+    mapping(string => address) public contractFactories;
 
     function initialize() public initializer {
         Ownable.initialize(msg.sender);
