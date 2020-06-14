@@ -78,11 +78,17 @@ contract Vault is UsingRegistry {
     }
 
     function initiateWithdrawal(uint256 amount) external onlyOwner {
-        require(amount > 0 && amount <= getManageableBalance(), "Invalid amount specified");
+        require(
+            amount > 0 && amount <= getManageableBalance(),
+            "Invalid amount specified"
+        );
         getLockedGold().unlock(amount);
     }
 
-    function cancelWithdrawal(uint256 index, uint256 amount) external onlyOwner {
+    function cancelWithdrawal(uint256 index, uint256 amount)
+        external
+        onlyOwner
+    {
         getLockedGold().relock(index, amount);
     }
 
