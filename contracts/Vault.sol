@@ -38,6 +38,8 @@ contract Vault is UsingRegistry {
     }
 
     Archive private archive;
+    IElection private election;
+    ILockedGold private lockedGold;
     VaultManagers private vaultManagers;
     Votes private votes;
 
@@ -72,6 +74,8 @@ contract Vault is UsingRegistry {
         UsingRegistry.initializeRegistry(msg.sender, registry_);
         Ownable.initialize(owner_);
         getAccounts().createAccount();
+        election = getElection();
+        lockedGold = getLockedGold();
         deposit();
     }
 
@@ -84,12 +88,12 @@ contract Vault is UsingRegistry {
         require(msg.value > 0, "Deposit must be greater than zero");
 
         // Immediately lock the deposit
-        getLockedGold().lock.value(msg.value)();
+        lockedGold.lock.value(msg.value)();
     }
 
     // Gets the Vault's locked gold amount (both voting and nonvoting)
     function getManageableBalance() external view returns (uint256) {
-        return getLockedGold().getAccountTotalLockedGold(address(this));
+        return lockedGold.getAccountTotalLockedGold(address(this));
     }
 
     function getVotingVaultManager() external view returns (address, uint256) {
@@ -134,6 +138,10 @@ contract Vault is UsingRegistry {
         delete vaultManagers.voting;
     }
 
+    function mustBeVotingForGroup(address group) internal view {
+        require(votes.groups.contains(group) == true, "Group does not exist");
+    }
+
     /**
      * @notice Calculates and distributes a voting vault manager's rewards
      * @param group A validator group with active votes placed by the voting vault manager
@@ -148,9 +156,7 @@ contract Vault is UsingRegistry {
         address adjacentGroupWithMoreVotes,
         uint256 accountGroupIndex
     ) public onlyOwnerOrVotingVaultManager returns (uint256) {
-        require(votes.groups.contains(group), "Group does not exist");
-
-        IElection election = getElection();
+        mustBeVotingForGroup(group);
 
         uint256 activeVotes = election.getActiveVotesForGroupByAccount(
             group,
@@ -179,8 +185,6 @@ contract Vault is UsingRegistry {
             adjacentGroupWithMoreVotes,
             accountGroupIndex
         );
-
-        ILockedGold lockedGold = getLockedGold();
 
         // Unlock tokens equal to the manager's rewards
         lockedGold.unlock(vaultManagerRewards);
@@ -226,9 +230,7 @@ contract Vault is UsingRegistry {
         address adjacentGroupWithMoreVotes,
         uint256 accountGroupIndex
     ) external onlyOwnerOrVotingVaultManager {
-        require(votes.groups.contains(group), "Group does not exist");
-
-        IElection election = getElection();
+        mustBeVotingForGroup(group);
 
         // If there are active votes for this group, revoke them and update storage
         if (votes.activeVotesWithoutRewards[group] > 0) {
@@ -276,8 +278,6 @@ contract Vault is UsingRegistry {
         address adjacentGroupWithLessVotes,
         address adjacentGroupWithMoreVotes
     ) external onlyVotingVaultManager {
-        IElection election = getElection();
-
         // Lean on Election's vote validation for group eligibility, non-zero vote amount, and
         // adherance to the group voting limit
         election.vote(
@@ -295,9 +295,7 @@ contract Vault is UsingRegistry {
     }
 
     function activateVotes(address group) external onlyVotingVaultManager {
-        require(votes.groups.contains(group) == true, "Group does not exist");
-
-        IElection election = getElection();
+        mustBeVotingForGroup(group);
 
         // Save pending votes amount before activation attempt
         uint256 pendingVotes = election.getPendingVotesForGroupByAccount(
