@@ -33,8 +33,7 @@ contract Vault is UsingRegistry {
     }
 
     struct Votes {
-        mapping(address => uint256) activeVotes;
-        mapping(address => uint256) pendingVotes;
+        mapping(address => uint256) activeVotesWithoutRewards;
         LinkedList.List groups;
     }
 
@@ -162,7 +161,7 @@ contract Vault is UsingRegistry {
         // Total group rewards = current active votes - active votes at last reward distribution
         // Vault manager rewards = total group rewards percentage point * reward share percentage (#1-100)
         uint256 vaultManagerRewards = activeVotes
-            .sub(votes.activeVotes[group])
+            .sub(votes.activeVotesWithoutRewards[group])
             .div(100)
             .mul(vaultManagers.voting.rewardSharePercentage);
 
@@ -198,11 +197,12 @@ contract Vault is UsingRegistry {
             )
         );
 
-        // Update the group's votes (current active votes - manager rewards)
-        votes.activeVotes[group] = activeVotes.sub(vaultManagerRewards);
+        // Bring activeVotesWithoutRewards to parity with group's active votes
+        votes.activeVotesWithoutRewards[group] = activeVotes
+            .sub(vaultManagerRewards);
 
         require(
-            votes.activeVotes[group] ==
+            votes.activeVotesWithoutRewards[group] ==
                 election.getActiveVotesForGroupByAccount(group, address(this)),
             "Vault active votes does not equal election active votes"
         );
@@ -228,7 +228,7 @@ contract Vault is UsingRegistry {
         IElection election = getElection();
 
         // If there are active votes for this group, revoke them and update storage
-        if (votes.activeVotes[group] > 0) {
+        if (votes.activeVotesWithoutRewards[group] > 0) {
             // Distributes the rewards that were earned by the voting vault manager
             distributeVotingVaultManagerRewards(
                 group,
@@ -245,20 +245,23 @@ contract Vault is UsingRegistry {
                 accountGroupIndex
             );
 
-            delete votes.activeVotes[group];
+            delete votes.activeVotesWithoutRewards[group];
         }
 
-        // If there are pending votes for this group, revoke them and update storage
-        if (votes.pendingVotes[group] > 0) {
+        uint256 pendingVotes = election.getPendingVotesForGroupByAccount(
+            group,
+            address(this)
+        );
+
+        // If there are pending votes for this group, revoke them
+        if (pendingVotes > 0) {
             election.revokePending(
                 group,
-                votes.pendingVotes[group],
+                pendingVotes,
                 adjacentGroupWithLessVotes,
                 adjacentGroupWithMoreVotes,
                 accountGroupIndex
             );
-
-            delete votes.pendingVotes[group];
         }
 
         votes.groups.remove(group);
@@ -274,12 +277,17 @@ contract Vault is UsingRegistry {
 
         // Lean on Election's vote validation for group eligibility, non-zero vote amount, and
         // adherance to the group voting limit
-        election.vote(group, amount, adjacentGroupWithLessVotes, adjacentGroupWithMoreVotes);
+        election.vote(
+            group,
+            amount,
+            adjacentGroupWithLessVotes,
+            adjacentGroupWithMoreVotes
+        );
 
-        if (votes.groups.contains(group) == false) {
-            votes.groups.push(group);
+        if (votes.groups.contains(group) == true) {
+            return;
         }
 
-        votes.pendingVotes[group] = election.getPendingVotesForGroupByAccount(group, address(this));
+        votes.groups.push(group);
     }
 }
