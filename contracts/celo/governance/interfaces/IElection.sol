@@ -67,4 +67,9 @@ interface IElection {
         address greater,
         uint256 index
     ) external returns (bool);
+
+    function getPendingVotesForGroupByAccount(address group, address account)
+        external
+        view
+        returns (uint256);
 }

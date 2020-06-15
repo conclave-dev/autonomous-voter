@@ -217,7 +217,7 @@ contract Vault is UsingRegistry {
      * @param adjacentGroupWithMoreVotes List of adjacent eligible validator groups with more votes
      * @param accountGroupIndex Index of the group for the vault's account
      */
-    function revokeAllVotesForGroup(
+    function revokeAll(
         address group,
         address adjacentGroupWithLessVotes,
         address adjacentGroupWithMoreVotes,
@@ -262,5 +262,24 @@ contract Vault is UsingRegistry {
         }
 
         votes.groups.remove(group);
+    }
+
+    function vote(
+        address group,
+        uint256 amount,
+        address adjacentGroupWithLessVotes,
+        address adjacentGroupWithMoreVotes
+    ) external onlyVotingVaultManager {
+        IElection election = getElection();
+
+        // Lean on Election's vote validation for group eligibility, non-zero vote amount, and
+        // adherance to the group voting limit
+        election.vote(group, amount, adjacentGroupWithLessVotes, adjacentGroupWithMoreVotes);
+
+        if (votes.groups.contains(group) == false) {
+            votes.groups.push(group);
+        }
+
+        votes.pendingVotes[group] = election.getPendingVotesForGroupByAccount(group, address(this));
     }
 }
