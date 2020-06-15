@@ -151,6 +151,7 @@ contract Vault is UsingRegistry {
         require(votes.groups.contains(group), "Group does not exist");
 
         IElection election = getElection();
+
         uint256 activeVotes = election.getActiveVotesForGroupByAccount(
             group,
             address(this)
@@ -158,8 +159,8 @@ contract Vault is UsingRegistry {
 
         require(activeVotes > 0, "Group does not have active votes");
 
-        // Total group rewards = current active votes - active votes at last reward distribution
-        // Vault manager rewards = total group rewards percentage point * reward share percentage (#1-100)
+        // Total group rewards = current active votes - active votes without rewards
+        // Vault manager's rewards = total group rewards percentage point * reward share percentage (#1-100)
         uint256 vaultManagerRewards = activeVotes
             .sub(votes.activeVotesWithoutRewards[group])
             .div(100)
@@ -198,9 +199,11 @@ contract Vault is UsingRegistry {
         );
 
         // Bring activeVotesWithoutRewards to parity with group's active votes
-        votes.activeVotesWithoutRewards[group] = activeVotes
-            .sub(vaultManagerRewards);
+        votes.activeVotesWithoutRewards[group] = activeVotes.sub(
+            vaultManagerRewards
+        );
 
+        // Safety-check, just to be sure
         require(
             votes.activeVotesWithoutRewards[group] ==
                 election.getActiveVotesForGroupByAccount(group, address(this)),
@@ -289,5 +292,25 @@ contract Vault is UsingRegistry {
         }
 
         votes.groups.push(group);
+    }
+
+    function activateVotes(address group) external onlyVotingVaultManager {
+        require(votes.groups.contains(group) == true, "Group does not exist");
+
+        IElection election = getElection();
+
+        // Save pending votes amount before activation attempt
+        uint256 pendingVotes = election.getPendingVotesForGroupByAccount(
+            group,
+            address(this)
+        );
+
+        // activate validates pending vote epoch and non-zero vote amount
+        election.activate(group);
+
+        // Increment activeVotesWithoutRewards by activated pending votes
+        votes.activeVotesWithoutRewards[group] =
+            votes.activeVotesWithoutRewards[group] +
+            pendingVotes;
     }
 }
