@@ -34,10 +34,10 @@ contract VaultManager is Ownable {
         uint256 minimumRequirement
     ) public payable initializer {
         Ownable.initialize(owner_);
+        _setRewardSharePercentage(sharePercentage);
 
         archive = archive_;
         proxyAdmin = admin;
-        rewardSharePercentage = sharePercentage;
         minimumManageableBalanceRequirement = minimumRequirement;
     }
 
@@ -46,8 +46,15 @@ contract VaultManager is Ownable {
         proxyAdmin = admin;
     }
 
-    function setRewardSharePercentage(uint256 percentage) external onlyOwner {
-        require(percentage > 0, "Invalid reward share percentage");
+    function setRewardSharePercentage(uint256 percentage) public onlyOwner {
+        require(
+            percentage >= 1 && percentage <= 100,
+            "Invalid reward share percentage"
+        );
+        _setRewardSharePercentage(percentage);
+    }
+
+    function _setRewardSharePercentage(uint256 percentage) internal {
         rewardSharePercentage = percentage;
     }
 
@@ -59,21 +66,20 @@ contract VaultManager is Ownable {
         minimumManageableBalanceRequirement = amount;
     }
 
-    function hasVault(address vault) public view returns (bool) {
-        return vaults.contains(vault);
-    }
-
-    function validateVault(Vault vault) internal view {
-        require(!hasVault(address(vault)), "Already registered");
+    function registerVault() external onlyVault {
+        require(vaults.contains(msg.sender) == false, "Already registered");
         require(
-            vault.getManageableBalance() >= minimumManageableBalanceRequirement,
+            Vault(msg.sender).getManageableBalance() >=
+                minimumManageableBalanceRequirement,
             "Does not meet minimum manageable balance requirement"
         );
-    }
-
-    function registerVault(Vault vault) external onlyVault {
-        validateVault(vault);
 
         vaults.push(msg.sender);
+    }
+
+    function deregisterVault() external onlyVault {
+        require(vaults.contains(msg.sender) == true, "Not registered");
+
+        vaults.remove(msg.sender);
     }
 }
