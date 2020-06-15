@@ -10,6 +10,15 @@ contract Vault is UsingRegistry {
 
     struct VaultManagers {
         VotingVaultManager voting;
+        VaultManagerReward[] rewards;
+        // TODO: Add reward withdrawal expiry logic
+    }
+
+    // Rewards set aside for a manager - cannot be withdrawn by the owner, unless it expires
+    struct VaultManagerReward {
+        address recipient;
+        uint256 amount;
+        uint256 timestamp;
     }
 
     struct VotingVaultManager {
@@ -115,7 +124,9 @@ contract Vault is UsingRegistry {
 
         require(activeGroupVotes > 0, "Group does not have active votes");
 
-        uint256 vaultManagerRewards = activeGroupVotes.sub(votes[group]);
+        uint256 vaultManagerRewards = activeGroupVotes.sub(votes[group]).div(100).mul(
+            vaultManagers.voting.rewardSharePercentage
+        );
 
         // Revoke group votes equal to vault manager rewards
         require(
@@ -130,15 +141,22 @@ contract Vault is UsingRegistry {
         );
 
         ILockedGold lockedGold = getLockedGold();
+
         // Unlock tokens equal to rewards (adds it to the Vault's account's pendingWithdrawals)
         lockedGold.unlock(vaultManagerRewards);
 
-        // Store the index of the last pending withdrawal (i.e. the reward)
-        // This index is used when the vault manager retrieves their rewards
-        (uint256[] memory values, ) = lockedGold.getPendingWithdrawals(
-            address(this)
+        // Retrieve the Vault's pending withdrawals (manager's rewards will be the last element)
+        (uint256[] memory values, uint256[] memory timestamps) = lockedGold
+            .getPendingWithdrawals(address(this));
+
+        // Store the pending withdrawal details for the manager's rewards
+        vaultManagers.rewards.push(
+            VaultManagerReward(
+                vaultManagers.voting.contractAddress,
+                values[values.length - 1],
+                timestamps[timestamps.length - 1]
+            )
         );
-        vaultManagers.voting.pendingRewardIndexes.push(values.length - 1);
 
         // Update the group's votes, which should be active votes minus rewards
         votes[group] = election.getActiveVotesForGroupByAccount(
