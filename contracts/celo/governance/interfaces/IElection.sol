@@ -60,4 +60,11 @@ interface IElection {
         external
         view
         returns (uint256);
+
+    function revokeAllActive(
+        address group,
+        address lesser,
+        address greater,
+        uint256 index
+    ) external returns (bool);
 }

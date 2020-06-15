@@ -15,10 +15,10 @@ contract Vault is UsingRegistry {
     struct VaultManagers {
         VotingVaultManager voting;
         VaultManagerReward[] rewards;
-        // TODO: Add reward withdrawal expiry logic
     }
 
     // Rewards set aside for a manager - cannot be withdrawn by the owner, unless it expires
+    // TODO: Add reward withdrawal expiry logic
     struct VaultManagerReward {
         address recipient;
         uint256 amount;
@@ -30,12 +30,11 @@ contract Vault is UsingRegistry {
         // The voting vault manager's reward share percentage when they were added
         // This protects the vault owner from increases by the voting vault manager
         uint256 rewardSharePercentage;
-        // Pending withdrawal indexes associated with a voting vault manager's rewards
-        uint256[] pendingRewardIndexes;
     }
 
     struct Votes {
         mapping(address => uint256) activeVotes;
+        mapping(address => uint256) pendingVotes;
         LinkedList.List groups;
     }
 
@@ -49,6 +48,15 @@ contract Vault is UsingRegistry {
         require(
             msg.sender == vaultManagers.voting.contractAddress,
             "Not the voting vault manager"
+        );
+        _;
+    }
+
+    modifier onlyOwnerOrVotingVaultManager() {
+        require(
+            msg.sender == owner() ||
+                msg.sender == vaultManagers.voting.contractAddress,
+            "Not the owner or voting vault manager"
         );
         _;
     }
@@ -81,41 +89,49 @@ contract Vault is UsingRegistry {
     }
 
     // Gets the Vault's locked gold amount (both voting and nonvoting)
-    function getManageableBalance() public view returns (uint256) {
+    function getManageableBalance() external view returns (uint256) {
         return getLockedGold().getAccountTotalLockedGold(address(this));
     }
 
-    // Gets the Vault's nonvoting locked gold amount
-    function getNonvotingBalance() public view returns (uint256) {
-        return getLockedGold().getAccountNonvotingLockedGold(address(this));
-    }
-
-    function verifyVaultManager(VaultManager manager) internal view {
-        require(
-            archive.hasVaultManager(manager.owner(), address(manager)),
-            "Voting manager is invalid"
-        );
-    }
-
-    function setVotingVaultManager(VaultManager manager) external onlyOwner {
-        verifyVaultManager(manager);
-
-        vaultManagers.voting.contractAddress = address(manager);
-        vaultManagers.voting.rewardSharePercentage = manager
-            .rewardSharePercentage();
-
-        manager.registerVault(this);
-    }
-
-    function getVotingVaultManager() public view returns (address, uint256) {
+    function getVotingVaultManager() external view returns (address, uint256) {
         return (
             vaultManagers.voting.contractAddress,
             vaultManagers.voting.rewardSharePercentage
         );
     }
 
+    function setVotingVaultManager(VaultManager manager) external onlyOwner {
+        require(
+            archive.hasVaultManager(manager.owner(), address(manager)),
+            "Voting vault manager is invalid"
+        );
+        require(
+            vaultManagers.voting.contractAddress == address(0),
+            "Voting vault manager already exists"
+        );
+
+        manager.registerVault();
+
+        vaultManagers.voting.contractAddress = address(manager);
+        vaultManagers.voting.rewardSharePercentage = manager
+            .rewardSharePercentage();
+    }
+
+    /**
+     * @notice Removes a voting vault manager
+     */
     function removeVotingVaultManager() external onlyOwner {
-        // TODO: Update to distribute voting vault manager rewards first
+        require(
+            vaultManagers.voting.contractAddress != address(0),
+            "Voting vault manager does not exist"
+        );
+        require(
+            votes.groups.getKeys().length == 0,
+            "Group votes have not been revoked"
+        );
+
+        VaultManager(vaultManagers.voting.contractAddress).deregisterVault();
+
         delete vaultManagers.voting;
     }
 
@@ -132,7 +148,9 @@ contract Vault is UsingRegistry {
         address adjacentGroupWithLessVotes,
         address adjacentGroupWithMoreVotes,
         uint256 accountGroupIndex
-    ) public returns (uint256) {
+    ) public onlyOwnerOrVotingVaultManager returns (uint256) {
+        require(votes.groups.contains(group), "Group does not exist");
+
         IElection election = getElection();
         uint256 activeVotes = election.getActiveVotesForGroupByAccount(
             group,
@@ -148,7 +166,10 @@ contract Vault is UsingRegistry {
             .div(100)
             .mul(vaultManagers.voting.rewardSharePercentage);
 
-        require(vaultManagerRewards > 0, "Group does not have rewards to distribute");
+        require(
+            vaultManagerRewards > 0,
+            "Group does not have rewards to distribute"
+        );
 
         // Revoke active votes equal to the manager's rewards, so that they can be unlocked and withdrawn
         election.revokeActive(
@@ -178,11 +199,68 @@ contract Vault is UsingRegistry {
         );
 
         // Update the group's votes (current active votes - manager rewards)
-        votes.activeVotes[group] = election.getActiveVotesForGroupByAccount(
-            group,
-            address(this)
+        votes.activeVotes[group] = activeVotes.sub(vaultManagerRewards);
+
+        require(
+            votes.activeVotes[group] ==
+                election.getActiveVotesForGroupByAccount(group, address(this)),
+            "Vault active votes does not equal election active votes"
         );
 
         return vaultManagerRewards;
+    }
+
+    /**
+     * @notice Revokes a group's votes and removes them from state
+     * @param group Groups with votes (must maintain the same order as that of the vault account)
+     * @param adjacentGroupWithLessVotes List of adjacent eligible validator groups with less votes
+     * @param adjacentGroupWithMoreVotes List of adjacent eligible validator groups with more votes
+     * @param accountGroupIndex Index of the group for the vault's account
+     */
+    function revokeAllVotesForGroup(
+        address group,
+        address adjacentGroupWithLessVotes,
+        address adjacentGroupWithMoreVotes,
+        uint256 accountGroupIndex
+    ) external onlyOwnerOrVotingVaultManager {
+        require(votes.groups.contains(group), "Group does not exist");
+
+        IElection election = getElection();
+
+        // If there are active votes for this group, revoke them and update storage
+        if (votes.activeVotes[group] > 0) {
+            // Distributes the rewards that were earned by the voting vault manager
+            distributeVotingVaultManagerRewards(
+                group,
+                adjacentGroupWithLessVotes,
+                adjacentGroupWithMoreVotes,
+                accountGroupIndex
+            );
+
+            // Revoke active votes for this group, if any
+            election.revokeAllActive(
+                group,
+                adjacentGroupWithLessVotes,
+                adjacentGroupWithMoreVotes,
+                accountGroupIndex
+            );
+
+            delete votes.activeVotes[group];
+        }
+
+        // If there are pending votes for this group, revoke them and update storage
+        if (votes.pendingVotes[group] > 0) {
+            election.revokePending(
+                group,
+                votes.pendingVotes[group],
+                adjacentGroupWithLessVotes,
+                adjacentGroupWithMoreVotes,
+                accountGroupIndex
+            );
+
+            delete votes.pendingVotes[group];
+        }
+
+        votes.groups.remove(group);
     }
 }
