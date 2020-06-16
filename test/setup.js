@@ -31,9 +31,20 @@ const getTruffleContracts = () =>
     };
   }, {});
 
+const contracts = getTruffleContracts();
+
+before(async function () {
+  this.app = await contracts.App.deployed();
+  this.archive = await contracts.Archive.deployed();
+  this.vault = await contracts.Vault.deployed();
+  this.vaultManager = await contracts.VaultManager.deployed();
+  this.vaultFactory = await contracts.VaultFactory.deployed();
+  this.vaultManagerFactory = await contracts.VaultManagerFactory.deployed();
+});
+
 module.exports = {
   expect,
   assert,
-  contracts: getTruffleContracts(),
+  contracts,
   kit: newKit(alfajoresRpcAPI)
 };

@@ -2,26 +2,27 @@ const BigNumber = require('bignumber.js');
 const { expect, contracts } = require('./setup');
 const { primarySenderAddress, secondarySenderAddress, registryContractAddress } = require('../config');
 
-describe('ProxyAdmin', () => {
-  before(async () => {
-    this.archive = await contracts.Archive.deployed();
-
-    await (await contracts.VaultFactory.deployed()).createInstance(registryContractAddress, {
+describe('ProxyAdmin', function () {
+  before(async function () {
+    this.vaultFactory.createInstance(registryContractAddress, {
       value: new BigNumber('1e17')
     });
 
     const vaults = await this.archive.getVaultsByOwner(primarySenderAddress);
-    this.vault = await contracts.Vault.at(vaults[vaults.length - 1]);
+
+    this.vaultInstance = await contracts.Vault.at(vaults[vaults.length - 1]);
   });
 
-  describe('initialize(App _app, address _owner)', () => {
-    it('should only allow the owner to upgrade', async () => {
-      const proxyAdmin = await contracts.ProxyAdmin.at(await this.vault.proxyAdmin());
+  describe('initialize(App _app, address _owner)', function () {
+    it('should only allow the owner to upgrade', async function () {
+      const proxyAdmin = await contracts.ProxyAdmin.at(await this.vaultInstance.proxyAdmin());
 
       await expect(
-        proxyAdmin.upgradeProxy(this.vault.address, this.vault.address, { from: secondarySenderAddress })
+        proxyAdmin.upgradeProxy(this.vaultInstance.address, this.vaultInstance.address, {
+          from: secondarySenderAddress
+        })
       ).to.be.rejectedWith(Error);
-      await expect(proxyAdmin.upgradeProxy(this.vault.address, this.vault.address)).to.be.fulfilled;
+      await expect(proxyAdmin.upgradeProxy(this.vaultInstance.address, this.vaultInstance.address)).to.be.fulfilled;
     });
   });
 });
