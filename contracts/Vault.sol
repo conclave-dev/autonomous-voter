@@ -143,37 +143,11 @@ contract Vault is UsingRegistry {
     }
 
     /**
-     * @notice Calculates the voting vault manager's rewards for a group
-     * @param group A validator group with active votes placed by the voting vault manager
-     * @return Manager's reward amount
-     */
-    function _calculateVotingManagerRewards(address group)
-        internal
-        view
-        returns (uint256)
-    {
-        uint256 activeVotes = election.getActiveVotesForGroupByAccount(
-            group,
-            address(this)
-        );
-
-        require(activeVotes > 0, "Group does not have active votes");
-
-        // totalRewardsAccrued = activeVotes (Celo) - activeVotesWithoutRewards (local)
-        // vaultManagerRewards = (totalRewardsAccrued / 100) * rewardSharePercentage
-        return
-            activeVotes
-                .sub(votes.activeVotesWithoutRewards[group])
-                .div(100)
-                .mul(vaultManagers.voting.rewardSharePercentage);
-    }
-
-    /**
      * @notice Distributes a voting vault manager's rewards
      * @param group A validator group with active votes placed by the voting vault manager
      * @param adjacentGroupWithLessVotes An eligible validator group, adjacent to group, with less votes
      * @param adjacentGroupWithMoreVotes An eligible validator group, adjacent to group, with more votes
-     * @param accountGroupIndex Index of the group for the vault's account
+     * @param accountGroupIndex Index of the group for this vault's account
      */
     function distributeVotingManagerRewards(
         address group,
@@ -182,6 +156,7 @@ contract Vault is UsingRegistry {
         uint256 accountGroupIndex
     ) public onlyOwnerOrVotingVaultManager {
         mustBeVotingForGroup(group);
+
         uint256 vaultManagerRewards = _calculateVotingManagerRewards(group);
 
         // Revoke active votes equal to the manager's rewards, so that they can be unlocked and tracked
@@ -222,7 +197,7 @@ contract Vault is UsingRegistry {
      * @param group Groups with votes (must maintain the same order as that of the vault account)
      * @param adjacentGroupWithLessVotes List of adjacent eligible validator groups with less votes
      * @param adjacentGroupWithMoreVotes List of adjacent eligible validator groups with more votes
-     * @param accountGroupIndex Index of the group for the vault's account
+     * @param accountGroupIndex Index of the group for this vault's account
      */
     function revokeAll(
         address group,
@@ -262,14 +237,20 @@ contract Vault is UsingRegistry {
         _postRevokeCleanup(group);
     }
 
+    /**
+     * @notice Adds votes to an eligible validator group
+     * @param group An eligible validator group
+     * @param amount The amount of votes to place for this group
+     * @param adjacentGroupWithLessVotes List of adjacent eligible validator groups with less votes
+     * @param adjacentGroupWithMoreVotes List of adjacent eligible validator groups with more votes
+     */
     function vote(
         address group,
         uint256 amount,
         address adjacentGroupWithLessVotes,
         address adjacentGroupWithMoreVotes
     ) external onlyVotingVaultManager {
-        // Lean on Election's vote validation for group eligibility, non-zero vote amount, and
-        // adherance to the group voting limit
+        // Validates group eligibility, sufficient vote amount, and group voting limit
         election.vote(
             group,
             amount,
@@ -284,7 +265,121 @@ contract Vault is UsingRegistry {
         votes.groups.push(group);
     }
 
-    // Removes a group if they no longer have active or pending votes
+    /**
+     * @notice Activates pending votes for a validator group that this vault is currently voting for
+     * @param group A validator group
+     */
+    function activate(address group) external onlyVotingVaultManager {
+        mustBeVotingForGroup(group);
+
+        // Save pending votes amount before activation attempt
+        uint256 pendingVotes = election.getPendingVotesForGroupByAccount(
+            group,
+            address(this)
+        );
+
+        // activate validates pending vote epoch and non-zero vote amount
+        election.activate(group);
+
+        // Increment activeVotesWithoutRewards by activated pending votes
+        votes.activeVotesWithoutRewards[group] =
+            votes.activeVotesWithoutRewards[group] +
+            pendingVotes;
+    }
+
+    /**
+     * @notice Iterates over voted groups and activates pending votes that are available
+     * @param group A validator group
+     */
+    function activateAll() external onlyVotingVaultManager {
+        mustBeVotingForGroup(group);
+
+        uint256 groups = votes.groups.keys();
+
+        for (uint256 i = 0; i < groups.length; i += 1) {
+            // Call activate with group if it has activatable pending votes
+            if (
+                election.hasActivatablePendingVotes(address(this), groups[i]) ==
+                true
+            ) {
+                activate(groups[i]);
+            }
+        }
+    }
+
+    /**
+     * @notice Revokes active votes for a validator group that this vault is currently voting for
+     * @param group A validator group
+     * @param amount The amount of active votes to revoke
+     * @param adjacentGroupWithLessVotes List of adjacent eligible validator groups with less votes
+     * @param adjacentGroupWithMoreVotes List of adjacent eligible validator groups with more votes
+     * @param accountGroupIndex Index of the group for this vault's account
+     */
+    function revokeActive(
+        address group,
+        uint256 amount,
+        address adjacentGroupWithLessVotes,
+        address adjacentGroupWithMoreVotes,
+        uint256 accountGroupIndex
+    ) external onlyVotingVaultManager {
+        mustBeVotingForGroup(group);
+
+        _revokeActive(
+            group,
+            amount,
+            adjacentGroupWithLessVotes,
+            adjacentGroupWithMoreVotes,
+            accountGroupIndex
+        );
+    }
+
+    /**
+     * @notice Revokes pending votes for a validator group that this vault is currently voting for
+     * @param group A validator group
+     * @param amount The amount of pending votes to revoke
+     * @param adjacentGroupWithLessVotes List of adjacent eligible validator groups with less votes
+     * @param adjacentGroupWithMoreVotes List of adjacent eligible validator groups with more votes
+     * @param accountGroupIndex Index of the group for this vault's account
+     */
+    function revokePending(
+        address group,
+        uint256 amount,
+        address adjacentGroupWithLessVotes,
+        address adjacentGroupWithMoreVotes,
+        uint256 accountGroupIndex
+    ) external onlyVotingVaultManager {
+        mustBeVotingForGroup(group);
+
+        _revokePending(
+            group,
+            amount,
+            adjacentGroupWithLessVotes,
+            adjacentGroupWithMoreVotes,
+            accountGroupIndex
+        );
+    }
+
+    /**
+     * @notice Calculates the voting vault manager's rewards for a group
+     * @param group A validator group with active votes placed by the voting vault manager
+     * @return Manager's reward amount
+     */
+    function _calculateVotingManagerRewards(address group)
+        internal
+        view
+        returns (uint256)
+    {
+        // totalRewardsAccrued = activeVotes (Celo) - activeVotesWithoutRewards (local)
+        // vaultManagerRewards = (totalRewardsAccrued / 100) * rewardSharePercentage
+        return
+            election
+                .getActiveVotesForGroupByAccount(group, address(this))
+                .sub(votes.activeVotesWithoutRewards[group])
+                .div(100)
+                .mul(vaultManagers.voting.rewardSharePercentage);
+    }
+
+    // Cleans up after vote-revoking method calls, by removing the group if it doesn't have votes
     function _postRevokeCleanup(address group) internal {
         if (
             election.getTotalVotesForGroupByAccount(group, address(this)) == 0
@@ -357,57 +452,5 @@ contract Vault is UsingRegistry {
         );
 
         _postRevokeCleanup(group);
-    }
-
-    function revokeActive(
-        address group,
-        uint256 amount,
-        address adjacentGroupWithLessVotes,
-        address adjacentGroupWithMoreVotes,
-        uint256 accountGroupIndex
-    ) external onlyVotingVaultManager {
-        mustBeVotingForGroup(group);
-        _revokeActive(
-            group,
-            amount,
-            adjacentGroupWithLessVotes,
-            adjacentGroupWithMoreVotes,
-            accountGroupIndex
-        );
-    }
-
-    function revokePending(
-        address group,
-        uint256 amount,
-        address adjacentGroupWithLessVotes,
-        address adjacentGroupWithMoreVotes,
-        uint256 accountGroupIndex
-    ) external onlyVotingVaultManager {
-        mustBeVotingForGroup(group);
-        _revokePending(
-            group,
-            amount,
-            adjacentGroupWithLessVotes,
-            adjacentGroupWithMoreVotes,
-            accountGroupIndex
-        );
-    }
-
-    function activateVotes(address group) external onlyVotingVaultManager {
-        mustBeVotingForGroup(group);
-
-        // Save pending votes amount before activation attempt
-        uint256 pendingVotes = election.getPendingVotesForGroupByAccount(
-            group,
-            address(this)
-        );
-
-        // activate validates pending vote epoch and non-zero vote amount
-        election.activate(group);
-
-        // Increment activeVotesWithoutRewards by activated pending votes
-        votes.activeVotesWithoutRewards[group] =
-            votes.activeVotesWithoutRewards[group] +
-            pendingVotes;
     }
 }
