@@ -143,21 +143,15 @@ contract Vault is UsingRegistry {
     }
 
     /**
-     * @notice Calculates and distributes a voting vault manager's rewards
+     * @notice Calculates the voting vault manager's rewards for a group
      * @param group A validator group with active votes placed by the voting vault manager
-     * @param adjacentGroupWithLessVotes An eligible validator group, adjacent to group, with less votes
-     * @param adjacentGroupWithMoreVotes An eligible validator group, adjacent to group, with more votes
-     * @param accountGroupIndex Index of the group for the vault's account
      * @return Manager's reward amount
      */
-    function distributeVotingVaultManagerRewards(
-        address group,
-        address adjacentGroupWithLessVotes,
-        address adjacentGroupWithMoreVotes,
-        uint256 accountGroupIndex
-    ) public onlyOwnerOrVotingVaultManager returns (uint256) {
-        mustBeVotingForGroup(group);
-
+    function _calculateVotingManagerRewards(address group)
+        internal
+        view
+        returns (uint256)
+    {
         uint256 activeVotes = election.getActiveVotesForGroupByAccount(
             group,
             address(this)
@@ -167,15 +161,28 @@ contract Vault is UsingRegistry {
 
         // totalRewardsAccrued = activeVotes (Celo) - activeVotesWithoutRewards (local)
         // vaultManagerRewards = (totalRewardsAccrued / 100) * rewardSharePercentage
-        uint256 vaultManagerRewards = activeVotes
-            .sub(votes.activeVotesWithoutRewards[group])
-            .div(100)
-            .mul(vaultManagers.voting.rewardSharePercentage);
+        return
+            activeVotes
+                .sub(votes.activeVotesWithoutRewards[group])
+                .div(100)
+                .mul(vaultManagers.voting.rewardSharePercentage);
+    }
 
-        require(
-            vaultManagerRewards > 0,
-            "Group does not have rewards to distribute"
-        );
+    /**
+     * @notice Distributes a voting vault manager's rewards
+     * @param group A validator group with active votes placed by the voting vault manager
+     * @param adjacentGroupWithLessVotes An eligible validator group, adjacent to group, with less votes
+     * @param adjacentGroupWithMoreVotes An eligible validator group, adjacent to group, with more votes
+     * @param accountGroupIndex Index of the group for the vault's account
+     */
+    function distributeVotingManagerRewards(
+        address group,
+        address adjacentGroupWithLessVotes,
+        address adjacentGroupWithMoreVotes,
+        uint256 accountGroupIndex
+    ) public onlyOwnerOrVotingVaultManager {
+        mustBeVotingForGroup(group);
+        uint256 vaultManagerRewards = _calculateVotingManagerRewards(group);
 
         // Revoke active votes equal to the manager's rewards, so that they can be unlocked and tracked
         election.revokeActive(
@@ -190,31 +197,24 @@ contract Vault is UsingRegistry {
         lockedGold.unlock(vaultManagerRewards);
 
         // Retrieve the Vault's pending withdrawals (manager's rewards should be the last element)
-        (uint256[] memory values, uint256[] memory timestamps) = lockedGold
-            .getPendingWithdrawals(address(this));
+        (
+            uint256[] memory pendingWithdrawalValues,
+            uint256[] memory pendingWithdrawalTimestamps
+        ) = lockedGold.getPendingWithdrawals(address(this));
 
         // Store the pending withdrawal details for the manager's rewards
         vaultManagers.rewards.push(
             VaultManagerReward(
                 vaultManagers.voting.contractAddress,
-                values[values.length - 1],
-                timestamps[timestamps.length - 1]
+                pendingWithdrawalValues[pendingWithdrawalValues.length - 1],
+                pendingWithdrawalTimestamps[pendingWithdrawalTimestamps.length -
+                    1]
             )
         );
 
-        // Bring activeVotesWithoutRewards to parity with group's active votes
-        votes.activeVotesWithoutRewards[group] = activeVotes.sub(
-            vaultManagerRewards
-        );
-
-        // Safety-check, just to be sure
-        require(
-            votes.activeVotesWithoutRewards[group] ==
-                election.getActiveVotesForGroupByAccount(group, address(this)),
-            "Vault active votes does not equal election active votes"
-        );
-
-        return vaultManagerRewards;
+        // Set group's activeVotesWithoutRewards to current active votes (should be equal after reward distribution)
+        votes.activeVotesWithoutRewards[group] = election
+            .getActiveVotesForGroupByAccount(group, address(this));
     }
 
     /**
@@ -284,8 +284,11 @@ contract Vault is UsingRegistry {
         votes.groups.push(group);
     }
 
+    // Removes a group if they no longer have active or pending votes
     function _postRevokeCleanup(address group) internal {
-        if (election.getTotalVotesForGroupByAccount(group, address(this)) == 0) {
+        if (
+            election.getTotalVotesForGroupByAccount(group, address(this)) == 0
+        ) {
             delete votes.activeVotesWithoutRewards[group];
 
             votes.groups.remove(group);
@@ -301,9 +304,19 @@ contract Vault is UsingRegistry {
         address adjacentGroupWithMoreVotes,
         uint256 accountGroupIndex
     ) internal {
+        uint256 activeVotesAfterRewardDistribution = (election
+            .getActiveVotesForGroupByAccount(group, address(this)) -
+            _calculateVotingManagerRewards(group));
+
+        // Communicate that the amount must be less than post-reward distribution active votes
+        require(
+            activeVotesAfterRewardDistribution >= amount,
+            "Amount is greater than active votes remaining after manager reward distribution"
+        );
+
         // Settles rewards owed to the vault manager and brings locally-stored
         // activeVotesWithoutRewards to parity with Celo activeVotes
-        distributeVotingVaultManagerRewards(
+        distributeVotingManagerRewards(
             group,
             adjacentGroupWithLessVotes,
             adjacentGroupWithMoreVotes,
