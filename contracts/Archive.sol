@@ -72,7 +72,10 @@ contract Archive is Initializable, Ownable, UsingRegistry, UsingPrecompiles {
         vaultManagerFactory = vaultManagerFactory_;
     }
 
-    function _isVaultOwner(address vault, address owner_) internal view {
+    function _isVaultOwner(address payable vault, address owner_)
+        internal
+        view
+    {
         require(
             Vault(vault).owner() == owner_,
             "Account is not the vault owner"
