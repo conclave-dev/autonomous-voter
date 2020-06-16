@@ -165,8 +165,8 @@ contract Vault is UsingRegistry {
 
         require(activeVotes > 0, "Group does not have active votes");
 
-        // Total group rewards = current active votes - active votes without rewards
-        // Vault manager's rewards = total group rewards percentage point * reward share percentage (#1-100)
+        // totalRewardsAccrued = activeVotes (Celo) - activeVotesWithoutRewards (local)
+        // vaultManagerRewards = (totalRewardsAccrued / 100) * rewardSharePercentage
         uint256 vaultManagerRewards = activeVotes
             .sub(votes.activeVotesWithoutRewards[group])
             .div(100)
@@ -177,7 +177,7 @@ contract Vault is UsingRegistry {
             "Group does not have rewards to distribute"
         );
 
-        // Revoke active votes equal to the manager's rewards, so that they can be unlocked and withdrawn
+        // Revoke active votes equal to the manager's rewards, so that they can be unlocked and tracked
         election.revokeActive(
             group,
             vaultManagerRewards,
@@ -186,14 +186,14 @@ contract Vault is UsingRegistry {
             accountGroupIndex
         );
 
-        // Unlock tokens equal to the manager's rewards
+        // Unlock tokens equal to the manager's rewards to initiate withdrawal
         lockedGold.unlock(vaultManagerRewards);
 
-        // Retrieve the Vault's pending withdrawals (manager's rewards will be the last element)
+        // Retrieve the Vault's pending withdrawals (manager's rewards should be the last element)
         (uint256[] memory values, uint256[] memory timestamps) = lockedGold
             .getPendingWithdrawals(address(this));
 
-        // Store the pending withdrawal details
+        // Store the pending withdrawal details for the manager's rewards
         vaultManagers.rewards.push(
             VaultManagerReward(
                 vaultManagers.voting.contractAddress,
@@ -234,23 +234,13 @@ contract Vault is UsingRegistry {
 
         // If there are active votes for this group, revoke them and update storage
         if (votes.activeVotesWithoutRewards[group] > 0) {
-            // Distributes the rewards that were earned by the voting vault manager
-            distributeVotingVaultManagerRewards(
+            _revokeActive(
                 group,
+                votes.activeVotesWithoutRewards[group],
                 adjacentGroupWithLessVotes,
                 adjacentGroupWithMoreVotes,
                 accountGroupIndex
             );
-
-            // Revoke active votes for this group, if any
-            election.revokeAllActive(
-                group,
-                adjacentGroupWithLessVotes,
-                adjacentGroupWithMoreVotes,
-                accountGroupIndex
-            );
-
-            delete votes.activeVotesWithoutRewards[group];
         }
 
         uint256 pendingVotes = election.getPendingVotesForGroupByAccount(
@@ -260,7 +250,7 @@ contract Vault is UsingRegistry {
 
         // If there are pending votes for this group, revoke them
         if (pendingVotes > 0) {
-            election.revokePending(
+            _revokePending(
                 group,
                 pendingVotes,
                 adjacentGroupWithLessVotes,
@@ -269,7 +259,7 @@ contract Vault is UsingRegistry {
             );
         }
 
-        votes.groups.remove(group);
+        _postRevokeCleanup(group);
     }
 
     function vote(
@@ -292,6 +282,102 @@ contract Vault is UsingRegistry {
         }
 
         votes.groups.push(group);
+    }
+
+    function _postRevokeCleanup(address group) internal {
+        if (election.getTotalVotesForGroupByAccount(group, address(this)) == 0) {
+            delete votes.activeVotesWithoutRewards[group];
+
+            votes.groups.remove(group);
+        }
+    }
+
+    // Internal method to allow the owner to manipulate group votes for certain operations
+    // Primarily called by the vault manager-only method of the same name without leading underscore
+    function _revokeActive(
+        address group,
+        uint256 amount,
+        address adjacentGroupWithLessVotes,
+        address adjacentGroupWithMoreVotes,
+        uint256 accountGroupIndex
+    ) internal {
+        // Settles rewards owed to the vault manager and brings locally-stored
+        // activeVotesWithoutRewards to parity with Celo activeVotes
+        distributeVotingVaultManagerRewards(
+            group,
+            adjacentGroupWithLessVotes,
+            adjacentGroupWithMoreVotes,
+            accountGroupIndex
+        );
+
+        // Validates revoke amount (cannot be zero or greater than active votes)
+        // and validity of group address
+        election.revokeActive(
+            group,
+            amount,
+            adjacentGroupWithLessVotes,
+            adjacentGroupWithMoreVotes,
+            accountGroupIndex
+        );
+
+        votes.activeVotesWithoutRewards[group] = election
+            .getActiveVotesForGroupByAccount(group, address(this));
+
+        _postRevokeCleanup(group);
+    }
+
+    // Internal method to allow the owner to manipulate group votes for certain operations
+    // Primarily called by the vault manager-only method of the same name without leading underscore
+    function _revokePending(
+        address group,
+        uint256 amount,
+        address adjacentGroupWithLessVotes,
+        address adjacentGroupWithMoreVotes,
+        uint256 accountGroupIndex
+    ) internal {
+        election.revokePending(
+            group,
+            amount,
+            adjacentGroupWithLessVotes,
+            adjacentGroupWithMoreVotes,
+            accountGroupIndex
+        );
+
+        _postRevokeCleanup(group);
+    }
+
+    function revokeActive(
+        address group,
+        uint256 amount,
+        address adjacentGroupWithLessVotes,
+        address adjacentGroupWithMoreVotes,
+        uint256 accountGroupIndex
+    ) external onlyVotingVaultManager {
+        mustBeVotingForGroup(group);
+        _revokeActive(
+            group,
+            amount,
+            adjacentGroupWithLessVotes,
+            adjacentGroupWithMoreVotes,
+            accountGroupIndex
+        );
+    }
+
+    function revokePending(
+        address group,
+        uint256 amount,
+        address adjacentGroupWithLessVotes,
+        address adjacentGroupWithMoreVotes,
+        uint256 accountGroupIndex
+    ) external onlyVotingVaultManager {
+        mustBeVotingForGroup(group);
+        _revokePending(
+            group,
+            amount,
+            adjacentGroupWithLessVotes,
+            adjacentGroupWithMoreVotes,
+            accountGroupIndex
+        );
     }
 
     function activateVotes(address group) external onlyVotingVaultManager {
