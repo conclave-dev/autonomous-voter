@@ -10,7 +10,9 @@ const contractBuildFiles = [
   require('../build/contracts/VaultFactory.json'),
   require('../build/contracts/VaultManager.json'),
   require('../build/contracts/VaultManagerFactory.json'),
-  require('../build/contracts/ProxyAdmin.json')
+  require('../build/contracts/ProxyAdmin.json'),
+  require('../build/contracts/MockVault.json'),
+  require('../build/contracts/MockLockedGold.json')
 ];
 
 const getTruffleContracts = () =>

@@ -7,8 +7,10 @@ const VaultManager = artifacts.require('VaultManager');
 const Archive = artifacts.require('Archive');
 const VaultFactory = artifacts.require('VaultFactory');
 const VaultManagerFactory = artifacts.require('VaultManagerFactory');
+const MockVault = artifacts.require('MockVault');
+const MockLockedGold = artifacts.require('MockLockedGold');
 
-const contracts = [App, Vault, VaultManager, Archive, VaultFactory, VaultManagerFactory];
+const contracts = [App, Vault, VaultManager, Archive, VaultFactory, VaultManagerFactory, MockVault, MockLockedGold];
 
 module.exports = (deployer) => {
   deployer.then(async () => {
