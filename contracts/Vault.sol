@@ -282,7 +282,7 @@ contract Vault is UsingRegistry {
      * @param group A validator group
      */
     function activate(address group)
-        external
+        public
         onlyVotingVaultManager
         onlyGroupWithVotes(group)
     {
@@ -304,10 +304,9 @@ contract Vault is UsingRegistry {
 
     /**
      * @notice Iterates over voted groups and activates pending votes that are available
-     * @param group A validator group
      */
     function activateAll() external onlyVotingVaultManager {
-        uint256 groups = votes.groups.keys();
+        address[] memory groups = votes.groups.getKeys();
 
         for (uint256 i = 0; i < groups.length; i += 1) {
             // Call activate with group if it has activatable pending votes

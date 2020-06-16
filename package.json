@@ -8,7 +8,7 @@
     "lint:js": "eslint './**/*.js' --ignore-path .script.eslintignore",
     "lint:sol": "solhint -c .solhint_config.json -ignore_path .solhintignore './contracts/**/*.sol'",
     "format": "prettier --write ./**/*.js ./**/*.sol",
-    "test": "mocha --exit --bail --timeout 60000",
+    "test": "mocha --bail --exit --timeout 60000",
     "truffle:compile": "truffle compile --all",
     "truffle:migrate": "truffle migrate --network"
   },
@@ -25,7 +25,8 @@
       "npm run lint:js"
     ],
     "*.sol": [
-      "npm run lint:sol"
+      "npm run lint:sol",
+      "npm run truffle:compile"
     ]
   },
   "repository": {
