@@ -1,6 +1,6 @@
 const BigNumber = require('bignumber.js');
 const { assert } = require('./setup');
-const { primarySenderAddress, secondarySenderAddress } = require('../config');
+const { secondarySenderAddress } = require('../config');
 
 describe('VaultManager', function () {
   describe('initialize(address archive, address owner, uint256 rewardSharePercentage, uint256 minimumManageableBalanceRequirement)', function () {
