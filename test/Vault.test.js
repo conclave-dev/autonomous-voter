@@ -38,7 +38,7 @@ describe('Vault', function () {
     });
   });
 
-  describe('VotingVaultManager', function () {
+  describe('VaultManagers', function () {
     it('should set a voting vault manager with setVotingVaultManager', async function () {
       await this.vaultInstance.setVotingVaultManager(this.vaultManagerInstance.address);
 

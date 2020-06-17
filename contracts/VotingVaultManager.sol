@@ -29,14 +29,30 @@ contract VotingVaultManager is VaultManager {
         uint256 amount,
         address adjacentGroupWithLessVotes,
         address adjacentGroupWithMoreVotes
-    ) public onlyOwner {
-        require(vaults.contains(vault), "Invalid vault");
-
+    ) public onlyOwner onlyManagedVault(vault) {
         Vault(vault).vote(
             group,
             amount,
             adjacentGroupWithLessVotes,
             adjacentGroupWithMoreVotes
+        );
+    }
+
+    function revokePending(
+        address vault,
+        address group,
+        uint256 amount,
+        address adjacentGroupWithLessVotes,
+        address adjacentGroupWithMoreVotes,
+        uint256 accountGroupIndex
+    ) public onlyOwner onlyManagedVault(vault) {
+        // Validates group and revoke amount (cannot be zero or greater than pending votes)
+        Vault(vault).revokePending(
+            group,
+            amount,
+            adjacentGroupWithLessVotes,
+            adjacentGroupWithMoreVotes,
+            accountGroupIndex
         );
     }
 }

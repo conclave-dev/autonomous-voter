@@ -46,23 +46,43 @@ before(async function () {
   this.vault = await contracts.Vault.deployed();
   this.vaultFactory = await contracts.VaultFactory.deployed();
   this.vaultManagerFactory = await contracts.VotingVaultManagerFactory.deployed();
+
+  // Reusable testing variables
   this.rewardSharePercentage = new BigNumber('10');
   this.minimumManageableBalanceRequirement = new BigNumber('1e16');
   this.zeroAddress = '0x0000000000000000000000000000000000000000';
 
-  await this.vaultFactory.createInstance(registryContractAddress, {
-    value: new BigNumber('1e17')
-  });
-  await this.vaultManagerFactory.createInstance(this.rewardSharePercentage, this.minimumManageableBalanceRequirement);
+  const getVaults = () => this.archive.getVaultsByOwner(primarySenderAddress);
+  const getVaultManagers = () => this.archive.getVaultManagersByOwner(primarySenderAddress);
+  const createVaultInstance = () =>
+    this.vaultFactory.createInstance(registryContractAddress, {
+      value: new BigNumber('1e17')
+    });
+  const createVaultManagerInstance = () =>
+    this.vaultManagerFactory.createInstance(this.rewardSharePercentage, this.minimumManageableBalanceRequirement);
 
-  const vaults = await this.archive.getVaultsByOwner(primarySenderAddress);
-  const votingVaultManagers = await this.archive.getVaultManagersByOwner(primarySenderAddress);
+  // Conditionally create persistent test instances if they don't yet exist
+  if (!(await getVaults()).length) {
+    await createVaultInstance();
+  }
 
-  this.vaultInstance = await contracts.Vault.at(vaults.pop());
-  this.proxyAdmin = await contracts.ProxyAdmin.at(await this.vaultInstance.proxyAdmin());
-  this.vaultManagerInstance = await contracts.VotingVaultManager.at(votingVaultManagers.pop());
+  if (!(await getVaultManagers()).length) {
+    await createVaultManagerInstance();
+  }
+
+  // Always create fresh test instances
+  await createVaultInstance();
+  await createVaultManagerInstance();
+
+  const vaults = await getVaults();
+  const vaultManagers = await getVaultManagers();
+
+  // Maintain state and used for voting tests
   this.persistentVaultInstance = await contracts.Vault.at(vaults[0]);
-  this.persistentVaultManagerInstance = await contracts.VotingVaultManager.at(votingVaultManagers[0]);
+  this.persistentVaultManagerInstance = await contracts.VotingVaultManager.at(vaultManagers[0]);
+  this.vaultInstance = await contracts.Vault.at(vaults.pop());
+  this.vaultManagerInstance = await contracts.VotingVaultManager.at(vaultManagers.pop());
+  this.proxyAdmin = await contracts.ProxyAdmin.at(await this.vaultInstance.proxyAdmin());
 });
 
 module.exports = {

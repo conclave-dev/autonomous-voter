@@ -26,6 +26,11 @@ contract VaultManager is Ownable {
         _;
     }
 
+    modifier onlyManagedVault(address vault) {
+        require(vaults.contains(vault) == true, "Unmanaged vault");
+        _;
+    }
+
     function initialize(
         Archive archive_,
         address owner_,
