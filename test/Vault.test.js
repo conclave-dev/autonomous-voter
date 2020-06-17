@@ -20,7 +20,7 @@ describe('Vault', function () {
       const accounts = await kit.contracts.getAccounts();
 
       assert.equal(await this.vaultInstance.owner(), primarySenderAddress, 'Does not have owner set');
-      assert.equal(await accounts.isAccount(this.vaultInstance.address), true, 'Not a registered Celo account');
+      return assert.equal(await accounts.isAccount(this.vaultInstance.address), true, 'Not a registered Celo account');
     });
   });
 
@@ -42,7 +42,7 @@ describe('Vault', function () {
         manageableBalance.plus(1).toFixed(0),
         'Manageable balance did not increase'
       );
-      assert.equal(
+      return assert.equal(
         newNonvotingBalance.toFixed(0),
         nonvotingBalance.plus(1).toFixed(0),
         'Nonvoting balance did not increase'
@@ -58,20 +58,17 @@ describe('Vault', function () {
       const vaultManagerRewardSharePercentage = new BigNumber(await this.vaultManagerInstance.rewardSharePercentage());
       const hasVault = await this.vaultManagerInstance.hasVault(this.vaultInstance.address);
 
-      await expect(this.vaultInstance.setVotingVaultManager(this.vaultManagerInstance.address)).to.be.rejectedWith(
-        Error
-      );
-      assert(
+      assert.equal(
         contractAddress,
         this.vaultManagerInstance.address,
         `Voting manager address should be ${this.vaultManagerInstance.address}`
       );
-      assert(
+      assert.equal(
         new BigNumber(rewardSharePercentage).toFixed(0),
         vaultManagerRewardSharePercentage.toFixed(0),
         `Reward share percentage should be ${vaultManagerRewardSharePercentage}`
       );
-      assert(hasVault, true, 'Vault was not registered with voting manager');
+      return assert.equal(hasVault, true, 'Vault was not registered with voting manager');
     });
   });
 });

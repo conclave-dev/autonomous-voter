@@ -11,18 +11,21 @@ describe('ProxyAdmin', function () {
     const vaults = await this.archive.getVaultsByOwner(primarySenderAddress);
 
     this.vaultInstance = await contracts.Vault.at(vaults[vaults.length - 1]);
+    this.proxyAdmin = await contracts.ProxyAdmin.at(await this.vaultInstance.proxyAdmin());
   });
 
   describe('initialize(App _app, address _owner)', function () {
-    it('should only allow the owner to upgrade', async function () {
-      const proxyAdmin = await contracts.ProxyAdmin.at(await this.vaultInstance.proxyAdmin());
+    it('should only allow the owner to upgrade', function () {
+      return expect(this.proxyAdmin.upgradeProxy(this.vaultInstance.address, this.vaultInstance.address)).to.be
+        .fulfilled;
+    });
 
-      await expect(
-        proxyAdmin.upgradeProxy(this.vaultInstance.address, this.vaultInstance.address, {
+    it('should not allow an unknown account to upgrade', function () {
+      return expect(
+        this.proxyAdmin.upgradeProxy(this.vaultInstance.address, this.vaultInstance.address, {
           from: secondarySenderAddress
         })
       ).to.be.rejectedWith(Error);
-      await expect(proxyAdmin.upgradeProxy(this.vaultInstance.address, this.vaultInstance.address)).to.be.fulfilled;
     });
   });
 });

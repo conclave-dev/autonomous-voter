@@ -22,7 +22,7 @@ describe('VaultManager', function () {
         'Invalid reward share percentage'
       );
 
-      assert.equal(
+      return assert.equal(
         (await this.vaultManagerInstance.minimumManageableBalanceRequirement()).toString(),
         this.minimumManageableBalanceRequirement,
         'Invalid minimum managed gold'
@@ -36,15 +36,15 @@ describe('VaultManager', function () {
 
       await this.vaultManagerInstance.setRewardSharePercentage(this.rewardSharePercentage);
 
-      assert.equal(
+      return assert.equal(
         (await this.vaultManagerInstance.rewardSharePercentage()).toString(),
         this.rewardSharePercentage,
         'Failed to update reward share percentage'
       );
     });
 
-    it('should not be able to update the share percentage from a non-owner account', async function () {
-      await expect(
+    it('should not be able to update the share percentage from a non-owner account', function () {
+      return expect(
         this.vaultManagerInstance.setRewardSharePercentage({ from: secondarySenderAddress })
       ).to.be.rejectedWith(Error);
     });
@@ -56,23 +56,23 @@ describe('VaultManager', function () {
 
       await this.vaultManagerInstance.setMinimumManageableBalanceRequirement(this.minimumManageableBalanceRequirement);
 
-      assert.equal(
+      return assert.equal(
         (await this.vaultManagerInstance.minimumManageableBalanceRequirement()).toString(),
         this.minimumManageableBalanceRequirement,
         'Failed to update minimum managed gold'
       );
     });
 
-    it('should not be able to update the minimum managed gold from a non-owner account', async function () {
-      await expect(
+    it('should not be able to update the minimum managed gold from a non-owner account', function () {
+      return expect(
         this.vaultManagerInstance.setMinimumManageableBalanceRequirement({ from: secondarySenderAddress })
       ).to.be.rejectedWith(Error);
     });
   });
 
   describe('registerVault(uint256 vaultManagerIndex, uint256 amount)', function () {
-    it('should not allow invalid vault to register', async function () {
-      await expect(
+    it('should not allow invalid vault to register', function () {
+      return expect(
         this.vaultManagerInstance.registerVault(primarySenderAddress, this.minimumManageableBalanceRequirement)
       ).to.be.rejectedWith(Error);
     });
