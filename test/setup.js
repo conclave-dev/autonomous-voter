@@ -1,4 +1,4 @@
-const { expect, assert } = require('chai').use(require('chai-as-promised'));
+const { assert } = require('chai').use(require('chai-as-promised'));
 const { newKit } = require('@celo/contractkit');
 const contract = require('@truffle/contract');
 const { primarySenderAddress, alfajoresRpcAPI, defaultGas, defaultGasPrice } = require('../config');
@@ -43,7 +43,6 @@ before(async function () {
 });
 
 module.exports = {
-  expect,
   assert,
   contracts,
   kit: newKit(alfajoresRpcAPI)

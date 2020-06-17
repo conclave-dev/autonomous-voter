@@ -1,4 +1,4 @@
-const { assert, expect } = require('./setup');
+const { assert } = require('./setup');
 const { primarySenderAddress, secondarySenderAddress, registryContractAddress } = require('../config');
 
 describe('Archive', () => {
@@ -12,9 +12,9 @@ describe('Archive', () => {
   describe('setVaultFactory(address vaultFactory_)', function () {
     it('should not allow a non-owner to set vaultFactory', function () {
       // Return assertion so that it is properly handled (would always succeed otherwise)
-      return expect(
+      return assert.isRejected(
         this.archive.setVaultFactory(this.vaultFactory.address, { from: secondarySenderAddress })
-      ).to.be.rejectedWith(Error);
+      );
     });
 
     it('should allow its owner to set vaultFactory', async function () {

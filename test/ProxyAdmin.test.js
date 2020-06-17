@@ -1,5 +1,5 @@
 const BigNumber = require('bignumber.js');
-const { expect, contracts } = require('./setup');
+const { assert, contracts } = require('./setup');
 const { primarySenderAddress, secondarySenderAddress, registryContractAddress } = require('../config');
 
 describe('ProxyAdmin', function () {
@@ -16,16 +16,15 @@ describe('ProxyAdmin', function () {
 
   describe('initialize(App _app, address _owner)', function () {
     it('should only allow the owner to upgrade', function () {
-      return expect(this.proxyAdmin.upgradeProxy(this.vaultInstance.address, this.vaultInstance.address)).to.be
-        .fulfilled;
+      return assert.isFulfilled(this.proxyAdmin.upgradeProxy(this.vaultInstance.address, this.vaultInstance.address));
     });
 
     it('should not allow an unknown account to upgrade', function () {
-      return expect(
+      return assert.isRejected(
         this.proxyAdmin.upgradeProxy(this.vaultInstance.address, this.vaultInstance.address, {
           from: secondarySenderAddress
         })
-      ).to.be.rejectedWith(Error);
+      );
     });
   });
 });

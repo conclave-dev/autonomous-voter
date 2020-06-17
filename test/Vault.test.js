@@ -1,5 +1,5 @@
 const BigNumber = require('bignumber.js');
-const { assert, expect, contracts, kit } = require('./setup');
+const { assert, contracts, kit } = require('./setup');
 const { primarySenderAddress, registryContractAddress } = require('../config');
 
 describe('Vault', function () {

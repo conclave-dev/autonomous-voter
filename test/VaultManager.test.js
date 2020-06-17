@@ -1,5 +1,5 @@
 const BigNumber = require('bignumber.js');
-const { assert, expect, contracts } = require('./setup');
+const { assert, contracts } = require('./setup');
 const { primarySenderAddress, secondarySenderAddress } = require('../config');
 
 describe('VaultManager', function () {
@@ -44,9 +44,7 @@ describe('VaultManager', function () {
     });
 
     it('should not be able to update the share percentage from a non-owner account', function () {
-      return expect(
-        this.vaultManagerInstance.setRewardSharePercentage({ from: secondarySenderAddress })
-      ).to.be.rejectedWith(Error);
+      return assert.isRejected(this.vaultManagerInstance.setRewardSharePercentage({ from: secondarySenderAddress }));
     });
   });
 
@@ -64,17 +62,17 @@ describe('VaultManager', function () {
     });
 
     it('should not be able to update the minimum managed gold from a non-owner account', function () {
-      return expect(
+      return assert.isRejected(
         this.vaultManagerInstance.setMinimumManageableBalanceRequirement({ from: secondarySenderAddress })
-      ).to.be.rejectedWith(Error);
+      );
     });
   });
 
   describe('registerVault(uint256 vaultManagerIndex, uint256 amount)', function () {
     it('should not allow invalid vault to register', function () {
-      return expect(
+      return assert.isRejected(
         this.vaultManagerInstance.registerVault(primarySenderAddress, this.minimumManageableBalanceRequirement)
-      ).to.be.rejectedWith(Error);
+      );
     });
   });
 });

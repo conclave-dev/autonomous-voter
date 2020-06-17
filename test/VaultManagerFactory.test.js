@@ -1,4 +1,4 @@
-const { assert, expect } = require('./setup');
+const { assert } = require('./setup');
 
 describe('VaultManagerFactory', function () {
   describe('initialize(App _app, Archive _archive)', function () {
