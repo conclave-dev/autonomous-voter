@@ -121,6 +121,11 @@ contract Vault is UsingRegistry {
         return lockedGold.getAccountTotalLockedGold(address(this));
     }
 
+    // Gets the Vault's nonvoting locked gold amount
+    function getNonvotingBalance() public view returns (uint256) {
+        return getLockedGold().getAccountNonvotingLockedGold(address(this));
+    }
+
     function getVotingVaultManager() external view returns (address, uint256) {
         return (
             vaultManagers.voting.contractAddress,
