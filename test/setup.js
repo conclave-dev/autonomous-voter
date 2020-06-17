@@ -1,7 +1,14 @@
-const { expect, assert } = require('chai').use(require('chai-as-promised'));
+const { assert } = require('chai').use(require('chai-as-promised'));
 const { newKit } = require('@celo/contractkit');
 const contract = require('@truffle/contract');
-const { primarySenderAddress, alfajoresRpcAPI, defaultGas, defaultGasPrice } = require('../config');
+const BigNumber = require('bignumber.js');
+const {
+  primarySenderAddress,
+  alfajoresRpcAPI,
+  defaultGas,
+  defaultGasPrice,
+  registryContractAddress
+} = require('../config');
 
 const contractBuildFiles = [
   require('../build/contracts/App.json'),
@@ -31,9 +38,34 @@ const getTruffleContracts = () =>
     };
   }, {});
 
+const contracts = getTruffleContracts();
+
+before(async function () {
+  this.app = await contracts.App.deployed();
+  this.archive = await contracts.Archive.deployed();
+  this.vault = await contracts.Vault.deployed();
+  this.vaultManager = await contracts.VaultManager.deployed();
+  this.vaultFactory = await contracts.VaultFactory.deployed();
+  this.vaultManagerFactory = await contracts.VaultManagerFactory.deployed();
+
+  this.rewardSharePercentage = new BigNumber('10');
+  this.minimumManageableBalanceRequirement = new BigNumber('1e16');
+
+  await this.vaultFactory.createInstance(registryContractAddress, {
+    value: new BigNumber('1e17')
+  });
+  await this.vaultManagerFactory.createInstance(this.rewardSharePercentage, this.minimumManageableBalanceRequirement);
+
+  const vault = (await this.archive.getVaultsByOwner(primarySenderAddress)).pop();
+  const vaultManager = (await this.archive.getVaultManagersByOwner(primarySenderAddress)).pop();
+
+  this.vaultInstance = await contracts.Vault.at(vault);
+  this.proxyAdmin = await contracts.ProxyAdmin.at(await this.vaultInstance.proxyAdmin());
+  this.vaultManagerInstance = await contracts.VaultManager.at(vaultManager);
+});
+
 module.exports = {
-  expect,
   assert,
-  contracts: getTruffleContracts(),
+  contracts,
   kit: newKit(alfajoresRpcAPI)
 };
