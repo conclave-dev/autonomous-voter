@@ -51,10 +51,10 @@ before(async function () {
   this.rewardSharePercentage = new BigNumber('10');
   this.minimumManageableBalanceRequirement = new BigNumber('1e16');
 
-  this.vaultFactory.createInstance(registryContractAddress, {
+  await this.vaultFactory.createInstance(registryContractAddress, {
     value: new BigNumber('1e17')
   });
-  this.vaultManagerFactory.createInstance(this.rewardSharePercentage, this.minimumManageableBalanceRequirement);
+  await this.vaultManagerFactory.createInstance(this.rewardSharePercentage, this.minimumManageableBalanceRequirement);
 
   const vault = (await this.archive.getVaultsByOwner(primarySenderAddress)).pop();
   const vaultManager = (await this.archive.getVaultManagersByOwner(primarySenderAddress)).pop();
