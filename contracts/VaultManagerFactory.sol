@@ -12,7 +12,11 @@ contract VaultManagerFactory is Initializable {
     Archive public archive;
     string public contractName;
 
-    function initialize(App app_, Archive archive_, string memory contractName_) public initializer {
+    function initialize(
+        App app_,
+        Archive archive_,
+        string memory contractName_
+    ) public initializer {
         app = app_;
         archive = archive_;
         contractName = contractName_;
