@@ -9,7 +9,7 @@ import "./celo/common/libraries/AddressLinkedList.sol";
 contract VaultManager is Ownable {
     using AddressLinkedList for LinkedList.List;
 
-    Archive private archive;
+    Archive public archive;
 
     address public proxyAdmin;
     uint256 public rewardSharePercentage;
@@ -32,7 +32,7 @@ contract VaultManager is Ownable {
         address admin,
         uint256 sharePercentage,
         uint256 minimumRequirement
-    ) public payable initializer {
+    ) public initializer {
         Ownable.initialize(owner_);
         _setRewardSharePercentage(sharePercentage);
 
