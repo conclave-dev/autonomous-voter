@@ -66,6 +66,10 @@ contract VaultManager is Ownable {
         minimumManageableBalanceRequirement = amount;
     }
 
+    function getVaults() external view returns (address[] memory) {
+        return vaults.getKeys();
+    }
+
     function registerVault() external onlyVault {
         require(vaults.contains(msg.sender) == false, "Already registered");
         require(

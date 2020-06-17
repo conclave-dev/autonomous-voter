@@ -30,6 +30,8 @@ contract VotingVaultManager is VaultManager {
         address adjacentGroupWithLessVotes,
         address adjacentGroupWithMoreVotes
     ) public onlyOwner {
+        require(vaults.contains(vault), "Invalid vault");
+
         Vault(vault).vote(
             group,
             amount,

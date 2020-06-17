@@ -56,12 +56,4 @@ describe('VaultManager', function () {
       );
     });
   });
-
-  describe('registerVault(uint256 vaultManagerIndex, uint256 amount)', function () {
-    it('should not allow invalid vault to register', function () {
-      return assert.isRejected(
-        this.vaultManagerInstance.registerVault(primarySenderAddress, this.minimumManageableBalanceRequirement)
-      );
-    });
-  });
 });
