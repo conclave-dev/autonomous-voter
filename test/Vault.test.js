@@ -7,7 +7,7 @@ describe('Vault', function () {
     it('should initialize with an owner and register a Celo account', async function () {
       const accounts = await kit.contracts.getAccounts();
 
-      assert.equal(await this.vaultInstance.owner(), primarySenderAddress, 'Does not have owner set');
+      assert.equal(await this.vaultInstance.owner.call(), primarySenderAddress, 'Does not have owner set');
       return assert.equal(await accounts.isAccount(this.vaultInstance.address), true, 'Not a registered Celo account');
     });
   });
