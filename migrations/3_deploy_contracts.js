@@ -9,8 +9,21 @@ const VaultFactory = artifacts.require('VaultFactory');
 const VaultManagerFactory = artifacts.require('VaultManagerFactory');
 const MockVault = artifacts.require('MockVault');
 const MockLockedGold = artifacts.require('MockLockedGold');
+const MockVaultFactory = artifacts.require('MockVaultFactory');
+const MockArchive = artifacts.require('MockArchive');
 
-const contracts = [App, Vault, VaultManager, Archive, VaultFactory, VaultManagerFactory, MockVault, MockLockedGold];
+const contracts = [
+  App,
+  Vault,
+  VaultManager,
+  Archive,
+  VaultFactory,
+  VaultManagerFactory,
+  MockVault,
+  MockLockedGold,
+  MockVaultFactory,
+  MockArchive
+];
 
 module.exports = (deployer) => {
   deployer.then(async () => {
@@ -38,6 +51,15 @@ module.exports = (deployer) => {
       // when initializing. TODO: Replace initialize with setter fns to update instead of re-deploying
       await deployer.deploy(VaultFactory);
       await deployer.deploy(VaultManagerFactory);
+    }
+
+    const mockArchive = await MockArchive.deployed();
+    const mockArchiveChanged = !(await compareDeployedBytecodes(deployer, mockArchive.address, App.deployedBytecode));
+
+    if (mockArchiveChanged) {
+      // These contracts must be re-deployed if Archive changes (which is always, atm) as they set the Archive address
+      // when initializing. TODO: Replace initialize with setter fns to update instead of re-deploying
+      await deployer.deploy(MockVaultFactory);
     }
   });
 };

@@ -12,10 +12,12 @@ contract VaultFactory is Initializable {
 
     App public app;
     Archive public archive;
+    string public contractName;
 
-    function initialize(App app_, Archive archive_) public initializer {
+    function initialize(App app_, Archive archive_, string memory contractName_) public initializer {
         app = app_;
         archive = archive_;
+        contractName = contractName_;
     }
 
     function createInstance(address registry) public payable {
@@ -32,7 +34,6 @@ contract VaultFactory is Initializable {
         address adminAddress = address(proxyAdmin);
 
         // string memory packageName = "autonomous-voter";
-        string memory contractName = "Vault";
 
         // Create the actual vault instance
         address vaultAddress = address(

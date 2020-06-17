@@ -6,17 +6,17 @@ describe('Vault', () => {
   before(async () => {
     this.app = await contracts.App.deployed();
     this.archive = await contracts.Archive.deployed();
-    this.mockVaultImplementation = await contracts.MockVault.deployed();
     this.vaultImplementation = await contracts.Vault.deployed();
+    this.mockArchive = await contracts.MockArchive.deployed();
+    this.mockVaultImplementation = await contracts.MockVault.deployed();
     this.mockLockedGold = await contracts.MockLockedGold.deployed();
 
     // Create the mocked vault instance
-    await this.app.setContractImplementation('Vault', this.mockVaultImplementation.address);
-    await (await contracts.VaultFactory.deployed()).createInstance(registryContractAddress, {
+    await (await contracts.MockVaultFactory.deployed()).createInstance(registryContractAddress, {
       value: new BigNumber('1e17')
     });
 
-    let vaults = await this.archive.getVaultsByOwner(primarySenderAddress);
+    let vaults = await this.mockArchive.getVaultsByOwner(primarySenderAddress);
     this.mockVault = await contracts.MockVault.at(vaults[vaults.length - 1]);
 
     await this.mockLockedGold.reset();
@@ -25,7 +25,6 @@ describe('Vault', () => {
     await this.mockVault.setMockContract(this.mockLockedGold.address, 'LockedGold');
 
     // Create the vault instance
-    await this.app.setContractImplementation('Vault', this.vaultImplementation.address);
     await (await contracts.VaultFactory.deployed()).createInstance(registryContractAddress, {
       value: new BigNumber('1e17')
     });

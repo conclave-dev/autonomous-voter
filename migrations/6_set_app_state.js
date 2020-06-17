@@ -3,6 +3,8 @@ const Vault = artifacts.require('Vault');
 const VaultManager = artifacts.require('VaultManager');
 const VaultFactory = artifacts.require('VaultFactory');
 const VaultManagerFactory = artifacts.require('VaultManagerFactory');
+const MockVault = artifacts.require('MockVault');
+const MockVaultFactory = artifacts.require('MockVaultFactory');
 
 module.exports = (deployer) =>
   deployer.then(async () => {
@@ -30,5 +32,18 @@ module.exports = (deployer) =>
 
     if (!hasVaultManagerFactory) {
       await app.setContractFactory('VaultManager', vaultManagerFactoryAddress);
+    }
+
+    const { address: mockVaultAddress } = await MockVault.deployed();
+    const { address: mockVaultFactoryAddress } = await MockVaultFactory.deployed();
+    const hasMockVault = (await app.contractImplementations('MockVault')) === mockVaultAddress;
+    const hasMockVaultFactory = (await app.contractFactories('MockVault')) === mockVaultFactoryAddress;
+
+    if (!hasMockVault) {
+      await app.setContractImplementation('MockVault', mockVaultAddress);
+    }
+
+    if (!hasMockVaultFactory) {
+      await app.setContractFactory('MockVault', mockVaultFactoryAddress);
     }
   });
