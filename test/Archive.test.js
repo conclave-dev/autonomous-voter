@@ -4,8 +4,8 @@ const { primarySenderAddress, secondarySenderAddress, registryContractAddress } 
 describe('Archive', () => {
   describe('initialize(address registry_)', function () {
     it('should initialize with an owner and registry', async function () {
-      assert.equal(await this.archive.owner(), primarySenderAddress, 'Owner does not match sender');
-      return assert.equal(await this.archive.registry(), registryContractAddress, 'Registry was incorrectly set');
+      assert.equal(await this.archive.owner.call(), primarySenderAddress, 'Owner does not match sender');
+      return assert.equal(await this.archive.registry.call(), registryContractAddress, 'Registry was incorrectly set');
     });
   });
 
@@ -21,7 +21,7 @@ describe('Archive', () => {
       await this.archive.setVaultFactory(this.vaultFactory.address);
 
       return assert.equal(
-        await this.archive.vaultFactory(),
+        await this.archive.vaultFactory.call(),
         this.vaultFactory.address,
         'Owner did not set vault factory'
       );

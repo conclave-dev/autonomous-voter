@@ -1,5 +1,5 @@
 const { assert } = require('./setup');
-const { registryContractAddress } = require('../config');
+const { registryContractAddress, primarySenderAddress } = require('../config');
 
 describe('VaultFactory', function () {
   describe('initialize(App _app, Archive _archive)', function () {

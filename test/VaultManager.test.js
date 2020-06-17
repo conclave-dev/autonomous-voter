@@ -1,19 +1,8 @@
 const BigNumber = require('bignumber.js');
-const { assert, contracts } = require('./setup');
+const { assert } = require('./setup');
 const { primarySenderAddress, secondarySenderAddress } = require('../config');
 
 describe('VaultManager', function () {
-  before(async function () {
-    // Test values for vaultManager parameters
-    this.rewardSharePercentage = '10';
-    this.minimumManageableBalanceRequirement = new BigNumber('1e16').toString();
-
-    await this.vaultManagerFactory.createInstance(this.rewardSharePercentage, this.minimumManageableBalanceRequirement);
-
-    const vaultManagers = await this.archive.getVaultManagersByOwner(primarySenderAddress);
-    this.vaultManagerInstance = await contracts.VaultManager.at(vaultManagers[vaultManagers.length - 1]);
-  });
-
   describe('initialize(address archive, address owner, uint256 rewardSharePercentage, uint256 minimumManageableBalanceRequirement)', function () {
     it('should initialize with an owner, initial share percentage, and mininum managed gold', async function () {
       assert.equal(

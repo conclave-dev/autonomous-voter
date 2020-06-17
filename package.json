@@ -7,7 +7,7 @@
     "build": "./scripts/setup.sh",
     "lint": "eslint './**/*.js' --ignore-path .custom.eslintignore && solhint -c .solhint_config.json -ignore_path .solhintignore './contracts/**/*.sol'",
     "format": "prettier --write ./**/*.js ./**/*.sol",
-    "test": "mocha --exit --timeout 60000",
+    "test": "mocha --exit --bail --timeout 60000",
     "truffle:compile": "truffle compile --all",
     "truffle:migrate": "truffle migrate --network"
   },
