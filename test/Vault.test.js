@@ -1,66 +1,36 @@
 const BigNumber = require('bignumber.js');
-const { assert, expect, contracts, kit } = require('./setup');
-const { primarySenderAddress, registryContractAddress } = require('../config');
+const { assert, kit } = require('./setup');
+const { primarySenderAddress } = require('../config');
 
-describe('Vault', () => {
-  before(async () => {
-    this.app = await contracts.App.deployed();
-    this.archive = await contracts.Archive.deployed();
-    this.vaultImplementation = await contracts.Vault.deployed();
-    this.mockArchive = await contracts.MockArchive.deployed();
-    this.mockVaultImplementation = await contracts.MockVault.deployed();
-    this.mockLockedGold = await contracts.MockLockedGold.deployed();
-
-    // Create the mocked vault instance
-    await (await contracts.MockVaultFactory.deployed()).createInstance(registryContractAddress, {
-      value: new BigNumber('1e17')
-    });
-
-    let vaults = await this.mockArchive.getVaultsByOwner(primarySenderAddress);
-    this.mockVault = await contracts.MockVault.at(vaults[vaults.length - 1]);
-
-    await this.mockLockedGold.reset();
-
-    // Set the address of the mocked Celo contracts
-    await this.mockVault.setMockContract(this.mockLockedGold.address, 'LockedGold');
-
-    // Create the vault instance
-    await (await contracts.VaultFactory.deployed()).createInstance(registryContractAddress, {
-      value: new BigNumber('1e17')
-    });
-
-    vaults = await this.archive.getVaultsByOwner(primarySenderAddress);
-    this.vault = await contracts.Vault.at(vaults[vaults.length - 1]);
-  });
-
-  describe('initialize(address registry, address owner)', () => {
-    it('should initialize with an owner and register a Celo account', async () => {
+describe('Vault', function () {
+  describe('initialize(address registry, address owner)', function () {
+    it('should initialize with an owner and register a Celo account', async function () {
       const accounts = await kit.contracts.getAccounts();
 
-      assert.equal(await this.vault.owner(), primarySenderAddress, 'Does not have owner set');
-      assert.equal(await accounts.isAccount(this.vault.address), true, 'Not a registered Celo account');
+      assert.equal(await this.vaultInstance.owner.call(), primarySenderAddress, 'Does not have owner set');
+      return assert.equal(await accounts.isAccount(this.vaultInstance.address), true, 'Not a registered Celo account');
     });
   });
 
-  describe('deposit()', () => {
-    it('should enable owners to make deposits', async () => {
-      const manageableBalance = new BigNumber(await this.vault.getManageableBalance());
-      const nonvotingBalance = new BigNumber(await this.vault.getNonvotingBalance());
+  describe('deposit()', function () {
+    it('should enable owners to make deposits', async function () {
+      const manageableBalance = new BigNumber(await this.vaultInstance.getManageableBalance());
+      const nonvotingBalance = new BigNumber(await this.vaultInstance.getNonvotingBalance());
       const deposit = 1;
 
-      await this.vault.deposit({
+      await this.vaultInstance.deposit({
         value: deposit
       });
 
-      const newManageableBalance = new BigNumber(await this.vault.getManageableBalance());
-      const newNonvotingBalance = new BigNumber(await this.vault.getNonvotingBalance());
+      const newManageableBalance = new BigNumber(await this.vaultInstance.getManageableBalance());
+      const newNonvotingBalance = new BigNumber(await this.vaultInstance.getNonvotingBalance());
 
       assert.equal(
         newManageableBalance.toFixed(0),
         manageableBalance.plus(1).toFixed(0),
         'Manageable balance did not increase'
       );
-      assert.equal(
+      return assert.equal(
         newNonvotingBalance.toFixed(0),
         nonvotingBalance.plus(1).toFixed(0),
         'Nonvoting balance did not increase'
@@ -68,112 +38,108 @@ describe('Vault', () => {
     });
   });
 
-  describe('setVotingVaultManager(VaultManager vaultManager)', () => {
-    it('should set a voting manager', async () => {
-      // Start by creating the test vaultManager instance
-      await (await contracts.VaultManagerFactory.deployed()).createInstance('10', new BigNumber('1e16').toString());
+  describe('VotingVaultManager', function () {
+    it('should set a voting vault manager with setVotingVaultManager', async function () {
+      await this.vaultInstance.setVotingVaultManager(this.vaultManagerInstance.address);
 
-      // Test adding managedGold to a vaultManager
-      const vaultManagers = await this.archive.getVaultManagersByOwner(primarySenderAddress);
-      const vaultManager = await contracts.VaultManager.at(vaultManagers[vaultManagers.length - 1]);
+      const { 0: contractAddress, 1: rewardSharePercentage } = await this.vaultInstance.getVotingVaultManager();
+      const vaultManagerRewardSharePercentage = new BigNumber(await this.vaultManagerInstance.rewardSharePercentage());
+      const hasVault = await this.vaultManagerInstance.hasVault(this.vaultInstance.address);
 
-      await this.vault.setVotingVaultManager(vaultManager.address);
-
-      const { 0: contractAddress, 1: rewardSharePercentage } = await this.vault.getVotingVaultManager();
-      const vaultManagerRewardSharePercentage = new BigNumber(await vaultManager.rewardSharePercentage());
-      const hasVault = await vaultManager.hasVault(this.vault.address);
-
-      await expect(this.vault.setVotingVaultManager(vaultManager.address)).to.be.rejectedWith(Error);
-      assert(contractAddress, vaultManager.address, `Voting manager address should be ${vaultManager.address}`);
-      assert(
+      assert.equal(
+        contractAddress,
+        this.vaultManagerInstance.address,
+        `Voting manager address should be ${this.vaultManagerInstance.address}`
+      );
+      assert.equal(
         new BigNumber(rewardSharePercentage).toFixed(0),
         vaultManagerRewardSharePercentage.toFixed(0),
         `Reward share percentage should be ${vaultManagerRewardSharePercentage}`
       );
-      assert(hasVault, true, 'Vault was not registered with voting manager');
+      return assert.equal(hasVault, true, 'Vault was not registered with voting manager');
     });
   });
 
-  describe('initiateWithdrawal(uint256 amount)', () => {
-    it('should be able to initiate withdrawal', async () => {
-      const currentBalance = new BigNumber(await this.vault.getNonvotingBalance());
+  describe('initiateWithdrawal(uint256 amount)', function () {
+    it('should be able to initiate withdrawal', async function () {
+      const currentBalance = new BigNumber(await this.vaultInstance.getNonvotingBalance());
       const withdrawAmount = new BigNumber('1e9');
 
-      await this.vault.initiateWithdrawal(withdrawAmount.toString());
+      await this.vaultInstance.initiateWithdrawal(withdrawAmount.toString());
 
       assert.equal(
-        new BigNumber(await this.vault.getNonvotingBalance()).toFixed(0),
+        new BigNumber(await this.vaultInstance.getNonvotingBalance()).toFixed(0),
         currentBalance.minus(withdrawAmount).toFixed(0),
         `Updated non-voting balance doesn't match after withdrawal`
       );
     });
 
-    it('should not be able to initiate withdrawal with amount larger than owned non-voting golds', async () => {
+    it('should not be able to initiate withdrawal with amount larger than owned non-voting golds', async function () {
       const withdrawAmount = new BigNumber('1e18');
 
-      await expect(this.mockVault.initiateWithdrawal(withdrawAmount.toString())).to.be.rejectedWith(Error);
+      assert.isRejected(this.vaultInstance.initiateWithdrawal(withdrawAmount.toString()));
     });
   });
 
-  describe('cancelWithdrawal(uint256 index, uint256 amount)', () => {
-    it('should be able to initiate withdrawal and then cancel it', async () => {
-      const currentBalance = new BigNumber(await this.vault.getNonvotingBalance());
+  describe('cancelWithdrawal(uint256 index, uint256 amount)', function () {
+    it('should be able to initiate withdrawal and then cancel it', async function () {
+      const currentBalance = new BigNumber(await this.vaultInstance.getNonvotingBalance());
       const withdrawAmount = new BigNumber('1e9');
 
-      await this.vault.initiateWithdrawal(withdrawAmount.toString());
-      await this.vault.cancelWithdrawal(0, withdrawAmount.toString());
+      await this.vaultInstance.initiateWithdrawal(withdrawAmount.toString());
+      await this.vaultInstance.cancelWithdrawal(0, withdrawAmount.toString());
 
       assert.equal(
-        new BigNumber(await this.vault.getNonvotingBalance()).toFixed(0),
+        new BigNumber(await this.vaultInstance.getNonvotingBalance()).toFixed(0),
         currentBalance.toFixed(0),
         `Vault's non-voting balance shouldn't change after withdrawal cancellation`
       );
     });
 
-    it('should not be able to cancel non-existent withdrawal', async () => {
+    it('should not be able to cancel non-existent withdrawal', async function () {
       const withdrawAmount = new BigNumber('1e9');
 
-      await expect(this.vault.cancelWithdrawal(withdrawAmount.toString())).to.be.rejectedWith(Error);
+      assert.isRejected(this.vaultInstance.cancelWithdrawal(withdrawAmount.toString()));
     });
   });
 
-  describe('withdraw(uint256 index)', () => {
-    it('should be able to withdraw after the unlocking period has passed', async () => {
-      await this.mockVault.deposit({
+  describe('withdraw(uint256 index)', function () {
+    it('should be able to withdraw after the unlocking period has passed', async function () {
+      await this.mockVaultInstance.deposit({
         value: new BigNumber('1e10')
       });
 
-      const currentBalance = new BigNumber(await this.mockVault.getNonvotingBalance());
+      const currentBalance = new BigNumber(await this.mockVaultInstance.getNonvotingBalance());
       const withdrawAmount = new BigNumber('1e9');
 
       // Set the unlocking period to 0 second so that funds can be withdrawn immediately
       await this.mockLockedGold.setUnlockingPeriod(0);
 
-      await this.mockVault.initiateWithdrawal(withdrawAmount.toString());
-      await this.mockVault.withdraw(0);
+      await this.mockVaultInstance.initiateWithdrawal(withdrawAmount.toString());
+      await this.mockVaultInstance.withdraw(0);
 
       assert.equal(
-        new BigNumber(await this.mockVault.getNonvotingBalance()).toFixed(0),
+        new BigNumber(await this.mockVaultInstance.getNonvotingBalance()).toFixed(0),
         currentBalance.minus(withdrawAmount).toFixed(0),
         `Updated non-voting balance doesn't match after withdrawal`
       );
 
       assert.equal(
-        new BigNumber(await kit.web3.eth.getBalance(this.mockVault.address)).toFixed(0),
+        new BigNumber(await kit.web3.eth.getBalance(this.mockVaultInstance.address)).toFixed(0),
         withdrawAmount.toFixed(0),
         `Vault's main balance doesn't match the withdrawn amount`
       );
     });
 
-    it('should not be able to withdraw before the unlocking period has passed', async () => {
+    it('should not be able to withdraw before the unlocking period has passed', async function () {
       const withdrawAmount = new BigNumber('1e9');
 
       // Set the unlocking period to 1 day so that no funds are transfered to the Vault
       await this.mockLockedGold.setUnlockingPeriod(86400);
 
-      await this.mockVault.initiateWithdrawal(withdrawAmount.toString());
+      await this.mockVaultInstance.initiateWithdrawal(withdrawAmount.toString());
 
-      await expect(this.mockVault.withdraw(0)).to.be.rejectedWith(Error);
+      assert.isRejected(this.mockVaultInstance.withdraw(0));
     });
   });
 });
