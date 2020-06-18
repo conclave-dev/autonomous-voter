@@ -50,29 +50,12 @@ contract MockVault is Vault {
         public
         view
         returns (uint256)
-    // uint256,
-    // uint256
-    // uint256
     {
-        // uint256 activeVotesForGroup = election.getActiveVotesForGroupByAccount(
-        //     group,
-        //     address(this)
-        // );
-        // uint256 activeVotesWithoutRewardsForGroup = votes
-        //     .activeVotesWithoutRewards[group];
-        // uint256 rewardShare = vaultManagers.voting.rewardSharePercentage;
-        uint256 calculation = election
-            .getActiveVotesForGroupByAccount(group, address(this))
-            .sub(votes.activeVotesWithoutRewards[group])
-            .div(100)
-            .mul(vaultManagers.voting.rewardSharePercentage);
-
-        return calculation;
-        // return (
-        //     // activeVotesForGroup,
-        //     // activeVotesWithoutRewardsForGroup,
-        //     // rewardShare
-        //     calculation
-        // );
+        return
+            election
+                .getActiveVotesForGroupByAccount(group, address(this))
+                .sub(votes.activeVotesWithoutRewards[group])
+                .div(100)
+                .mul(vaultManagers.voting.rewardSharePercentage);
     }
 }
