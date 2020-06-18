@@ -37,9 +37,9 @@ contract Vault is UsingRegistry {
         LinkedList.List groups;
     }
 
-    Archive private archive;
-    IElection private election;
-    ILockedGold private lockedGold;
+    Archive public archive;
+    IElection public election;
+    ILockedGold public lockedGold;
     VaultManagers private vaultManagers;
     Votes private votes;
 
