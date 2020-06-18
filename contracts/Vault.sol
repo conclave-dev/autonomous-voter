@@ -38,8 +38,8 @@ contract Vault is UsingRegistry {
     }
 
     Archive private archive;
-    IElection private election;
-    ILockedGold private lockedGold;
+    IElection internal election;
+    ILockedGold internal lockedGold;
     VaultManagers private vaultManagers;
     Votes private votes;
 
@@ -126,7 +126,7 @@ contract Vault is UsingRegistry {
 
     // Gets the Vault's nonvoting locked gold amount
     function getNonvotingBalance() public view returns (uint256) {
-        return getLockedGold().getAccountNonvotingLockedGold(address(this));
+        return lockedGold.getAccountNonvotingLockedGold(address(this));
     }
 
     function getVotingVaultManager() external view returns (address, uint256) {
@@ -225,7 +225,7 @@ contract Vault is UsingRegistry {
             "Invalid amount specified"
         );
 
-        getLockedGold().unlock(amount);
+        lockedGold.unlock(amount);
     }
 
     function cancelWithdrawal(uint256 index, uint256 amount)
@@ -234,11 +234,11 @@ contract Vault is UsingRegistry {
     {
         require(amount > 0, "Invalid amount specified");
 
-        getLockedGold().relock(index, amount);
+        lockedGold.relock(index, amount);
     }
 
     function withdraw(uint256 index) external onlyOwner {
-        (, uint256[] memory timestamps) = getLockedGold().getPendingWithdrawals(
+        (, uint256[] memory timestamps) = lockedGold.getPendingWithdrawals(
             address(this)
         );
 
@@ -246,7 +246,7 @@ contract Vault is UsingRegistry {
         require(timestamps[index] < now, "Withdrawal is not yet available");
 
         // Proceed to the fund transfer only if the withdrawal has been fully unlocked
-        getLockedGold().withdraw(index);
+        lockedGold.withdraw(index);
     }
 
     /**

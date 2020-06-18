@@ -66,6 +66,10 @@ before(async function () {
     this.vaultFactory.createInstance(registryContractAddress, {
       value: new BigNumber('1e17')
     });
+  const createMockVaultInstance = () =>
+    this.mockVaultFactory.createInstance(registryContractAddress, {
+      value: new BigNumber('1e17')
+    });
   const createVaultManagerInstance = () =>
     this.vaultManagerFactory.createInstance(this.rewardSharePercentage, this.minimumManageableBalanceRequirement);
 
@@ -80,6 +84,7 @@ before(async function () {
 
   // Always create fresh test instances
   await createVaultInstance();
+  await createMockVaultInstance();
   await createVaultManagerInstance();
 
   const vaults = await getVaults();
@@ -95,7 +100,7 @@ before(async function () {
   this.proxyAdmin = await contracts.ProxyAdmin.at(await this.vaultInstance.proxyAdmin());
 
   await this.mockLockedGold.reset();
-  await this.mockVaultInstance.setMockContract(this.mockLockedGold.address, 'LockedGold');
+  await this.mockVaultInstance.setMockLockedGold(this.mockLockedGold.address);
 });
 
 module.exports = {
