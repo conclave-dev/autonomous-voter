@@ -15,8 +15,8 @@ const contractBuildFiles = [
   require('../build/contracts/Archive.json'),
   require('../build/contracts/Vault.json'),
   require('../build/contracts/VaultFactory.json'),
-  require('../build/contracts/VaultManager.json'),
-  require('../build/contracts/VaultManagerFactory.json'),
+  require('../build/contracts/VotingVaultManager.json'),
+  require('../build/contracts/VotingVaultManagerFactory.json'),
   require('../build/contracts/ProxyAdmin.json')
 ];
 
@@ -44,24 +44,45 @@ before(async function () {
   this.app = await contracts.App.deployed();
   this.archive = await contracts.Archive.deployed();
   this.vault = await contracts.Vault.deployed();
-  this.vaultManager = await contracts.VaultManager.deployed();
   this.vaultFactory = await contracts.VaultFactory.deployed();
-  this.vaultManagerFactory = await contracts.VaultManagerFactory.deployed();
+  this.vaultManagerFactory = await contracts.VotingVaultManagerFactory.deployed();
 
+  // Reusable testing variables
   this.rewardSharePercentage = new BigNumber('10');
   this.minimumManageableBalanceRequirement = new BigNumber('1e16');
+  this.zeroAddress = '0x0000000000000000000000000000000000000000';
 
-  await this.vaultFactory.createInstance(registryContractAddress, {
-    value: new BigNumber('1e17')
-  });
-  await this.vaultManagerFactory.createInstance(this.rewardSharePercentage, this.minimumManageableBalanceRequirement);
+  const getVaults = () => this.archive.getVaultsByOwner(primarySenderAddress);
+  const getVaultManagers = () => this.archive.getVaultManagersByOwner(primarySenderAddress);
+  const createVaultInstance = () =>
+    this.vaultFactory.createInstance(registryContractAddress, {
+      value: new BigNumber('1e17')
+    });
+  const createVaultManagerInstance = () =>
+    this.vaultManagerFactory.createInstance(this.rewardSharePercentage, this.minimumManageableBalanceRequirement);
 
-  const vault = (await this.archive.getVaultsByOwner(primarySenderAddress)).pop();
-  const vaultManager = (await this.archive.getVaultManagersByOwner(primarySenderAddress)).pop();
+  // Conditionally create persistent test instances if they don't yet exist
+  if (!(await getVaults()).length) {
+    await createVaultInstance();
+  }
 
-  this.vaultInstance = await contracts.Vault.at(vault);
+  if (!(await getVaultManagers()).length) {
+    await createVaultManagerInstance();
+  }
+
+  // Always create fresh test instances
+  await createVaultInstance();
+  await createVaultManagerInstance();
+
+  const vaults = await getVaults();
+  const vaultManagers = await getVaultManagers();
+
+  // Maintain state and used for voting tests
+  this.persistentVaultInstance = await contracts.Vault.at(vaults[0]);
+  this.persistentVaultManagerInstance = await contracts.VotingVaultManager.at(vaultManagers[0]);
+  this.vaultInstance = await contracts.Vault.at(vaults.pop());
+  this.vaultManagerInstance = await contracts.VotingVaultManager.at(vaultManagers.pop());
   this.proxyAdmin = await contracts.ProxyAdmin.at(await this.vaultInstance.proxyAdmin());
-  this.vaultManagerInstance = await contracts.VaultManager.at(vaultManager);
 });
 
 module.exports = {
