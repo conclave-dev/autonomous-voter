@@ -3,10 +3,10 @@ const { compareDeployedBytecodes } = require('./util');
 
 const App = artifacts.require('App');
 const Vault = artifacts.require('Vault');
-const VaultManager = artifacts.require('VaultManager');
+const VotingVaultManager = artifacts.require('VotingVaultManager');
 const Archive = artifacts.require('Archive');
 const VaultFactory = artifacts.require('VaultFactory');
-const VaultManagerFactory = artifacts.require('VaultManagerFactory');
+const VotingVaultManagerFactory = artifacts.require('VotingVaultManagerFactory');
 const MockVault = artifacts.require('MockVault');
 const MockLockedGold = artifacts.require('MockLockedGold');
 const MockVaultFactory = artifacts.require('MockVaultFactory');
@@ -15,10 +15,10 @@ const MockArchive = artifacts.require('MockArchive');
 const contracts = [
   App,
   Vault,
-  VaultManager,
   Archive,
   VaultFactory,
-  VaultManagerFactory,
+  VotingVaultManager,
+  VotingVaultManagerFactory,
   MockVault,
   MockLockedGold,
   MockVaultFactory,
@@ -50,7 +50,7 @@ module.exports = (deployer) => {
       // These contracts must be re-deployed if Archive changes (which is always, atm) as they set the Archive address
       // when initializing. TODO: Replace initialize with setter fns to update instead of re-deploying
       await deployer.deploy(VaultFactory);
-      await deployer.deploy(VaultManagerFactory);
+      await deployer.deploy(VotingVaultManagerFactory);
     }
 
     const mockArchive = await MockArchive.deployed();

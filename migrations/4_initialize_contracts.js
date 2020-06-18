@@ -4,7 +4,7 @@ const { registryContractAddress } = require('../config');
 const App = artifacts.require('App');
 const Archive = artifacts.require('Archive');
 const VaultFactory = artifacts.require('VaultFactory');
-const VaultManagerFactory = artifacts.require('VaultManagerFactory');
+const VotingVaultManagerFactory = artifacts.require('VotingVaultManagerFactory');
 const MockVaultFactory = artifacts.require('MockVaultFactory');
 const MockArchive = artifacts.require('MockArchive');
 
@@ -13,7 +13,7 @@ module.exports = (deployer) =>
     const app = await App.deployed();
     const archive = await Archive.deployed();
     const vaultFactory = await VaultFactory.deployed();
-    const vaultManagerFactory = await VaultManagerFactory.deployed();
+    const vaultManagerFactory = await VotingVaultManagerFactory.deployed();
     const mockArchive = await MockArchive.deployed();
     const mockVaultFactory = await MockVaultFactory.deployed();
     const contractInitializers = [
@@ -24,8 +24,8 @@ module.exports = (deployer) =>
         fn: async () => await vaultFactory.initialize(app.address, archive.address, 'Vault')
       },
       {
-        contract: 'VaultManagerFactory',
-        fn: async () => await vaultManagerFactory.initialize(app.address, archive.address, 'VaultManager')
+        contract: 'VotingVaultManagerFactory',
+        fn: async () => await vaultManagerFactory.initialize(app.address, archive.address)
       },
       { contract: 'MockArchive', fn: async () => await mockArchive.initialize(registryContractAddress) },
       {

@@ -1,6 +1,6 @@
 const BigNumber = require('bignumber.js');
 const { assert } = require('./setup');
-const { primarySenderAddress, secondarySenderAddress } = require('../config');
+const { secondarySenderAddress } = require('../config');
 
 describe('VaultManager', function () {
   describe('initialize(address archive, address owner, uint256 rewardSharePercentage, uint256 minimumManageableBalanceRequirement)', function () {
@@ -53,14 +53,6 @@ describe('VaultManager', function () {
     it('should not be able to update the minimum managed gold from a non-owner account', function () {
       return assert.isRejected(
         this.vaultManagerInstance.setMinimumManageableBalanceRequirement({ from: secondarySenderAddress })
-      );
-    });
-  });
-
-  describe('registerVault(uint256 vaultManagerIndex, uint256 amount)', function () {
-    it('should not allow invalid vault to register', function () {
-      return assert.isRejected(
-        this.vaultManagerInstance.registerVault(primarySenderAddress, this.minimumManageableBalanceRequirement)
       );
     });
   });

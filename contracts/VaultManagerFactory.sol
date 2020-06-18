@@ -22,18 +22,17 @@ contract VaultManagerFactory is Initializable {
         contractName = contractName_;
     }
 
-    function createInstance(uint256 sharePercentage, uint256 minimumGold)
-        public
-        payable
-    {
+    function createInstance(
+        string memory contractName,
+        uint256 sharePercentage,
+        uint256 minimumGold
+    ) public payable {
         address vaultManagerOwner = msg.sender;
 
         // Create a proxy admin for managing the new vault manager instance's upgradeability
         ProxyAdmin proxyAdmin = new ProxyAdmin();
         proxyAdmin.initialize(app, vaultManagerOwner);
         address adminAddress = address(proxyAdmin);
-
-        // string memory packageName = "autonomous-voter";
 
         // Create the actual vault manager instance
         address vaultManagerAddress = address(

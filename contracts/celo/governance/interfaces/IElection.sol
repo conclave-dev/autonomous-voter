@@ -1,4 +1,4 @@
-pragma solidity ^0.5.3;
+pragma solidity ^0.5.8;
 
 interface IElection {
     function getTotalVotes() external view returns (uint256);
@@ -55,4 +55,31 @@ interface IElection {
         external
         view
         returns (uint256);
+
+    function getActiveVotesForGroupByAccount(address group, address account)
+        external
+        view
+        returns (uint256);
+
+    function revokeAllActive(
+        address group,
+        address lesser,
+        address greater,
+        uint256 index
+    ) external returns (bool);
+
+    function getPendingVotesForGroupByAccount(address group, address account)
+        external
+        view
+        returns (uint256);
+
+    function getTotalVotesForGroupByAccount(address group, address account)
+        external
+        view
+        returns (uint256);
+
+    function hasActivatablePendingVotes(address account, address group)
+        external
+        view
+        returns (bool);
 }
