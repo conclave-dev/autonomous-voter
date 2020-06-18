@@ -3,6 +3,7 @@ const AddressLinkedList = artifacts.require('AddressLinkedList');
 const Archive = artifacts.require('Archive');
 const MockArchive = artifacts.require('MockArchive');
 const Vault = artifacts.require('Vault');
+const MockVault = artifacts.require('MockVault');
 const VotingVaultManager = artifacts.require('VotingVaultManager');
 
 module.exports = async (deployer) => {
@@ -13,5 +14,6 @@ module.exports = async (deployer) => {
   await deployer.link(AddressLinkedList, Archive);
   await deployer.link(AddressLinkedList, MockArchive);
   await deployer.link(AddressLinkedList, Vault);
+  await deployer.link(AddressLinkedList, MockVault);
   await deployer.link(AddressLinkedList, VotingVaultManager);
 };

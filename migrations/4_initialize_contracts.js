@@ -25,7 +25,7 @@ module.exports = (deployer) =>
       },
       {
         contract: 'VotingVaultManagerFactory',
-        fn: async () => await vaultManagerFactory.initialize(app.address, archive.address)
+        fn: async () => await vaultManagerFactory.initialize(app.address, archive.address, 'VotingVaultManager')
       },
       { contract: 'MockArchive', fn: async () => await mockArchive.initialize(registryContractAddress) },
       {
