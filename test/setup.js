@@ -17,7 +17,9 @@ const contractBuildFiles = [
   require('../build/contracts/VaultFactory.json'),
   require('../build/contracts/VotingVaultManager.json'),
   require('../build/contracts/VotingVaultManagerFactory.json'),
-  require('../build/contracts/ProxyAdmin.json')
+  require('../build/contracts/ProxyAdmin.json'),
+  require('../build/contracts/MockVault.json'),
+  require('../build/contracts/MockElection.json')
 ];
 
 const getTruffleContracts = () =>
@@ -46,6 +48,8 @@ before(async function () {
   this.vault = await contracts.Vault.deployed();
   this.vaultFactory = await contracts.VaultFactory.deployed();
   this.vaultManagerFactory = await contracts.VotingVaultManagerFactory.deployed();
+  this.mockVault = await contracts.MockVault.deployed();
+  this.mockElection = await contracts.MockElection.deployed();
 
   // Reusable testing variables
   this.rewardSharePercentage = new BigNumber('10');

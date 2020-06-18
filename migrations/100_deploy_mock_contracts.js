@@ -55,10 +55,10 @@ module.exports = async (deployer) => {
     await mockRegistry.setLockedGold(mockLockedGold.address);
   }
 
-  const { address: archiveAddress } = await deployer.deploy(Archive, { overwrite: false });
-  const { address: proxyAdminAddress } = await deployer.deploy(ProxyAdmin, { overwrite: false });
-
   if (!(await mockVault.initialized())) {
+    const { address: archiveAddress } = await deployer.deploy(Archive, { overwrite: false });
+    const { address: proxyAdminAddress } = await deployer.deploy(ProxyAdmin, { overwrite: false });
+
     await mockVault.methods['initialize(address,address,address,address)'](
       mockRegistry.address,
       archiveAddress,

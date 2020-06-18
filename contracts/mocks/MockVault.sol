@@ -46,23 +46,33 @@ contract MockVault is Vault {
         rewardSharePercentage = percentage;
     }
 
-    /**
-     * @notice Calculates the voting vault manager's rewards for a group
-     * @param group A validator group with active votes placed by the voting vault manager
-     * @return Manager's reward amount
-     */
-    function _calculateVotingManagerRewards(address group)
-        internal
+    function calculateVotingManagerRewards(address group)
+        public
         view
         returns (uint256)
+    // uint256,
+    // uint256
+    // uint256
     {
-        // totalRewardsAccrued = activeVotes (Celo) - activeVotesWithoutRewards (local)
-        // vaultManagerRewards = (totalRewardsAccrued / 100) * rewardSharePercentage
-        return
-            election
-                .getActiveVotesForGroupByAccount(group, address(this))
-                .sub(votes.activeVotesWithoutRewards[group])
-                .div(100)
-                .mul(vaultManagers.voting.rewardSharePercentage);
+        // uint256 activeVotesForGroup = election.getActiveVotesForGroupByAccount(
+        //     group,
+        //     address(this)
+        // );
+        // uint256 activeVotesWithoutRewardsForGroup = votes
+        //     .activeVotesWithoutRewards[group];
+        // uint256 rewardShare = vaultManagers.voting.rewardSharePercentage;
+        uint256 calculation = election
+            .getActiveVotesForGroupByAccount(group, address(this))
+            .sub(votes.activeVotesWithoutRewards[group])
+            .div(100)
+            .mul(vaultManagers.voting.rewardSharePercentage);
+
+        return calculation;
+        // return (
+        //     // activeVotesForGroup,
+        //     // activeVotesWithoutRewardsForGroup,
+        //     // rewardShare
+        //     calculation
+        // );
     }
 }

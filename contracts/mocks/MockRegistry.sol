@@ -1,7 +1,5 @@
 pragma solidity ^0.5.8;
 
-import "celo-monorepo/packages/protocol/contracts/common/interfaces/IRegistry.sol";
-
 contract MockRegistry {
     mapping(bytes32 => address) public contracts;
 
