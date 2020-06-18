@@ -42,8 +42,8 @@ describe('Vault', function () {
     it('should set a voting vault manager with setVotingVaultManager', async function () {
       await this.vaultInstance.setVotingVaultManager(this.vaultManagerInstance.address);
 
-      const { 0: contractAddress, 1: rewardSharePercentage } = await this.vault.getVotingVaultManager();
-      const vaultManagerRewardSharePercentage = new BigNumber(await this.vaultManager.rewardSharePercentage());
+      const { 0: contractAddress, 1: rewardSharePercentage } = await this.vaultInstance.getVotingVaultManager();
+      const vaultManagerRewardSharePercentage = new BigNumber(await this.vaultManagerInstance.rewardSharePercentage());
 
       assert.equal(
         contractAddress,

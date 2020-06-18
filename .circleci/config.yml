@@ -15,8 +15,6 @@ jobs:
       - run:
           command: npm run build -- alfajores
       - run:
-          command: npm run truffle:compile -- --network alfajores
-      - run:
           command: npm run truffle:migrate -- alfajores
       - run:
           command: npm test
