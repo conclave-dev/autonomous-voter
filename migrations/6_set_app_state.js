@@ -3,8 +3,6 @@ const Vault = artifacts.require('Vault');
 const VotingVaultManager = artifacts.require('VotingVaultManager');
 const VaultFactory = artifacts.require('VaultFactory');
 const VotingVaultManagerFactory = artifacts.require('VotingVaultManagerFactory');
-const MockVault = artifacts.require('MockVault');
-const MockVaultFactory = artifacts.require('MockVaultFactory');
 
 module.exports = (deployer) =>
   deployer.then(async () => {
@@ -33,18 +31,5 @@ module.exports = (deployer) =>
 
     if (!hasVotingVaultManagerFactory) {
       await app.setContractFactory('VotingVaultManager', vaultManagerFactoryAddress);
-    }
-
-    const { address: mockVaultAddress } = await MockVault.deployed();
-    const { address: mockVaultFactoryAddress } = await MockVaultFactory.deployed();
-    const hasMockVault = (await app.contractImplementations('MockVault')) === mockVaultAddress;
-    const hasMockVaultFactory = (await app.contractFactories('MockVault')) === mockVaultFactoryAddress;
-
-    if (!hasMockVault) {
-      await app.setContractImplementation('MockVault', mockVaultAddress);
-    }
-
-    if (!hasMockVaultFactory) {
-      await app.setContractFactory('MockVault', mockVaultFactoryAddress);
     }
   });

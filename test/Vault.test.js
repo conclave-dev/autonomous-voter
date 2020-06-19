@@ -120,44 +120,4 @@ describe('Vault', function () {
       assert.isRejected(this.vaultInstance.cancelWithdrawal(withdrawAmount.toString()));
     });
   });
-
-  describe('withdraw(uint256 index)', function () {
-    it('should be able to withdraw after the unlocking period has passed', async function () {
-      await this.mockVaultInstance.deposit({
-        value: new BigNumber('1e10')
-      });
-
-      const currentBalance = new BigNumber(await this.mockVaultInstance.getNonvotingBalance());
-      const withdrawAmount = new BigNumber('1e9');
-
-      // Set the unlocking period to 0 second so that funds can be withdrawn immediately
-      await this.mockLockedGold.setUnlockingPeriod(0);
-
-      await this.mockVaultInstance.initiateWithdrawal(withdrawAmount.toString());
-      await this.mockVaultInstance.withdraw(0);
-
-      assert.equal(
-        new BigNumber(await this.mockVaultInstance.getNonvotingBalance()).toFixed(0),
-        currentBalance.minus(withdrawAmount).toFixed(0),
-        `Updated non-voting balance doesn't match after withdrawal`
-      );
-
-      assert.equal(
-        new BigNumber(await kit.web3.eth.getBalance(this.mockVaultInstance.address)).toFixed(0),
-        withdrawAmount.toFixed(0),
-        `Vault's main balance doesn't match the withdrawn amount`
-      );
-    });
-
-    it('should not be able to withdraw before the unlocking period has passed', async function () {
-      const withdrawAmount = new BigNumber('1e9');
-
-      // Set the unlocking period to 1 day so that no funds are transfered to the Vault
-      await this.mockLockedGold.setUnlockingPeriod(86400);
-
-      await this.mockVaultInstance.initiateWithdrawal(withdrawAmount.toString());
-
-      assert.isRejected(this.mockVaultInstance.withdraw(0));
-    });
-  });
 });
