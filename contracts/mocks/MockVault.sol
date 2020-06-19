@@ -12,12 +12,6 @@ contract MockVault is Vault {
     using SafeMath for uint256;
     using AddressLinkedList for LinkedList.List;
 
-    VaultManagers private vaultManagers;
-    Votes private votes;
-
-    // For testing purposes
-    mapping(address => uint256) public activeVotesWithoutRewards;
-    uint256 public rewardSharePercentage;
     bool public initialized;
 
     function initialize(
@@ -33,29 +27,10 @@ contract MockVault is Vault {
     function setActiveVotesWithoutRewardsForGroup(address group, uint256 amount)
         public
     {
-        votes.activeVotesWithoutRewards[group] = amount;
-
-        // For testing purposes
-        activeVotesWithoutRewards[group] = amount;
+        groupActiveVotesWithoutRewards[group] = amount;
     }
 
     function setRewardSharePercentage(uint256 percentage) public {
-        vaultManagers.voting.rewardSharePercentage = percentage;
-
-        // For testing purposes
-        rewardSharePercentage = percentage;
-    }
-
-    function calculateVotingManagerRewards(address group)
-        public
-        view
-        returns (uint256)
-    {
-        return
-            election
-                .getActiveVotesForGroupByAccount(group, address(this))
-                .sub(votes.activeVotesWithoutRewards[group])
-                .div(100)
-                .mul(vaultManagers.voting.rewardSharePercentage);
+        votingManager.rewardSharePercentage = percentage;
     }
 }
