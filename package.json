@@ -11,7 +11,8 @@
     "format": "prettier --write ./**/*.js ./**/*.sol",
     "test": "mocha --exit --bail --timeout 60000",
     "truffle:compile": "truffle compile --all",
-    "truffle:migrate": "truffle migrate --network"
+    "truffle:migrate": "truffle migrate --network",
+    "demo": "./node_modules/.bin/mocha --reporter min --exit --bail --timeout 60000 test"
   },
   "husky": {
     "hooks": {
