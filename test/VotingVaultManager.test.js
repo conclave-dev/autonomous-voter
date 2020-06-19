@@ -1,12 +1,12 @@
 const BigNumber = require('bignumber.js');
 const { assert, kit } = require('./setup');
 
-describe('VotingVaultManager', function () {
+describe('VotingManager', function () {
   before(async function () {
-    const votingVaultManager = (await this.persistentVaultInstance.getVotingVaultManager())[0];
+    const votingManager = (await this.persistentVaultInstance.getVotingManager())[0];
 
-    if (votingVaultManager === this.zeroAddress) {
-      await this.persistentVaultInstance.setVotingVaultManager(this.persistentVaultManagerInstance.address);
+    if (votingManager === this.zeroAddress) {
+      await this.persistentVaultInstance.setVotingManager(this.persistentVotingManagerInstance.address);
     }
 
     this.election = (await kit._web3Contracts.getElection()).methods;
@@ -41,7 +41,7 @@ describe('VotingVaultManager', function () {
       ).call()
     );
 
-    await this.persistentVaultManagerInstance.vote(
+    await this.persistentVotingManagerInstance.vote(
       this.persistentVaultInstance.address,
       this.group,
       this.defaultVotes,
@@ -72,7 +72,7 @@ describe('VotingVaultManager', function () {
       await this.election.getGroupsVotedForByAccount(this.persistentVaultInstance.address)
     ).call();
 
-    await this.persistentVaultManagerInstance.revokePending(
+    await this.persistentVotingManagerInstance.revokePending(
       this.persistentVaultInstance.address,
       this.group,
       this.defaultVotes,
