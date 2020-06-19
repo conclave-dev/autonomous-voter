@@ -1,13 +1,36 @@
+// contracts/Vault.sol
 pragma solidity ^0.5.8;
 
-import "celo-monorepo/packages/protocol/contracts/common/interfaces/IAccounts.sol";
+import "openzeppelin-solidity/contracts/math/SafeMath.sol";
+
 import "../Vault.sol";
-import "../celo/governance/interfaces/ILockedGold.sol";
+import "../Archive.sol";
+import "../VaultManager.sol";
+import "../celo/common/libraries/AddressLinkedList.sol";
 
 contract MockVault is Vault {
-    function() external payable {}
+    using SafeMath for uint256;
+    using AddressLinkedList for LinkedList.List;
 
-    function setMockLockedGold(address _address) external {
-        lockedGold = ILockedGold(_address);
+    bool public initialized;
+
+    function initialize(
+        address mockRegistry_,
+        Archive archive_,
+        address owner_,
+        address admin
+    ) public payable initializer {
+        Vault.initialize(mockRegistry_, archive_, owner_, admin);
+        initialized = true;
+    }
+
+    function setActiveVotesWithoutRewardsForGroup(address group, uint256 amount)
+        public
+    {
+        groupActiveVotesWithoutRewards[group] = amount;
+    }
+
+    function setRewardSharePercentage(uint256 percentage) public {
+        votingManager.rewardSharePercentage = percentage;
     }
 }

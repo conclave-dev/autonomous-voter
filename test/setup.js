@@ -20,8 +20,7 @@ const contractBuildFiles = [
   require('../build/contracts/ProxyAdmin.json'),
   require('../build/contracts/MockVault.json'),
   require('../build/contracts/MockLockedGold.json'),
-  require('../build/contracts/MockArchive.json'),
-  require('../build/contracts/MockVaultFactory.json')
+  require('../build/contracts/MockElection.json')
 ];
 
 const getTruffleContracts = () =>
@@ -50,9 +49,9 @@ before(async function () {
   this.vault = await contracts.Vault.deployed();
   this.vaultFactory = await contracts.VaultFactory.deployed();
   this.vaultManagerFactory = await contracts.VotingVaultManagerFactory.deployed();
-  this.mockArchive = await contracts.MockArchive.deployed();
-  this.mockVaultFactory = await contracts.MockVaultFactory.deployed();
+  this.mockVault = await contracts.MockVault.deployed();
   this.mockLockedGold = await contracts.MockLockedGold.deployed();
+  this.mockElection = await contracts.MockElection.deployed();
 
   // Reusable testing variables
   this.rewardSharePercentage = new BigNumber('10');
@@ -60,16 +59,16 @@ before(async function () {
   this.zeroAddress = '0x0000000000000000000000000000000000000000';
 
   const getVaults = () => this.archive.getVaultsByOwner(primarySenderAddress);
-  const getMockVaults = () => this.mockArchive.getVaultsByOwner(primarySenderAddress);
+  // const getMockVaults = () => this.mockArchive.getVaultsByOwner(primarySenderAddress);
   const getVaultManagers = () => this.archive.getVaultManagersByOwner(primarySenderAddress);
   const createVaultInstance = () =>
     this.vaultFactory.createInstance(registryContractAddress, {
       value: new BigNumber('1e17')
     });
-  const createMockVaultInstance = () =>
-    this.mockVaultFactory.createInstance(registryContractAddress, {
-      value: new BigNumber('1e17')
-    });
+  // const createMockVaultInstance = () =>
+  //   this.mockVaultFactory.createInstance(registryContractAddress, {
+  //     value: new BigNumber('1e17')
+  //   });
   const createVaultManagerInstance = () =>
     this.vaultManagerFactory.createInstance(this.rewardSharePercentage, this.minimumManageableBalanceRequirement);
 
@@ -84,23 +83,23 @@ before(async function () {
 
   // Always create fresh test instances
   await createVaultInstance();
-  await createMockVaultInstance();
+  // await createMockVaultInstance();
   await createVaultManagerInstance();
 
   const vaults = await getVaults();
-  const mockVaults = await getMockVaults();
+  // const mockVaults = await getMockVaults();
   const vaultManagers = await getVaultManagers();
 
   // Maintain state and used for voting tests
   this.persistentVaultInstance = await contracts.Vault.at(vaults[0]);
-  this.persistentVaultManagerInstance = await contracts.VotingVaultManager.at(vaultManagers[0]);
+  this.persistentVotingManagerInstance = await contracts.VotingVaultManager.at(vaultManagers[0]);
   this.vaultInstance = await contracts.Vault.at(vaults.pop());
-  this.mockVaultInstance = await contracts.MockVault.at(mockVaults.pop());
+  // this.mockVaultInstance = await contracts.MockVault.at(mockVaults.pop());
   this.vaultManagerInstance = await contracts.VotingVaultManager.at(vaultManagers.pop());
   this.proxyAdmin = await contracts.ProxyAdmin.at(await this.vaultInstance.proxyAdmin());
 
   await this.mockLockedGold.reset();
-  await this.mockVaultInstance.setMockLockedGold(this.mockLockedGold.address);
+  // await this.mockVaultInstance.setMockLockedGold(this.mockLockedGold.address);
 });
 
 module.exports = {

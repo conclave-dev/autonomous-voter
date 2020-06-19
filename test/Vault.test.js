@@ -39,10 +39,10 @@ describe('Vault', function () {
   });
 
   describe('VaultManagers', function () {
-    it('should set a voting vault manager with setVotingVaultManager', async function () {
-      await this.vaultInstance.setVotingVaultManager(this.vaultManagerInstance.address);
+    it('should set a voting vault manager with setVotingManager', async function () {
+      await this.vaultInstance.setVotingManager(this.vaultManagerInstance.address);
 
-      const { 0: contractAddress, 1: rewardSharePercentage } = await this.vaultInstance.getVotingVaultManager();
+      const { 0: contractAddress, 1: rewardSharePercentage } = await this.vaultInstance.getVotingManager();
       const vaultManagerRewardSharePercentage = new BigNumber(await this.vaultManagerInstance.rewardSharePercentage());
 
       assert.equal(
@@ -57,21 +57,21 @@ describe('Vault', function () {
       );
     });
 
-    it('should remove the voting vault manager with removeVotingVaultManager', async function () {
-      const votingVaultManagerBeforeRemoval = (await this.vaultInstance.getVotingVaultManager())[0];
+    it('should remove the voting vault manager with removeVotingManager', async function () {
+      const votingManagerBeforeRemoval = (await this.vaultInstance.getVotingManager())[0];
 
       assert.equal(
-        votingVaultManagerBeforeRemoval,
+        votingManagerBeforeRemoval,
         this.vaultManagerInstance.address,
         'Voting vault manager incorrectly set'
       );
 
-      await this.vaultInstance.removeVotingVaultManager();
+      await this.vaultInstance.removeVotingManager();
 
-      const votingVaultManagerAfterRemoval = (await this.vaultInstance.getVotingVaultManager())[0];
+      const votingManagerAfterRemoval = (await this.vaultInstance.getVotingManager())[0];
 
       assert.notEqual(
-        votingVaultManagerAfterRemoval,
+        votingManagerAfterRemoval,
         this.vaultManagerInstance.address,
         'Voting vault manager was not removed'
       );

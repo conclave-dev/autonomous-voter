@@ -12,42 +12,35 @@ contract Vault is UsingRegistry {
     using SafeMath for uint256;
     using AddressLinkedList for LinkedList.List;
 
-    struct VaultManagers {
-        VotingVaultManager voting;
-        VaultManagerReward[] rewards;
-    }
-
     // Rewards set aside for a manager - cannot be withdrawn by the owner, unless it expires
     // TODO: Add reward withdrawal expiry logic
-    struct VaultManagerReward {
+    struct ManagerReward {
         address recipient;
         uint256 amount;
         uint256 timestamp;
     }
 
-    struct VotingVaultManager {
+    struct VotingManager {
         address contractAddress;
         // The voting vault manager's reward share percentage when they were added
         // This protects the vault owner from increases by the voting vault manager
         uint256 rewardSharePercentage;
     }
 
-    struct Votes {
-        mapping(address => uint256) activeVotesWithoutRewards;
-        LinkedList.List groups;
-    }
+    Archive public archive;
+    IElection public election;
+    ILockedGold public lockedGold;
 
-    Archive private archive;
-    IElection internal election;
-    ILockedGold internal lockedGold;
-    VaultManagers private vaultManagers;
-    Votes private votes;
+    VotingManager public votingManager;
+    ManagerReward[] public votingManagerRewards;
+    LinkedList.List public groupsWithActiveVotes;
+    mapping(address => uint256) public groupActiveVotesWithoutRewards;
 
     address public proxyAdmin;
 
-    modifier onlyVotingVaultManager() {
+    modifier onlyVotingManager() {
         require(
-            msg.sender == vaultManagers.voting.contractAddress,
+            msg.sender == votingManager.contractAddress,
             "Not the voting vault manager"
         );
         _;
@@ -56,10 +49,10 @@ contract Vault is UsingRegistry {
     // This modifier is sparingly applied to voting-related methods callable by the owner
     // and the manager. Generally, we don't want the owner to influence the vault's voting
     // groups, unless it is their intent to remove the voting vault manager.
-    modifier onlyOwnerOrVotingVaultManager() {
+    modifier onlyOwnerOrVotingManager() {
         require(
             msg.sender == owner() ||
-                msg.sender == vaultManagers.voting.contractAddress,
+                msg.sender == votingManager.contractAddress,
             "Not the owner or voting vault manager"
         );
         _;
@@ -67,7 +60,7 @@ contract Vault is UsingRegistry {
 
     modifier onlyGroupWithVotes(address group) {
         require(
-            votes.groups.contains(group) == true,
+            groupsWithActiveVotes.contains(group) == true,
             "Group does not have votes"
         );
         _;
@@ -81,9 +74,9 @@ contract Vault is UsingRegistry {
         if (
             election.getTotalVotesForGroupByAccount(group, address(this)) == 0
         ) {
-            delete votes.activeVotesWithoutRewards[group];
+            delete groupActiveVotesWithoutRewards[group];
 
-            votes.groups.remove(group);
+            groupsWithActiveVotes.remove(group);
         }
     }
 
@@ -129,46 +122,45 @@ contract Vault is UsingRegistry {
         return lockedGold.getAccountNonvotingLockedGold(address(this));
     }
 
-    function getVotingVaultManager() external view returns (address, uint256) {
+    function getVotingManager() external view returns (address, uint256) {
         return (
-            vaultManagers.voting.contractAddress,
-            vaultManagers.voting.rewardSharePercentage
+            votingManager.contractAddress,
+            votingManager.rewardSharePercentage
         );
     }
 
-    function setVotingVaultManager(VaultManager manager) external onlyOwner {
+    function setVotingManager(VaultManager manager) external onlyOwner {
         require(
             archive.hasVaultManager(manager.owner(), address(manager)),
             "Voting vault manager is invalid"
         );
         require(
-            vaultManagers.voting.contractAddress == address(0),
+            votingManager.contractAddress == address(0),
             "Voting vault manager already exists"
         );
 
         manager.registerVault();
 
-        vaultManagers.voting.contractAddress = address(manager);
-        vaultManagers.voting.rewardSharePercentage = manager
-            .rewardSharePercentage();
+        votingManager.contractAddress = address(manager);
+        votingManager.rewardSharePercentage = manager.rewardSharePercentage();
     }
 
     /**
      * @notice Removes a voting vault manager
      */
-    function removeVotingVaultManager() external onlyOwner {
+    function removeVotingManager() external onlyOwner {
         require(
-            vaultManagers.voting.contractAddress != address(0),
+            votingManager.contractAddress != address(0),
             "Voting vault manager does not exist"
         );
         require(
-            votes.groups.getKeys().length == 0,
+            groupsWithActiveVotes.getKeys().length == 0,
             "Group votes have not been revoked"
         );
 
-        VaultManager(vaultManagers.voting.contractAddress).deregisterVault();
+        VaultManager(votingManager.contractAddress).deregisterVault();
 
-        delete vaultManagers.voting;
+        delete votingManager;
     }
 
     /**
@@ -183,8 +175,8 @@ contract Vault is UsingRegistry {
         address adjacentGroupWithLessVotes,
         address adjacentGroupWithMoreVotes,
         uint256 accountGroupIndex
-    ) public onlyOwnerOrVotingVaultManager onlyGroupWithVotes(group) {
-        uint256 vaultManagerRewards = _calculateVotingManagerRewards(group);
+    ) public onlyOwnerOrVotingManager onlyGroupWithVotes(group) {
+        uint256 vaultManagerRewards = calculateVotingManagerRewards(group);
 
         // Revoke active votes equal to the manager's rewards, so that they can be unlocked and tracked
         election.revokeActive(
@@ -205,17 +197,17 @@ contract Vault is UsingRegistry {
         ) = lockedGold.getPendingWithdrawals(address(this));
 
         // Store the pending withdrawal details for the manager's rewards
-        vaultManagers.rewards.push(
-            VaultManagerReward(
-                vaultManagers.voting.contractAddress,
+        votingManagerRewards.push(
+            ManagerReward(
+                votingManager.contractAddress,
                 pendingWithdrawalValues[pendingWithdrawalValues.length - 1],
                 pendingWithdrawalTimestamps[pendingWithdrawalTimestamps.length -
                     1]
             )
         );
 
-        // Set group's activeVotesWithoutRewards to current active votes (should be equal after reward distribution)
-        votes.activeVotesWithoutRewards[group] = election
+        // Set group's groupActiveVotesWithoutRewards to current active votes (should be equal after reward distribution)
+        groupActiveVotesWithoutRewards[group] = election
             .getActiveVotesForGroupByAccount(group, address(this));
     }
 
@@ -261,7 +253,7 @@ contract Vault is UsingRegistry {
         address adjacentGroupWithLessVotes,
         address adjacentGroupWithMoreVotes,
         uint256 accountGroupIndex
-    ) external onlyOwnerOrVotingVaultManager onlyGroupWithVotes(group) {
+    ) external onlyOwnerOrVotingManager onlyGroupWithVotes(group) {
         uint256 pendingVotes = election.getPendingVotesForGroupByAccount(
             group,
             address(this)
@@ -280,7 +272,7 @@ contract Vault is UsingRegistry {
 
         _revokeActive(
             group,
-            votes.activeVotesWithoutRewards[group],
+            groupActiveVotesWithoutRewards[group],
             adjacentGroupWithLessVotes,
             adjacentGroupWithMoreVotes,
             accountGroupIndex
@@ -299,7 +291,7 @@ contract Vault is UsingRegistry {
         uint256 amount,
         address adjacentGroupWithLessVotes,
         address adjacentGroupWithMoreVotes
-    ) external onlyVotingVaultManager {
+    ) external onlyVotingManager {
         // Validates group eligibility, sufficient vote amount, and group voting limit
         election.vote(
             group,
@@ -308,11 +300,11 @@ contract Vault is UsingRegistry {
             adjacentGroupWithMoreVotes
         );
 
-        if (votes.groups.contains(group) == true) {
+        if (groupsWithActiveVotes.contains(group) == true) {
             return;
         }
 
-        votes.groups.push(group);
+        groupsWithActiveVotes.push(group);
     }
 
     /**
@@ -321,7 +313,7 @@ contract Vault is UsingRegistry {
      */
     function activate(address group)
         public
-        onlyVotingVaultManager
+        onlyVotingManager
         onlyGroupWithVotes(group)
     {
         // Save pending votes amount before activation attempt
@@ -333,18 +325,18 @@ contract Vault is UsingRegistry {
         // activate validates pending vote epoch and non-zero vote amount
         election.activate(group);
 
-        // Increment activeVotesWithoutRewards by activated pending votes instead of
+        // Increment groupActiveVotesWithoutRewards by activated pending votes instead of
         // Celo active votes in order to retain reward accrual difference
-        votes.activeVotesWithoutRewards[group] =
-            votes.activeVotesWithoutRewards[group] +
+        groupActiveVotesWithoutRewards[group] =
+            groupActiveVotesWithoutRewards[group] +
             pendingVotes;
     }
 
     /**
      * @notice Iterates over voted groups and activates pending votes that are available
      */
-    function activateAll() external onlyVotingVaultManager {
-        address[] memory groups = votes.groups.getKeys();
+    function activateAll() external onlyVotingManager {
+        address[] memory groups = groupsWithActiveVotes.getKeys();
 
         for (uint256 i = 0; i < groups.length; i += 1) {
             // Call activate with group if it has activatable pending votes
@@ -371,7 +363,7 @@ contract Vault is UsingRegistry {
         address adjacentGroupWithLessVotes,
         address adjacentGroupWithMoreVotes,
         uint256 accountGroupIndex
-    ) external onlyVotingVaultManager onlyGroupWithVotes(group) {
+    ) external onlyVotingManager onlyGroupWithVotes(group) {
         _revokeActive(
             group,
             amount,
@@ -395,7 +387,7 @@ contract Vault is UsingRegistry {
         address adjacentGroupWithLessVotes,
         address adjacentGroupWithMoreVotes,
         uint256 accountGroupIndex
-    ) external onlyVotingVaultManager onlyGroupWithVotes(group) {
+    ) external onlyVotingManager onlyGroupWithVotes(group) {
         _revokePending(
             group,
             amount,
@@ -410,19 +402,19 @@ contract Vault is UsingRegistry {
      * @param group A validator group with active votes placed by the voting vault manager
      * @return Manager's reward amount
      */
-    function _calculateVotingManagerRewards(address group)
-        internal
+    function calculateVotingManagerRewards(address group)
+        public
         view
         returns (uint256)
     {
-        // totalRewardsAccrued = activeVotes (Celo) - activeVotesWithoutRewards (local)
+        // totalRewardsAccrued = activeVotes (Celo) - groupActiveVotesWithoutRewards (local)
         // vaultManagerRewards = (totalRewardsAccrued / 100) * rewardSharePercentage
         return
             election
                 .getActiveVotesForGroupByAccount(group, address(this))
-                .sub(votes.activeVotesWithoutRewards[group])
+                .sub(groupActiveVotesWithoutRewards[group])
                 .div(100)
-                .mul(vaultManagers.voting.rewardSharePercentage);
+                .mul(votingManager.rewardSharePercentage);
     }
 
     // Internal method to allow the owner to manipulate group votes for certain operations
@@ -436,7 +428,7 @@ contract Vault is UsingRegistry {
     ) internal postRevokeCleanup(group) {
         uint256 activeVotesAfterRewardDistribution = (election
             .getActiveVotesForGroupByAccount(group, address(this)) -
-            _calculateVotingManagerRewards(group));
+            calculateVotingManagerRewards(group));
 
         // Communicate that the amount must be less than post-reward distribution active votes
         require(
@@ -445,7 +437,7 @@ contract Vault is UsingRegistry {
         );
 
         // Settles rewards owed to the vault manager and brings locally-stored
-        // activeVotesWithoutRewards to parity with Celo activeVotes
+        // groupActiveVotesWithoutRewards to parity with Celo activeVotes
         distributeVotingManagerRewards(
             group,
             adjacentGroupWithLessVotes,
@@ -462,7 +454,7 @@ contract Vault is UsingRegistry {
             accountGroupIndex
         );
 
-        votes.activeVotesWithoutRewards[group] = election
+        groupActiveVotesWithoutRewards[group] = election
             .getActiveVotesForGroupByAccount(group, address(this));
     }
 
