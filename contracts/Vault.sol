@@ -7,10 +7,12 @@ import "./celo/common/UsingRegistry.sol";
 import "./Archive.sol";
 import "./VaultManager.sol";
 import "./celo/common/libraries/AddressLinkedList.sol";
+import "./celo/common/FixidityLib.sol";
 
 contract Vault is UsingRegistry {
     using SafeMath for uint256;
     using AddressLinkedList for LinkedList.List;
+    using FixidityLib for FixidityLib.Fraction;
 
     // Rewards set aside for a manager - cannot be withdrawn by the owner, unless it expires
     // TODO: Add reward withdrawal expiry logic
@@ -158,6 +160,41 @@ contract Vault is UsingRegistry {
         VaultManager(votingManager.contractAddress).deregisterVault();
 
         delete votingManager;
+    }
+
+    /**
+     * @notice Calculates the voting vault manager's rewards for a group
+     * @param group A validator group with active votes placed by the voting vault manager
+     * @return Manager's reward amount
+     */
+    function calculateVotingManagerRewards(address group)
+        public
+        view
+        returns (uint256)
+    {
+        FixidityLib.Fraction memory activeVotes = FixidityLib.newFixed(
+            election.getActiveVotesForGroupByAccount(group, address(this))
+        );
+        FixidityLib.Fraction memory activeVotesWithoutRewards = FixidityLib
+            .newFixed(groupActiveVotesWithoutRewards[group]);
+        FixidityLib.Fraction memory rewards = FixidityLib.subtract(
+            activeVotes,
+            activeVotesWithoutRewards
+        );
+        FixidityLib.Fraction memory rewardsPercent = FixidityLib.divide(
+            rewards,
+            FixidityLib.newFixed(100)
+        );
+
+        // rewards(Accrued) = activeVotes (Celo) - activeVotesWithoutRewards (local)
+        // votingManagerRewards = (rewards / 100) * rewardSharePercentage
+        return
+            FixidityLib
+                .multiply(
+                rewardsPercent,
+                FixidityLib.newFixed(votingManager.rewardSharePercentage)
+            )
+                .fromFixed();
     }
 
     /**
@@ -362,26 +399,6 @@ contract Vault is UsingRegistry {
             adjacentGroupWithMoreVotes,
             accountGroupIndex
         );
-    }
-
-    /**
-     * @notice Calculates the voting vault manager's rewards for a group
-     * @param group A validator group with active votes placed by the voting vault manager
-     * @return Manager's reward amount
-     */
-    function calculateVotingManagerRewards(address group)
-        public
-        view
-        returns (uint256)
-    {
-        // totalRewardsAccrued = activeVotes (Celo) - groupActiveVotesWithoutRewards (local)
-        // vaultManagerRewards = (totalRewardsAccrued / 100) * rewardSharePercentage
-        return
-            election
-                .getActiveVotesForGroupByAccount(group, address(this))
-                .sub(groupActiveVotesWithoutRewards[group])
-                .div(100)
-                .mul(votingManager.rewardSharePercentage);
     }
 
     // Internal method to allow the owner to manipulate group votes for certain operations

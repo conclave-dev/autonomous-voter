@@ -3,31 +3,28 @@ const { assert } = require('./setup');
 const { primarySenderAddress } = require('../config');
 
 describe('MockVault', function () {
-  before(async function () {
-    // Random values within defined ranges
-    this.mockActiveVotes = Math.floor(Math.random() * 1e8) + 1e6;
-    this.mockActiveVotesWithoutRewards = Math.floor(Math.random() * 1e5) + 1e3;
-    this.mockRewardSharePercentage = Math.floor(Math.random() * 10) + 1;
+  it('should calculate the voting manager rewards (random numbers)', async function () {
+    const mockActiveVotes = Math.floor(Math.random() * 1e8) + 1e6;
+    const mockActiveVotesWithoutRewards = Math.floor(Math.random() * 1e5) + 1e3;
+    const mockRewardSharePercentage = Math.floor(Math.random() * 10) + 1;
 
     await this.mockElection.setActiveVotesForGroupByAccount(
       primarySenderAddress,
       this.mockVault.address,
-      this.mockActiveVotes
+      mockActiveVotes
     );
 
     await this.mockVault.setActiveVotesWithoutRewardsForGroup(
       primarySenderAddress,
-      await this.mockActiveVotesWithoutRewards
+      await mockActiveVotesWithoutRewards
     );
 
-    await this.mockVault.setRewardSharePercentage(this.mockRewardSharePercentage);
-  });
+    await this.mockVault.setRewardSharePercentage(mockRewardSharePercentage);
 
-  it('should calculate the voting manager rewards for a voted group', async function () {
-    // Vault _calculateVotingManagerRewards logic
-    const differenceBetweenActiveVotes = this.mockActiveVotes - this.mockActiveVotesWithoutRewards;
-    const rewardPoint = Math.floor(differenceBetweenActiveVotes / 100); // Emulate SafeMath's rounding down
-    const expectedManagerReward = rewardPoint * this.mockRewardSharePercentage;
+    // Vault calculateVotingManagerRewards logic
+    const rewards = mockActiveVotes - mockActiveVotesWithoutRewards;
+    const rewardsPercent = rewards / 100;
+    const expectedManagerReward = Math.floor(rewardsPercent * mockRewardSharePercentage); // Round down, as decimals truncated
     const actualManagerReward = new BigNumber(await this.mockVault.calculateVotingManagerRewards(primarySenderAddress));
 
     return assert.equal(
