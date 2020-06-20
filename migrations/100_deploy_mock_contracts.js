@@ -21,6 +21,7 @@ module.exports = async (deployer) => {
   await deployer.deploy(Migrations, { overwrite: false });
   await deployer.deploy(LinkedList, { overwrite: false });
   await deployer.link(LinkedList, AddressLinkedList);
+  await deployer.link(LinkedList, MockVault);
   await deployer.deploy(AddressLinkedList, { overwrite: false });
   await deployer.link(AddressLinkedList, MockVault);
 
@@ -55,7 +56,7 @@ module.exports = async (deployer) => {
     await mockRegistry.setLockedGold(mockLockedGold.address);
   }
 
-  if (!(await mockVault.initialized())) {
+  try {
     const { address: archiveAddress } = await deployer.deploy(Archive, { overwrite: false });
     const { address: proxyAdminAddress } = await deployer.deploy(ProxyAdmin, { overwrite: false });
 
@@ -68,5 +69,7 @@ module.exports = async (deployer) => {
         value: new BigNumber(1e17)
       }
     );
+  } catch (err) {
+    console.error('Error initializing MockVault', err);
   }
 };

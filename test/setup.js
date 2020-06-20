@@ -83,7 +83,7 @@ before(async function () {
 
   // Maintain state and used for voting tests
   this.persistentVaultInstance = await contracts.Vault.at(vaults[0]);
-  this.persistentVotingManagerInstance = await contracts.VotingVaultManager.at(vaultManagers[0]);
+  this.persistentVoteManagerInstance = await contracts.VotingVaultManager.at(vaultManagers[0]);
   this.vaultInstance = await contracts.Vault.at(vaults.pop());
   this.vaultManagerInstance = await contracts.VotingVaultManager.at(vaultManagers.pop());
   this.proxyAdmin = await contracts.ProxyAdmin.at(await this.vaultInstance.proxyAdmin());

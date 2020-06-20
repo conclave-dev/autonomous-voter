@@ -15,7 +15,6 @@ module.exports = (deployer) =>
     }
 
     if (!hasVotingVaultManagerFactory) {
-      console.log('setting vault manager factory', votingVaultManagerFactory.address);
       await archive.setVaultManagerFactory(votingVaultManagerFactory.address);
     }
   });

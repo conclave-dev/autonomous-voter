@@ -8,6 +8,7 @@ const VotingVaultManager = artifacts.require('VotingVaultManager');
 module.exports = async (deployer) => {
   await deployer.deploy(LinkedList, { overwrite: false });
   await deployer.link(LinkedList, AddressLinkedList);
+  await deployer.link(LinkedList, Vault);
 
   await deployer.deploy(AddressLinkedList, { overwrite: false });
   await deployer.link(AddressLinkedList, VaultManager);
