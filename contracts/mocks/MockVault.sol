@@ -27,10 +27,34 @@ contract MockVault is Vault {
     function setActiveVotesWithoutRewardsForGroup(address group, uint256 amount)
         public
     {
+        if (groupsWithActiveVotes.contains(group) == false) {
+            groupsWithActiveVotes.push(group);
+        }
+
         groupActiveVotesWithoutRewards[group] = amount;
     }
 
     function setRewardSharePercentage(uint256 percentage) public {
         votingManager.rewardSharePercentage = percentage;
+    }
+
+    function setMinimumManageableBalanceRequirement(uint256 minimumBalance)
+        public
+    {
+        votingManager.minimumManageableBalanceRequirement = minimumBalance;
+    }
+
+    function getVotedGroups() public view returns (address[] memory) {
+        address[] memory groups = groupsWithActiveVotes.getKeys();
+        return groups;
+    }
+
+    function reset() external {
+        // Reset group related data
+        address[] memory groups = groupsWithActiveVotes.getKeys();
+        for (uint256 i = 0; i < groups.length; i = i.add(1)) {
+            groupsWithActiveVotes.remove(groups[i]);
+            delete groupActiveVotesWithoutRewards[groups[i]];
+        }
     }
 }

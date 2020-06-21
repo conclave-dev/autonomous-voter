@@ -77,47 +77,4 @@ describe('Vault', function () {
       );
     });
   });
-
-  describe('initiateWithdrawal(uint256 amount)', function () {
-    it('should be able to initiate withdrawal', async function () {
-      const currentBalance = new BigNumber(await this.vaultInstance.getNonvotingBalance());
-      const withdrawAmount = new BigNumber('1e9');
-
-      await this.vaultInstance.initiateWithdrawal(withdrawAmount.toString());
-
-      assert.equal(
-        new BigNumber(await this.vaultInstance.getNonvotingBalance()).toFixed(0),
-        currentBalance.minus(withdrawAmount).toFixed(0),
-        `Updated non-voting balance doesn't match after withdrawal`
-      );
-    });
-
-    it('should not be able to initiate withdrawal with amount larger than owned non-voting golds', async function () {
-      const withdrawAmount = new BigNumber('1e18');
-
-      assert.isRejected(this.vaultInstance.initiateWithdrawal(withdrawAmount.toString()));
-    });
-  });
-
-  describe('cancelWithdrawal(uint256 index, uint256 amount)', function () {
-    it('should be able to initiate withdrawal and then cancel it', async function () {
-      const currentBalance = new BigNumber(await this.vaultInstance.getNonvotingBalance());
-      const withdrawAmount = new BigNumber('1e9');
-
-      await this.vaultInstance.initiateWithdrawal(withdrawAmount.toString());
-      await this.vaultInstance.cancelWithdrawal(0, withdrawAmount.toString());
-
-      assert.equal(
-        new BigNumber(await this.vaultInstance.getNonvotingBalance()).toFixed(0),
-        currentBalance.toFixed(0),
-        `Vault's non-voting balance shouldn't change after withdrawal cancellation`
-      );
-    });
-
-    it('should not be able to cancel non-existent withdrawal', async function () {
-      const withdrawAmount = new BigNumber('1e9');
-
-      assert.isRejected(this.vaultInstance.cancelWithdrawal(withdrawAmount.toString()));
-    });
-  });
 });

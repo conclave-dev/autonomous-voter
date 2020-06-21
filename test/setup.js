@@ -4,6 +4,7 @@ const contract = require('@truffle/contract');
 const BigNumber = require('bignumber.js');
 const {
   primarySenderAddress,
+  secondarySenderAddress,
   alfajoresRpcAPI,
   defaultGas,
   defaultGasPrice,
@@ -20,7 +21,8 @@ const contractBuildFiles = [
   require('../build/contracts/ProxyAdmin.json'),
   require('../build/contracts/MockVault.json'),
   require('../build/contracts/MockLockedGold.json'),
-  require('../build/contracts/MockElection.json')
+  require('../build/contracts/MockElection.json'),
+  require('../build/contracts/MockRegistry.json')
 ];
 
 const getTruffleContracts = () =>
@@ -52,6 +54,7 @@ before(async function () {
   this.mockVault = await contracts.MockVault.deployed();
   this.mockLockedGold = await contracts.MockLockedGold.deployed();
   this.mockElection = await contracts.MockElection.deployed();
+  this.mockRegistry = await contracts.MockRegistry.deployed();
 
   // Reusable testing variables
   this.rewardSharePercentage = new BigNumber('10');
@@ -91,7 +94,10 @@ before(async function () {
   this.vaultManagerInstance = await contracts.VotingVaultManager.at(vaultManagers.pop());
   this.proxyAdmin = await contracts.ProxyAdmin.at(await this.vaultInstance.proxyAdmin());
 
-  await this.mockLockedGold.reset();
+  await this.mockElection.initValidatorGroups([primarySenderAddress, secondarySenderAddress]);
+  await this.mockElection.resetVotesForAccount(this.mockVault.address);
+  await this.mockLockedGold.reset(this.mockVault.address);
+  await this.mockVault.reset();
 });
 
 module.exports = {

@@ -15,9 +15,9 @@ contract MockLockedGold {
 
     uint256 private unlockingPeriod;
 
-    function reset() external {
-        balances[msg.sender] = 0;
-        withdrawals[msg.sender].length = 0;
+    function reset(address account) external {
+        balances[account] = 0;
+        withdrawals[account].length = 0;
     }
 
     function setUnlockingPeriod(uint256 duration) external {
@@ -39,12 +39,34 @@ contract MockLockedGold {
         balances[msg.sender] = balances[msg.sender].sub(amount);
     }
 
+    function relock(uint256 index, uint256 amount) external {
+        PendingWithdrawal memory pendingWithdrawal = withdrawals[msg
+            .sender][index];
+        require(amount <= pendingWithdrawal.amount, "Invalid amount");
+        withdrawals[msg.sender][index].amount = pendingWithdrawal.amount.sub(
+            amount
+        );
+        balances[msg.sender] = balances[msg.sender].add(amount);
+    }
+
     function getAccountNonvotingLockedGold(address account)
         external
         view
         returns (uint256)
     {
         return balances[account];
+    }
+
+    function decrementNonvotingAccountBalance(address account, uint256 amount)
+        external
+    {
+        balances[account] = balances[account].sub(amount);
+    }
+
+    function incrementNonvotingAccountBalance(address account, uint256 amount)
+        external
+    {
+        balances[account] = balances[account].add(amount);
     }
 
     function getPendingWithdrawals(address account)

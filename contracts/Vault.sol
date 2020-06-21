@@ -25,6 +25,7 @@ contract Vault is UsingRegistry {
         // The voting vault manager's reward share percentage when they were added
         // This protects the vault owner from increases by the voting vault manager
         uint256 rewardSharePercentage;
+        uint256 minimumManageableBalanceRequirement;
     }
 
     Archive public archive;
@@ -122,10 +123,19 @@ contract Vault is UsingRegistry {
         return lockedGold.getAccountNonvotingLockedGold(address(this));
     }
 
-    function getVotingManager() external view returns (address, uint256) {
+    function getVotingManager()
+        external
+        view
+        returns (
+            address,
+            uint256,
+            uint256
+        )
+    {
         return (
             votingManager.contractAddress,
-            votingManager.rewardSharePercentage
+            votingManager.rewardSharePercentage,
+            votingManager.minimumManageableBalanceRequirement
         );
     }
 
@@ -143,6 +153,8 @@ contract Vault is UsingRegistry {
 
         votingManager.contractAddress = address(manager);
         votingManager.rewardSharePercentage = manager.rewardSharePercentage();
+        votingManager.minimumManageableBalanceRequirement = manager
+            .minimumManageableBalanceRequirement();
     }
 
     /**
@@ -211,12 +223,201 @@ contract Vault is UsingRegistry {
             .getActiveVotesForGroupByAccount(group, address(this));
     }
 
+    function _purgeVotes(
+        address[] memory groups,
+        uint256[] memory votes,
+        uint256 amount
+    ) internal pure returns (uint256[] memory) {
+        uint256[] memory indexes = new uint256[](groups.length);
+        uint256[] memory purged = new uint256[](groups.length);
+
+        for (uint256 i = 0; i < groups.length; i = i.add(1)) {
+            indexes[i] = i;
+        }
+
+        // Use a sorted indexes so we can quickly iterate through the groups
+        // and calculate the votes to be purged for each groups.
+        // Otherwise it will run much slower due to lots of repeated lookups/operations
+        uint256 tmpIndex;
+        for (uint256 i = 0; i < groups.length - 1; i = i.add(1)) {
+            for (uint256 j = i + 1; j < groups.length; j = j.add(1)) {
+                if (votes[indexes[i]] > votes[indexes[j]]) {
+                    tmpIndex = indexes[i];
+                    indexes[i] = indexes[j];
+                    indexes[j] = tmpIndex;
+                }
+            }
+        }
+
+        uint256 currentAmount = amount;
+        uint256 divided;
+        uint256 modulo;
+        divided = currentAmount.div(groups.length);
+        modulo = currentAmount.mod(groups.length);
+
+        for (uint256 i = 0; i < groups.length; i = i.add(1)) {
+            // If the mean/average is higher than the votes for this group,
+            // purge all its votes, then recalculate the mean distribution as well remainder for the remaining groups.
+            // Else, purge evenly across the groups, and add extra 1 purged vote for the top groups for the remainder
+            if (votes[indexes[i]] < divided) {
+                purged[indexes[i]] = votes[indexes[i]];
+
+                currentAmount = currentAmount.sub(votes[indexes[i]]);
+
+                if (i < groups.length.sub(1)) {
+                    divided = currentAmount.div(groups.length.sub(i).sub(1));
+                    modulo = currentAmount.mod(groups.length.sub(i).sub(1));
+                }
+            } else if (i >= groups.length - modulo) {
+                purged[indexes[i]] = divided.add(1);
+            } else {
+                purged[indexes[i]] = divided;
+            }
+        }
+
+        return purged;
+    }
+
+    function _findLesserAndGreater(
+        address group,
+        uint256 vote,
+        bool isRevoke
+    ) internal view returns (address, address) {
+        address[] memory groups;
+        uint256[] memory votes;
+        (groups, votes) = election.getTotalVotesForEligibleValidatorGroups();
+        uint256 totalVote = vote;
+        address lesser = address(0);
+        address greater = address(0);
+
+        // Get the current totalVote count for the specified group
+        for (uint256 i = 0; i < groups.length; i = i.add(1)) {
+            if (groups[i] == group) {
+                if (isRevoke) {
+                    totalVote = votes[i].sub(totalVote);
+                } else {
+                    totalVote = votes[i].add(totalVote);
+                }
+                break;
+            }
+        }
+
+        // Look for the adjacent groups with less and more votes, respectively
+        for (uint256 i = 0; i < groups.length; i = i.add(1)) {
+            if (groups[i] != group) {
+                if (votes[i] <= totalVote) {
+                    lesser = groups[i];
+                    break;
+                }
+                greater = groups[i];
+            }
+        }
+
+        return (lesser, greater);
+    }
+
     function initiateWithdrawal(uint256 amount) external onlyOwner {
+        // Populate the data used to check the steps required in order to be able to withdraw the specified amount
+        address[] memory groups = groupsWithActiveVotes.getKeys();
+        uint256[] memory activeVotes = new uint256[](groups.length);
+        uint256[] memory pendingVotes = new uint256[](groups.length);
+        uint256 nonVotingBalance = getNonvotingBalance();
+        uint256 totalPending = 0;
+        uint256 totalAvailableVotes = nonVotingBalance;
+
+        for (uint256 i = 0; i < groups.length; i = i.add(1)) {
+            activeVotes[i] = election
+                .getActiveVotesForGroupByAccount(groups[i], address(this))
+                .sub(calculateVotingManagerRewards(groups[i]));
+            pendingVotes[i] = election.getPendingVotesForGroupByAccount(
+                groups[i],
+                address(this)
+            );
+            totalPending = totalPending.add(pendingVotes[i]);
+            totalAvailableVotes = totalAvailableVotes.add(activeVotes[i]).add(
+                pendingVotes[i]
+            );
+        }
+
+        // Check if the withdrawal amount specified is within the limit (after considering manager rewards, etc)
+        totalAvailableVotes = totalAvailableVotes.sub(
+            votingManager.minimumManageableBalanceRequirement
+        );
+
         require(
-            amount > 0 && amount <= getNonvotingBalance(),
+            amount > 0 && amount <= totalAvailableVotes,
             "Invalid amount specified"
         );
 
+        // Calculate how many extra votes need to be revoked to make up for the remaining amount
+        uint256 remainingAmount = amount;
+        if (remainingAmount > nonVotingBalance) {
+            remainingAmount = remainingAmount.sub(nonVotingBalance);
+        } else {
+            remainingAmount = 0;
+        }
+
+        // If the non voting balance doesn't cover the specified amount, attempt to revoke any available pending votes first
+        if (remainingAmount > 0 && totalPending > 0) {
+            remainingAmount = remainingAmount.sub(nonVotingBalance);
+            uint256[] memory purgedVotes = _purgeVotes(
+                groups,
+                pendingVotes,
+                remainingAmount
+            );
+            for (uint256 i = 0; i < groups.length; i = i.add(1)) {
+                address lesser;
+                address greater;
+                (lesser, greater) = _findLesserAndGreater(
+                    groups[i],
+                    purgedVotes[i],
+                    true
+                );
+
+                if (purgedVotes[i] > 0) {
+                    remainingAmount = remainingAmount.sub(purgedVotes[i]);
+
+                    _revokePending(
+                        groups[i],
+                        purgedVotes[i],
+                        lesser,
+                        greater,
+                        i
+                    );
+                }
+            }
+        }
+
+        // If the non voting balance still doesn't cover the specified amount, proceed to revoke active votes
+        if (remainingAmount > 0) {
+            uint256[] memory purgedVotes = _purgeVotes(
+                groups,
+                activeVotes,
+                remainingAmount
+            );
+            for (uint256 i = 0; i < groups.length; i = i.add(1)) {
+                address lesser;
+                address greater;
+
+                if (purgedVotes[i] > 0) {
+                    (lesser, greater) = _findLesserAndGreater(
+                        groups[i],
+                        purgedVotes[i],
+                        true
+                    );
+
+                    _revokeActive(
+                        groups[i],
+                        purgedVotes[i],
+                        lesser,
+                        greater,
+                        i
+                    );
+                }
+            }
+        }
+
+        // At this point, it should now have enough golds to be unlocked
         lockedGold.unlock(amount);
     }
 
@@ -225,6 +426,22 @@ contract Vault is UsingRegistry {
         onlyOwner
     {
         require(amount > 0, "Invalid amount specified");
+
+        (uint256[] memory amounts, uint256[] memory timestamps) = lockedGold
+            .getPendingWithdrawals(address(this));
+
+        require(index < timestamps.length, "Index out-of-bound");
+        require(amounts[index] >= amount, "Invalid amount specified");
+
+        // Iterate the pending withdrawals for the manager rewards and decline any cancellation if it matches any
+        for (uint256 i = 0; i < votingManagerRewards.length; i = i.add(1)) {
+            if (
+                votingManagerRewards[i].amount == amounts[index] &&
+                votingManagerRewards[i].timestamp == timestamps[index]
+            ) {
+                revert("Unauthorized withdrawal cancellation");
+            }
+        }
 
         lockedGold.relock(index, amount);
     }
