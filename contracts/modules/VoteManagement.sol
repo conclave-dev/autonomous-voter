@@ -20,28 +20,12 @@ contract VoteManagement is Ownable {
 
     address public manager;
     uint256 public managerCommission;
+    uint256 public managerRewards;
     mapping(address => uint256) activeVotes;
 
     modifier onlyVoteManager() {
         require(msg.sender == manager, "Not the vote manager");
         _;
-    }
-
-    modifier onlyGroupWithVotes(address group) {
-        require(activeVotes[group] > 0, "Group does not have votes");
-        _;
-    }
-
-    modifier postRevokeCleanup(address group) {
-        // Execute function first
-        _;
-
-        // Cleans up after vote-revoking method calls, by removing the group if it doesn't have votes
-        if (
-            election.getTotalVotesForGroupByAccount(group, address(this)) == 0
-        ) {
-            delete activeVotes[group];
-        }
     }
 
     // Gets the Vault's nonvoting locked gold amount
@@ -78,39 +62,63 @@ contract VoteManagement is Ownable {
     }
 
     /**
-     * @notice Calculates the vote manager's rewards for a group
+     * @notice Updates managerRewards with the rewards accrued for a voted group
      * @param group A validator group with active votes placed by the vote manager
-     * @return Manager's reward amount
+     * @return Updated manager rewards and active votes
      */
-    function calculateManagerRewards(address group)
+    function updateManagerRewardsForGroup(address group)
         public
-        view
-        returns (uint256)
+        returns (uint256, uint256)
     {
-        FixidityLib.Fraction memory networkActiveVotes = FixidityLib.newFixed(
-            election.getActiveVotesForGroupByAccount(group, address(this))
-        );
-        FixidityLib.Fraction memory localActiveVotes = FixidityLib.newFixed(
-            activeVotes[group]
-        );
-        FixidityLib.Fraction memory rewardsAccrued = FixidityLib.subtract(
-            networkActiveVotes,
-            localActiveVotes
-        );
-        FixidityLib.Fraction memory rewardsAccruedPercent = FixidityLib.divide(
-            rewardsAccrued,
-            FixidityLib.newFixed(100)
+        uint256 networkActiveVotes = election.getActiveVotesForGroupByAccount(
+            group,
+            address(this)
         );
 
-        // rewardsAccrued = networkActiveVotes - localActiveVotes
-        // voteManagerRewards = (rewardsAccrued / 100) * managerCommission
-        return
-            FixidityLib
-                .multiply(
-                rewardsAccruedPercent,
-                FixidityLib.newFixed(managerCommission)
-            )
-                .fromFixed();
+        // Return current values if active votes has not increased (i.e. no rewards)
+        if (networkActiveVotes <= activeVotes[group]) {
+            return (managerRewards, activeVotes[group]);
+        }
+
+        // Calculate the difference between the live and local active votes
+        // to get the amount of rewards accrued for this group
+        FixidityLib.Fraction memory rewardsAccrued = FixidityLib.subtract(
+            FixidityLib.newFixed(networkActiveVotes),
+            FixidityLib.newFixed(activeVotes[group])
+        );
+
+        // Add the manager's share of the accrued group rewards to the total
+        managerRewards = managerRewards.add(
+            rewardsAccrued
+                .divide(FixidityLib.newFixed(100))
+                .multiply(FixidityLib.newFixed(managerCommission))
+                .fromFixed()
+        );
+
+        _updateActiveVotesForGroup(group);
+
+        return (managerRewards, activeVotes[group]);
+    }
+
+    /**
+     * @notice Updates local active votes to match the network's for a group
+     * @notice Should only used when there aren't any manager rewards to distribute
+     * @param group A validator group with active votes placed by the vote manager
+     * @return Updated active votes
+     */
+    function _updateActiveVotesForGroup(address group)
+        internal
+        returns (uint256)
+    {
+        uint256 networkActiveVotes = election.getActiveVotesForGroupByAccount(
+            group,
+            address(this)
+        );
+
+        // Update activeVotes for group
+        activeVotes[group] = networkActiveVotes;
+
+        return activeVotes[group];
     }
 
     /**
@@ -136,35 +144,28 @@ contract VoteManagement is Ownable {
     }
 
     /**
-     * @notice Activates pending votes for a validator group that this vault is currently voting for
+     * @notice Activates pending votes for a validator group
      * @param group A validator group
+     * @return The current active votes for the group
      */
-    function activate(address group)
-        public
-        onlyVoteManager
-        onlyGroupWithVotes(group)
-    {
-        // Save pending votes amount before activation attempt
-        uint256 pendingVotes = election.getPendingVotesForGroupByAccount(
-            group,
-            address(this)
-        );
+    function activate(address group) public onlyVoteManager returns (uint256) {
+        // Distribute rewards before activating votes, to prevent them from being considered as rewards
+        updateManagerRewardsForGroup(group);
 
-        // activate validates pending vote epoch and non-zero vote amount
+        // Validates pending vote epoch and non-zero vote amount
         election.activate(group);
 
-        // Increment activeVotes by activated pending votes instead of
-        // Celo active votes in order to retain reward accrual difference
-        activeVotes[group] = activeVotes[group] + pendingVotes;
+        return _updateActiveVotesForGroup(group);
     }
 
     /**
-     * @notice Revokes active votes for a validator group that this vault is currently voting for
+     * @notice Revokes active votes for a validator group
      * @param group A validator group
      * @param amount The amount of active votes to revoke
      * @param adjacentGroupWithLessVotes List of adjacent eligible validator groups with less votes
      * @param adjacentGroupWithMoreVotes List of adjacent eligible validator groups with more votes
      * @param accountGroupIndex Index of the group for this vault's account
+     * @return The current active votes for the group
      */
     function revokeActive(
         address group,
@@ -172,57 +173,10 @@ contract VoteManagement is Ownable {
         address adjacentGroupWithLessVotes,
         address adjacentGroupWithMoreVotes,
         uint256 accountGroupIndex
-    ) external onlyVoteManager onlyGroupWithVotes(group) {
-        require(
-            activeVotes[group] ==
-                election.getActiveVotesForGroupByAccount(group, address(this)),
-            "Voting manager rewards need to be distributed first"
-        );
+    ) external onlyVoteManager returns (uint256) {
+        // Distribute rewards before activating votes, to protect the manager from loss of rewards
+        updateManagerRewardsForGroup(group);
 
-        _revokeActive(
-            group,
-            amount,
-            adjacentGroupWithLessVotes,
-            adjacentGroupWithMoreVotes,
-            accountGroupIndex
-        );
-    }
-
-    /**
-     * @notice Revokes pending votes for a validator group that this vault is currently voting for
-     * @param group A validator group
-     * @param amount The amount of pending votes to revoke
-     * @param adjacentGroupWithLessVotes List of adjacent eligible validator groups with less votes
-     * @param adjacentGroupWithMoreVotes List of adjacent eligible validator groups with more votes
-     * @param accountGroupIndex Index of the group for this vault's account
-     */
-    function revokePending(
-        address group,
-        uint256 amount,
-        address adjacentGroupWithLessVotes,
-        address adjacentGroupWithMoreVotes,
-        uint256 accountGroupIndex
-    ) public {
-        // Validates group and revoke amount (cannot be zero or greater than pending votes)
-        election.revokePending(
-            group,
-            amount,
-            adjacentGroupWithLessVotes,
-            adjacentGroupWithMoreVotes,
-            accountGroupIndex
-        );
-    }
-
-    // Internal method to allow the owner to manipulate group votes for certain operations
-    // Primarily called by the vault manager-only method of the same name without leading underscore
-    function _revokeActive(
-        address group,
-        uint256 amount,
-        address adjacentGroupWithLessVotes,
-        address adjacentGroupWithMoreVotes,
-        uint256 accountGroupIndex
-    ) internal postRevokeCleanup(group) {
-        // Validates group and revoke amount (cannot be zero or greater than active votes)
         election.revokeActive(
             group,
             amount,
@@ -231,9 +185,34 @@ contract VoteManagement is Ownable {
             accountGroupIndex
         );
 
-        activeVotes[group] = election.getActiveVotesForGroupByAccount(
+        return _updateActiveVotesForGroup(group);
+    }
+
+    /**
+     * @notice Revokes pending votes for a validator group
+     * @param group A validator group
+     * @param amount The amount of pending votes to revoke
+     * @param adjacentGroupWithLessVotes List of adjacent eligible validator groups with less votes
+     * @param adjacentGroupWithMoreVotes List of adjacent eligible validator groups with more votes
+     * @param accountGroupIndex Index of the group for this vault's account
+     * @return The current pending votes for the group
+     */
+    function revokePending(
+        address group,
+        uint256 amount,
+        address adjacentGroupWithLessVotes,
+        address adjacentGroupWithMoreVotes,
+        uint256 accountGroupIndex
+    ) public onlyVoteManager returns (uint256) {
+        // Validates group and revoke amount (cannot be zero or greater than pending votes)
+        election.revokePending(
             group,
-            address(this)
+            amount,
+            adjacentGroupWithLessVotes,
+            adjacentGroupWithMoreVotes,
+            accountGroupIndex
         );
+
+        return election.getPendingVotesForGroupByAccount(group, address(this));
     }
 }

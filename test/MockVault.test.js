@@ -2,8 +2,8 @@ const BigNumber = require('bignumber.js');
 const { assert } = require('./setup');
 const { primarySenderAddress } = require('../config');
 
-const mockCalculateManagerRewards = (networkActiveVotes, localActiveVotes, managerCommission) => {
-  // Vault calculateManagerRewards logic in JS
+const mockUpdateManagerRewardsForGroup = (networkActiveVotes, localActiveVotes, managerCommission) => {
+  // Vault updateManagerRewardsForGroup logic in JS
   const rewards = networkActiveVotes - localActiveVotes;
   const rewardsPercent = rewards / 100;
 
@@ -11,7 +11,7 @@ const mockCalculateManagerRewards = (networkActiveVotes, localActiveVotes, manag
 };
 
 describe('MockVault', function () {
-  it('should calculate the voting manager rewards (random numbers)', async function () {
+  it('should calculate the vote manager rewards with random values', async function () {
     const mockActiveVotes = Math.floor(Math.random() * 1e8) + 1e6;
     const mockActiveVotesWithoutRewards = Math.floor(Math.random() * 1e5) + 1e3;
     const mockManagerCommission = Math.floor(Math.random() * 10) + 1;
@@ -29,21 +29,25 @@ describe('MockVault', function () {
 
     await this.mockVault.setCommission(mockManagerCommission);
 
-    const expectedManagerReward = mockCalculateManagerRewards(
+    const expectedManagerReward = mockUpdateManagerRewardsForGroup(
       mockActiveVotes,
       mockActiveVotesWithoutRewards,
       mockManagerCommission
     );
-    const actualManagerReward = new BigNumber(await this.mockVault.calculateManagerRewards(primarySenderAddress));
 
-    return assert.equal(
-      actualManagerReward.isEqualTo(expectedManagerReward),
-      true,
+    const preUpdateManagerRewards = new BigNumber(await this.mockVault.managerRewards());
+
+    await this.mockVault.updateManagerRewardsForGroup(primarySenderAddress);
+
+    const postUpdateManagerRewards = new BigNumber(await this.mockVault.managerRewards());
+
+    return assert.isTrue(
+      postUpdateManagerRewards.minus(preUpdateManagerRewards).isEqualTo(expectedManagerReward),
       'Expected and actual rewards were different'
     );
   });
 
-  it('should calculate the voting manager rewards (small numbers)', async function () {
+  it('should calculate the vote manager rewards with small values', async function () {
     const mockActiveVotes = 120;
     const mockActiveVotesWithoutRewards = 100;
     const mockManagerCommission = await this.mockVault.managerCommission();
@@ -63,16 +67,19 @@ describe('MockVault', function () {
     // due to order of operations + decimal numbers being rounded down.
     // Using Fixidity, we can hold off on the latter until the end, resulting in
     // the return value being 1
-    const expectedManagerReward = mockCalculateManagerRewards(
+    const expectedManagerReward = mockUpdateManagerRewardsForGroup(
       mockActiveVotes,
       mockActiveVotesWithoutRewards,
       mockManagerCommission
     );
-    const actualManagerReward = new BigNumber(await this.mockVault.calculateManagerRewards(primarySenderAddress));
+    const preUpdateManagerRewards = new BigNumber(await this.mockVault.managerRewards());
 
-    return assert.equal(
-      actualManagerReward.isEqualTo(expectedManagerReward),
-      true,
+    await this.mockVault.updateManagerRewardsForGroup(primarySenderAddress);
+
+    const postUpdateManagerRewards = new BigNumber(await this.mockVault.managerRewards());
+
+    return assert.isTrue(
+      postUpdateManagerRewards.minus(preUpdateManagerRewards).isEqualTo(expectedManagerReward),
       'Expected and actual rewards were different'
     );
   });
