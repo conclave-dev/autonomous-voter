@@ -4,13 +4,12 @@ pragma solidity ^0.5.8;
 import "./modules/VoteManagement.sol";
 import "./celo/common/UsingRegistry.sol";
 import "./Archive.sol";
-import "./celo/common/libraries/LinkedList.sol";
 
 contract Vault is UsingRegistry, VoteManagement {
     address public proxyAdmin;
 
-    // Pending withdrawals (hash of pending withdrawal's initiator, value, timestamp)
-    LinkedList.List pendingWithdrawals;
+    // Pending withdrawals (hash of pending withdrawal's intended recipient, value, timestamp)
+    mapping(bytes32 => bool) pendingWithdrawals;
 
     function initialize(
         address registry_,
@@ -45,5 +44,10 @@ contract Vault is UsingRegistry, VoteManagement {
 
         // Immediately lock the deposit
         lockedGold.lock.value(msg.value)();
+    }
+
+    // Gets the Vault's locked gold amount (both voting and nonvoting)
+    function getLockedBalance() external view returns (uint256) {
+        return lockedGold.getAccountTotalLockedGold(address(this));
     }
 }

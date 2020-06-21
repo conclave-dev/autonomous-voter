@@ -1,10 +1,9 @@
-// contracts/VaultManager.sol
 pragma solidity ^0.5.8;
 
 import "@openzeppelin/contracts-ethereum-package/contracts/ownership/Ownable.sol";
-import "./VaultManager.sol";
+import "./Manager.sol";
 
-contract VotingVaultManager is VaultManager {
+contract VoteManager is Manager {
     function vote(
         Vault vault,
         address group,

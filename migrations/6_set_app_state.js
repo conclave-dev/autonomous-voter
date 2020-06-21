@@ -1,35 +1,34 @@
 const App = artifacts.require('App');
 const Vault = artifacts.require('Vault');
-const VotingVaultManager = artifacts.require('VotingVaultManager');
+const VoteManager = artifacts.require('VoteManager');
 const VaultFactory = artifacts.require('VaultFactory');
-const VotingVaultManagerFactory = artifacts.require('VotingVaultManagerFactory');
+const ManagerFactory = artifacts.require('ManagerFactory');
 
 module.exports = (deployer) =>
   deployer.then(async () => {
     const app = await App.deployed();
     const { address: vaultAddress } = await Vault.deployed();
-    const { address: vaultManagerAddress } = await VotingVaultManager.deployed();
+    const { address: managerAddress } = await VoteManager.deployed();
     const { address: vaultFactoryAddress } = await VaultFactory.deployed();
-    const { address: vaultManagerFactoryAddress } = await VotingVaultManagerFactory.deployed();
+    const { address: managerFactoryAddress } = await ManagerFactory.deployed();
     const hasVault = (await app.contractImplementations('Vault')) === vaultAddress;
-    const hasVotingVaultManager = (await app.contractImplementations('VotingVaultManager')) === vaultManagerAddress;
+    const hasVoteManager = (await app.contractImplementations('VoteManager')) === managerAddress;
     const hasVaultFactory = (await app.contractFactories('Vault')) === vaultFactoryAddress;
-    const hasVotingVaultManagerFactory =
-      (await app.contractFactories('VotingVaultManager')) === vaultManagerFactoryAddress;
+    const hasManagerFactory = (await app.contractFactories('VoteManager')) === managerFactoryAddress;
 
     if (!hasVault) {
       await app.setContractImplementation('Vault', vaultAddress);
     }
 
-    if (!hasVotingVaultManager) {
-      await app.setContractImplementation('VotingVaultManager', vaultManagerAddress);
+    if (!hasVoteManager) {
+      await app.setContractImplementation('VoteManager', managerAddress);
     }
 
     if (!hasVaultFactory) {
       await app.setContractFactory('Vault', vaultFactoryAddress);
     }
 
-    if (!hasVotingVaultManagerFactory) {
-      await app.setContractFactory('VotingVaultManager', vaultManagerFactoryAddress);
+    if (!hasManagerFactory) {
+      await app.setContractFactory('VoteManager', managerFactoryAddress);
     }
   });

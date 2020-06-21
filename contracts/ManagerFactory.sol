@@ -1,4 +1,3 @@
-// contracts/VaultManagerFactory.sol
 pragma solidity ^0.5.8;
 
 import "@openzeppelin/upgrades/contracts/Initializable.sol";
@@ -7,7 +6,7 @@ import "./App.sol";
 import "./Archive.sol";
 import "./ProxyAdmin.sol";
 
-contract VaultManagerFactory is Initializable {
+contract ManagerFactory is Initializable {
     App public app;
     Archive public archive;
 
@@ -21,32 +20,29 @@ contract VaultManagerFactory is Initializable {
         uint256 sharePercentage,
         uint256 minimumGold
     ) public payable {
-        address vaultManagerOwner = msg.sender;
+        address managerOwner = msg.sender;
 
-        // Create a proxy admin for managing the new vault manager instance's upgradeability
+        // Create a proxy admin for managing the new manager instance's upgradeability
         ProxyAdmin proxyAdmin = new ProxyAdmin();
-        proxyAdmin.initialize(app, vaultManagerOwner);
-        address adminAddress = address(proxyAdmin);
+        proxyAdmin.initialize(app, managerOwner);
+        address proxyAdminAddress = address(proxyAdmin);
 
-        // Create the actual vault manager instance
-        address vaultManagerAddress = address(
+        // Create the actual manager instance
+        address manager = address(
             app.create.value(msg.value)(
                 contractName,
-                adminAddress,
+                proxyAdminAddress,
                 abi.encodeWithSignature(
                     "initialize(address,address,address,uint256,uint256)",
                     address(archive),
-                    vaultManagerOwner,
-                    adminAddress,
+                    managerOwner,
+                    proxyAdminAddress,
                     sharePercentage,
                     minimumGold
                 )
             )
         );
 
-        archive.associateVaultManagerWithOwner(
-            vaultManagerAddress,
-            vaultManagerOwner
-        );
+        archive.associateManagerWithOwner(manager, managerOwner);
     }
 }

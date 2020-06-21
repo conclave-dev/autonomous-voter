@@ -14,7 +14,7 @@ describe('Vault', function () {
 
   describe('deposit()', function () {
     it('should enable owners to make deposits', async function () {
-      const manageableBalance = new BigNumber(await this.vaultInstance.getManageableBalance());
+      const manageableBalance = new BigNumber(await this.vaultInstance.getLockedBalance());
       const nonvotingBalance = new BigNumber(await this.vaultInstance.getNonvotingBalance());
       const deposit = 1;
 
@@ -22,7 +22,7 @@ describe('Vault', function () {
         value: deposit
       });
 
-      const newManageableBalance = new BigNumber(await this.vaultInstance.getManageableBalance());
+      const newManageableBalance = new BigNumber(await this.vaultInstance.getLockedBalance());
       const newNonvotingBalance = new BigNumber(await this.vaultInstance.getNonvotingBalance());
 
       assert.equal(
@@ -38,39 +38,35 @@ describe('Vault', function () {
     });
   });
 
-  describe('VaultManagers', function () {
+  describe('Managers', function () {
     it('should set a voting vault manager with setVoteManager', async function () {
-      await this.vaultInstance.setVoteManager(this.vaultManagerInstance.address);
+      await this.vaultInstance.setVoteManager(this.managerInstance.address);
 
-      const { 0: contractAddress, 1: rewardSharePercentage } = await this.vaultInstance.getVoteManager();
-      const vaultManagerRewardSharePercentage = new BigNumber(await this.vaultManagerInstance.rewardSharePercentage());
+      const { 0: contractAddress, 1: commission } = await this.vaultInstance.getVoteManager();
+      const managerCommission = new BigNumber(await this.managerInstance.commission());
 
       assert.equal(
         contractAddress,
-        this.vaultManagerInstance.address,
-        `Voting manager address should be ${this.vaultManagerInstance.address}`
+        this.managerInstance.address,
+        `Voting manager address should be ${this.managerInstance.address}`
       );
       assert.equal(
-        new BigNumber(rewardSharePercentage).toFixed(0),
-        vaultManagerRewardSharePercentage.toFixed(0),
-        `Reward share percentage should be ${vaultManagerRewardSharePercentage}`
+        new BigNumber(commission).toFixed(0),
+        managerCommission.toFixed(0),
+        `Reward share percentage should be ${managerCommission}`
       );
     });
 
     it('should remove the voting vault manager with removeVoteManager', async function () {
       const voteManagerBeforeRemoval = (await this.vaultInstance.getVoteManager())[0];
 
-      assert.equal(voteManagerBeforeRemoval, this.vaultManagerInstance.address, 'Voting vault manager incorrectly set');
+      assert.equal(voteManagerBeforeRemoval, this.managerInstance.address, 'Voting vault manager incorrectly set');
 
       await this.vaultInstance.removeVoteManager();
 
       const voteManagerAfterRemoval = (await this.vaultInstance.getVoteManager())[0];
 
-      assert.notEqual(
-        voteManagerAfterRemoval,
-        this.vaultManagerInstance.address,
-        'Voting vault manager was not removed'
-      );
+      assert.notEqual(voteManagerAfterRemoval, this.managerInstance.address, 'Voting vault manager was not removed');
     });
   });
 });

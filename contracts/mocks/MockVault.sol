@@ -5,7 +5,7 @@ import "openzeppelin-solidity/contracts/math/SafeMath.sol";
 
 import "../Vault.sol";
 import "../Archive.sol";
-import "../VaultManager.sol";
+import "../Manager.sol";
 import "../celo/common/libraries/AddressLinkedList.sol";
 
 contract MockVault is Vault {
@@ -15,10 +15,10 @@ contract MockVault is Vault {
     function setActiveVotesWithoutRewardsForGroup(address group, uint256 amount)
         public
     {
-        activeVotesByGroup[group] = amount;
+        activeVotes[group] = amount;
     }
 
-    function setRewardSharePercentage(uint256 percentage) public {
+    function setCommission(uint256 percentage) public {
         managerCommission = percentage;
     }
 }

@@ -1,18 +1,15 @@
 const LinkedList = artifacts.require('LinkedList');
 const AddressLinkedList = artifacts.require('AddressLinkedList');
-const VaultManager = artifacts.require('VaultManager');
+const Manager = artifacts.require('Manager');
 const Archive = artifacts.require('Archive');
-const Vault = artifacts.require('Vault');
-const VotingVaultManager = artifacts.require('VotingVaultManager');
+const VoteManager = artifacts.require('VoteManager');
 
 module.exports = async (deployer) => {
   await deployer.deploy(LinkedList, { overwrite: false });
   await deployer.link(LinkedList, AddressLinkedList);
-  await deployer.link(LinkedList, Vault);
 
   await deployer.deploy(AddressLinkedList, { overwrite: false });
-  await deployer.link(AddressLinkedList, VaultManager);
+  await deployer.link(AddressLinkedList, Manager);
   await deployer.link(AddressLinkedList, Archive);
-  await deployer.link(AddressLinkedList, Vault);
-  await deployer.link(AddressLinkedList, VotingVaultManager);
+  await deployer.link(AddressLinkedList, VoteManager);
 };
