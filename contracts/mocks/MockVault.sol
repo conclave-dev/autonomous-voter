@@ -12,9 +12,7 @@ contract MockVault is Vault {
     using SafeMath for uint256;
     using AddressLinkedList for LinkedList.List;
 
-    function setActiveVotesWithoutRewardsForGroup(address group, uint256 amount)
-        public
-    {
+    function setLocalActiveVotesForGroup(address group, uint256 amount) public {
         activeVotes[group] = amount;
     }
 

@@ -21,7 +21,7 @@ contract VoteManagement is Ownable {
     address public manager;
     uint256 public managerCommission;
     uint256 public managerRewards;
-    mapping(address => uint256) activeVotes;
+    mapping(address => uint256) public activeVotes;
 
     modifier onlyVoteManager() {
         require(msg.sender == manager, "Not the vote manager");
@@ -40,9 +40,9 @@ contract VoteManagement is Ownable {
     function setVoteManager(Manager manager_) external onlyOwner {
         require(
             archive.hasManager(manager_.owner(), address(manager_)),
-            "Voting vault manager_ is invalid"
+            "Vote manager is invalid"
         );
-        require(manager == address(0), "Voting vault manager_ already exists");
+        require(manager == address(0), "Vote manager already exists");
 
         manager_.registerVault();
 

@@ -1,15 +1,12 @@
 // contracts/Vault.sol
 pragma solidity ^0.5.8;
 
-import "./modules/VoteManagement.sol";
+import "./vault-modules/VoteManagement.sol";
 import "./celo/common/UsingRegistry.sol";
 import "./Archive.sol";
 
 contract Vault is UsingRegistry, VoteManagement {
     address public proxyAdmin;
-
-    // Pending withdrawals (hash of pending withdrawal's intended recipient, value, timestamp)
-    mapping(bytes32 => bool) pendingWithdrawals;
 
     function initialize(
         address registry_,

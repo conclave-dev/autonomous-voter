@@ -2,8 +2,6 @@ const Promise = require('bluebird');
 const BigNumber = require('bignumber.js');
 
 const Migrations = artifacts.require('Migrations');
-const LinkedList = artifacts.require('LinkedList');
-const AddressLinkedList = artifacts.require('AddressLinkedList');
 const MockRegistry = artifacts.require('MockRegistry');
 const MockElection = artifacts.require('MockElection');
 const MockAccounts = artifacts.require('MockAccounts');
@@ -19,11 +17,6 @@ const mockContracts = [MockRegistry, MockElection, MockAccounts, MockLockedGold,
 
 module.exports = async (deployer) => {
   await deployer.deploy(Migrations, { overwrite: false });
-  await deployer.deploy(LinkedList, { overwrite: false });
-  await deployer.link(LinkedList, AddressLinkedList);
-  await deployer.link(LinkedList, MockVault);
-  await deployer.deploy(AddressLinkedList, { overwrite: false });
-  await deployer.link(AddressLinkedList, MockVault);
 
   await Promise.each(mockContracts, async (contract) => {
     let hasChanged = false;
@@ -70,6 +63,6 @@ module.exports = async (deployer) => {
       }
     );
   } catch (err) {
-    console.error('Error initializing MockVault', err);
+    console.error('Error initializing MockVault', err.reason);
   }
 };
