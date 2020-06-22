@@ -15,7 +15,7 @@ describe('VaultFactory', function () {
 
   describe('createInstance(bytes memory _data)', function () {
     it('should not create an instance if the initial deposit is insufficient', function () {
-      return assert.isRejected(this.vaultFactory.createInstance(registryContractAddress));
+      return assert.isRejected(this.vaultFactory.createInstance('Vault', registryContractAddress));
     });
   });
 });

@@ -18,7 +18,10 @@ contract VaultFactory is Initializable {
         archive = archive_;
     }
 
-    function createInstance(address registry) public payable {
+    function createInstance(string memory contractName, address registry)
+        public
+        payable
+    {
         require(
             msg.value >= MINIMUM_DEPOSIT,
             "Insufficient funds for initial deposit"
@@ -30,9 +33,6 @@ contract VaultFactory is Initializable {
         ProxyAdmin proxyAdmin = new ProxyAdmin();
         proxyAdmin.initialize(app, vaultOwner);
         address adminAddress = address(proxyAdmin);
-
-        // string memory packageName = "autonomous-voter";
-        string memory contractName = "Vault";
 
         // Create the actual vault instance
         address vaultAddress = address(

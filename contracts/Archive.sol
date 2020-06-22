@@ -8,6 +8,7 @@ import "celo-monorepo/packages/protocol/contracts/common/UsingPrecompiles.sol";
 import "./celo/common/UsingRegistry.sol";
 import "./Vault.sol";
 import "./Manager.sol";
+import "./celo/common/libraries/AddressLinkedList.sol";
 
 contract Archive is Initializable, Ownable, UsingRegistry, UsingPrecompiles {
     using AddressLinkedList for LinkedList.List;

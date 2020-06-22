@@ -34,7 +34,7 @@ describe('App', function () {
       assert.isRejected(this.app.create('Vault', primarySenderAddress, '0x0'));
 
       return assert.isFulfilled(
-        this.vaultFactory.createInstance(registryContractAddress, {
+        this.vaultFactory.createInstance('Vault', registryContractAddress, {
           value: new BigNumber('1e17')
         })
       );
