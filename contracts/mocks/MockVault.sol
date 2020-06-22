@@ -45,13 +45,13 @@ contract MockVault is Vault {
     }
 
     function getVotedGroups() public view returns (address[] memory) {
-        address[] memory groups = groupsWithActiveVotes.getKeys();
+        address[] memory groups = _getGroupsWithActiveVotes();
         return groups;
     }
 
     function reset() external {
         // Reset group related data
-        address[] memory groups = groupsWithActiveVotes.getKeys();
+        address[] memory groups = _getGroupsWithActiveVotes();
         for (uint256 i = 0; i < groups.length; i = i.add(1)) {
             groupsWithActiveVotes.remove(groups[i]);
             delete groupActiveVotesWithoutRewards[groups[i]];

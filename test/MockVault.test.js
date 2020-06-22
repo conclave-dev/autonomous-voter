@@ -159,7 +159,7 @@ describe('MockVault', function () {
       assert.equal(
         new BigNumber(await this.mockVault.getNonvotingBalance()).toFixed(0),
         amount.toFixed(0),
-        `Vault's non-voting balance shouldn't change after withdrawal cancellation`
+        `Vault's non-voting balance should be updated with the cancelled withdrawal amount`
       );
     });
 

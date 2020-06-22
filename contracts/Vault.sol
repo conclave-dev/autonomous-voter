@@ -9,8 +9,8 @@ import "./VaultManager.sol";
 import "./celo/common/libraries/AddressLinkedList.sol";
 
 contract Vault is UsingRegistry {
+    using LinkedList for LinkedList.List;
     using SafeMath for uint256;
-    using AddressLinkedList for LinkedList.List;
 
     // Rewards set aside for a manager - cannot be withdrawn by the owner, unless it expires
     // TODO: Add reward withdrawal expiry logic
@@ -36,6 +36,7 @@ contract Vault is UsingRegistry {
     ManagerReward[] public votingManagerRewards;
     LinkedList.List public groupsWithActiveVotes;
     mapping(address => uint256) public groupActiveVotesWithoutRewards;
+    LinkedList.List public pendingWithdrawals;
 
     address public proxyAdmin;
 
@@ -61,7 +62,8 @@ contract Vault is UsingRegistry {
 
     modifier onlyGroupWithVotes(address group) {
         require(
-            groupsWithActiveVotes.contains(group) == true,
+            groupsWithActiveVotes.contains(AddressLinkedList.toBytes(group)) ==
+                true,
             "Group does not have votes"
         );
         _;
@@ -77,7 +79,7 @@ contract Vault is UsingRegistry {
         ) {
             delete groupActiveVotesWithoutRewards[group];
 
-            groupsWithActiveVotes.remove(group);
+            groupsWithActiveVotes.remove(AddressLinkedList.toBytes(group));
         }
     }
 
@@ -223,6 +225,7 @@ contract Vault is UsingRegistry {
             .getActiveVotesForGroupByAccount(group, address(this));
     }
 
+    // Calculate the distribution of votes to be revoked in order to complete a withdrawal request
     function _purgeVotes(
         address[] memory groups,
         uint256[] memory votes,
@@ -278,6 +281,7 @@ contract Vault is UsingRegistry {
         return purged;
     }
 
+    // Find adjacent groups with less and more votes than the specified one after the updated vote count
     function _findLesserAndGreater(
         address group,
         uint256 vote,
@@ -286,20 +290,18 @@ contract Vault is UsingRegistry {
         address[] memory groups;
         uint256[] memory votes;
         (groups, votes) = election.getTotalVotesForEligibleValidatorGroups();
-        uint256 totalVote = vote;
         address lesser = address(0);
         address greater = address(0);
 
         // Get the current totalVote count for the specified group
-        for (uint256 i = 0; i < groups.length; i = i.add(1)) {
-            if (groups[i] == group) {
-                if (isRevoke) {
-                    totalVote = votes[i].sub(totalVote);
-                } else {
-                    totalVote = votes[i].add(totalVote);
-                }
-                break;
-            }
+        uint256 totalVote = election.getTotalVotesForGroupByAccount(
+            group,
+            address(this)
+        );
+        if (isRevoke) {
+            totalVote = totalVote.sub(vote);
+        } else {
+            totalVote = totalVote.add(vote);
         }
 
         // Look for the adjacent groups with less and more votes, respectively
@@ -318,7 +320,7 @@ contract Vault is UsingRegistry {
 
     function initiateWithdrawal(uint256 amount) external onlyOwner {
         // Populate the data used to check the steps required in order to be able to withdraw the specified amount
-        address[] memory groups = groupsWithActiveVotes.getKeys();
+        address[] memory groups = _getGroupsWithActiveVotes();
         uint256[] memory activeVotes = new uint256[](groups.length);
         uint256[] memory pendingVotes = new uint256[](groups.length);
         uint256 nonVotingBalance = getNonvotingBalance();
@@ -419,6 +421,19 @@ contract Vault is UsingRegistry {
 
         // At this point, it should now have enough golds to be unlocked
         lockedGold.unlock(amount);
+
+        // Fetch the last initiated withdrawal and track it locally
+        (uint256[] memory amounts, uint256[] memory timestamps) = lockedGold
+            .getPendingWithdrawals(address(this));
+        pendingWithdrawals.push(
+            keccak256(
+                abi.encode(
+                    owner(),
+                    amounts[amounts.length - 1],
+                    timestamps[timestamps.length - 1]
+                )
+            )
+        );
     }
 
     function cancelWithdrawal(uint256 index, uint256 amount)
@@ -517,11 +532,14 @@ contract Vault is UsingRegistry {
             adjacentGroupWithMoreVotes
         );
 
-        if (groupsWithActiveVotes.contains(group) == true) {
+        if (
+            groupsWithActiveVotes.contains(AddressLinkedList.toBytes(group)) ==
+            true
+        ) {
             return;
         }
 
-        groupsWithActiveVotes.push(group);
+        groupsWithActiveVotes.push(AddressLinkedList.toBytes(group));
     }
 
     /**
@@ -553,7 +571,7 @@ contract Vault is UsingRegistry {
      * @notice Iterates over voted groups and activates pending votes that are available
      */
     function activateAll() external onlyVotingManager {
-        address[] memory groups = groupsWithActiveVotes.getKeys();
+        address[] memory groups = _getGroupsWithActiveVotes();
 
         for (uint256 i = 0; i < groups.length; i += 1) {
             // Call activate with group if it has activatable pending votes
@@ -632,6 +650,22 @@ contract Vault is UsingRegistry {
                 .sub(groupActiveVotesWithoutRewards[group])
                 .div(100)
                 .mul(votingManager.rewardSharePercentage);
+    }
+
+    // Wrapper to conveniently get the addresses of groups with active votes by this vault
+    function _getGroupsWithActiveVotes()
+        internal
+        view
+        returns (address[] memory)
+    {
+        bytes32[] memory groups = groupsWithActiveVotes.getKeys();
+        address[] memory groupAddresses = new address[](groups.length);
+
+        for (uint256 i = 0; i < groups.length; i = i.add(1)) {
+            groupAddresses[i] = AddressLinkedList.toAddress(groups[i]);
+        }
+
+        return groupAddresses;
     }
 
     // Internal method to allow the owner to manipulate group votes for certain operations
