@@ -425,6 +425,7 @@ contract Vault is UsingRegistry {
         // Fetch the last initiated withdrawal and track it locally
         (uint256[] memory amounts, uint256[] memory timestamps) = lockedGold
             .getPendingWithdrawals(address(this));
+
         pendingWithdrawals.push(
             keccak256(
                 abi.encode(
@@ -448,29 +449,39 @@ contract Vault is UsingRegistry {
         require(index < timestamps.length, "Index out-of-bound");
         require(amounts[index] >= amount, "Invalid amount specified");
 
-        // Iterate the pending withdrawals for the manager rewards and decline any cancellation if it matches any
-        for (uint256 i = 0; i < votingManagerRewards.length; i = i.add(1)) {
-            if (
-                votingManagerRewards[i].amount == amounts[index] &&
-                votingManagerRewards[i].timestamp == timestamps[index]
-            ) {
-                revert("Unauthorized withdrawal cancellation");
-            }
-        }
+        bytes32 encodedWithdrawal = keccak256(
+            abi.encode(owner(), amounts[index], timestamps[index])
+        );
+        require(
+            pendingWithdrawals.contains(encodedWithdrawal) == true,
+            "Invalid withdrawal specified"
+        );
 
         lockedGold.relock(index, amount);
     }
 
-    function withdraw(uint256 index) external onlyOwner {
-        (, uint256[] memory timestamps) = lockedGold.getPendingWithdrawals(
-            address(this)
-        );
+    function withdraw() external onlyOwner {
+        (uint256[] memory amounts, uint256[] memory timestamps) = lockedGold
+            .getPendingWithdrawals(address(this));
 
-        require(index < timestamps.length, "Index out-of-bound");
-        require(timestamps[index] < now, "Withdrawal is not yet available");
+        // Iterate through the withdrawal lists.
+        // Note that we need to fully iterate it since withdrawal with further timestamp can be located in front
+        // as they're not always sorted due to shifting on records deletion
+        uint256 totalWithdrawalAmount = 0;
+        for (uint256 i = 0; i < timestamps.length; i = i.add(1)) {
+            require(timestamps[i] < now, "Withdrawal is not yet available");
+            // Crosscheck with our local records
+            bytes32 encodedWithdrawal = keccak256(
+                abi.encode(owner(), amounts[i], timestamps[i])
+            );
+            if (pendingWithdrawals.contains(encodedWithdrawal) == true) {
+                totalWithdrawalAmount = totalWithdrawalAmount.add(amounts[i]);
+                lockedGold.withdraw(i);
+            }
+        }
 
-        // Proceed to the fund transfer only if the withdrawal has been fully unlocked
-        lockedGold.withdraw(index);
+        // Forward the withdrawn funds to the vault owner
+        msg.sender.transfer(totalWithdrawalAmount);
     }
 
     /**
