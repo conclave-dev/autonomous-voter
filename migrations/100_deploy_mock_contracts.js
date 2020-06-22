@@ -1,17 +1,16 @@
 const Promise = require('bluebird');
+const { newKit } = require('@celo/contractkit');
 
 const Migrations = artifacts.require('Migrations');
 const MockRegistry = artifacts.require('MockRegistry');
 const MockElection = artifacts.require('MockElection');
-const MockAccounts = artifacts.require('MockAccounts');
-const MockLockedGold = artifacts.require('MockLockedGold');
 const MockVault = artifacts.require('MockVault');
 const VaultFactory = artifacts.require('VaultFactory');
 const App = artifacts.require('App');
 
 const { compareDeployedBytecodes } = require('./util');
 
-const mockContracts = [MockRegistry, MockElection, MockAccounts, MockLockedGold, MockVault];
+const mockContracts = [MockRegistry, MockElection, MockVault];
 
 module.exports = async (deployer) => {
   await deployer.deploy(Migrations, { overwrite: false });
@@ -31,29 +30,31 @@ module.exports = async (deployer) => {
 
   const mockRegistry = await MockRegistry.deployed();
   const mockElection = await MockElection.deployed();
-  const mockAccounts = await MockAccounts.deployed();
-  const mockLockedGold = await MockLockedGold.deployed();
   const mockVault = await MockVault.deployed();
   const vaultFactory = await VaultFactory.deployed();
   const app = await App.deployed();
   const hasMockVault =
     (await app.contractImplementations('MockVault')) === mockVault.address &&
-    (await app.contractFactory('MockVault')) === vaultFactory.address;
+    (await app.contractFactories('MockVault')) === vaultFactory.address;
 
   if (!hasMockVault) {
     await app.setContractImplementation('MockVault', mockVault.address);
     await app.setContractFactory('MockVault', vaultFactory.address);
   }
 
+  const kit = newKit(deployer.provider.host);
+  const accounts = await kit.contracts.getAccounts();
+  const lockedGold = await kit.contracts.getLockedGold();
+
   if ((await mockRegistry.election()) !== mockElection.address) {
     await mockRegistry.setElection(mockElection.address);
   }
 
-  if ((await mockRegistry.accounts()) !== mockAccounts.address) {
-    await mockRegistry.setAccounts(mockAccounts.address);
+  if ((await mockRegistry.accounts()) !== accounts.address) {
+    await mockRegistry.setAccounts(accounts.address);
   }
 
-  if ((await mockRegistry.lockedGold()) !== mockLockedGold.address) {
-    await mockRegistry.setLockedGold(mockLockedGold.address);
+  if ((await mockRegistry.lockedGold()) !== lockedGold.address) {
+    await mockRegistry.setLockedGold(lockedGold.address);
   }
 };

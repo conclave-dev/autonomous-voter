@@ -19,6 +19,24 @@ contract VoteManager is Manager {
         );
     }
 
+    function revokeActive(
+        Vault vault,
+        address group,
+        uint256 amount,
+        address adjacentGroupWithLessVotes,
+        address adjacentGroupWithMoreVotes,
+        uint256 accountGroupIndex
+    ) public onlyOwner onlyManagedVault(address(vault)) {
+        // Validates group and revoke amount (cannot be zero or greater than pending votes)
+        vault.revokeActive(
+            group,
+            amount,
+            adjacentGroupWithLessVotes,
+            adjacentGroupWithMoreVotes,
+            accountGroupIndex
+        );
+    }
+
     function revokePending(
         Vault vault,
         address group,

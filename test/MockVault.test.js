@@ -34,25 +34,29 @@ describe('MockVault', function () {
         postUpdate: postUpdateManagerRewards
       };
     };
+
+    this.generateRandomMockValues = () => ({
+      networkActiveVotes: Math.floor(Math.random() * 1e8) + 1e6,
+      localActiveVotes: Math.floor(Math.random() * 1e5) + 1e3,
+      managerCommission: Math.floor(Math.random() * 10) + 1
+    });
   });
 
   it('should calculate the vote manager rewards using random mocked values', async function () {
-    const mockNetworkActiveVotes = Math.floor(Math.random() * 1e8) + 1e6;
-    const mockLocalActiveVotes = Math.floor(Math.random() * 1e5) + 1e3;
-    const mockManagerCommission = Math.floor(Math.random() * 10) + 1;
+    const { networkActiveVotes, localActiveVotes, managerCommission } = this.generateRandomMockValues();
     const expectedManagerReward = mockUpdateManagerRewardsForGroup(
-      mockNetworkActiveVotes,
-      mockLocalActiveVotes,
-      mockManagerCommission
+      networkActiveVotes,
+      localActiveVotes,
+      managerCommission
     );
     const { preUpdate, postUpdate } = await this.setMockActiveVotes(
-      mockNetworkActiveVotes,
-      mockLocalActiveVotes,
-      mockManagerCommission
+      networkActiveVotes,
+      localActiveVotes,
+      managerCommission
     );
     const updatedActiveVotes = new BigNumber(await this.mockVault.activeVotes(primarySenderAddress));
 
-    assert.isTrue(updatedActiveVotes.isEqualTo(mockNetworkActiveVotes), 'Vault activeVotes was not correctly updated');
+    assert.isTrue(updatedActiveVotes.isEqualTo(networkActiveVotes), 'Vault activeVotes was not correctly updated');
     return assert.isTrue(
       postUpdate.minus(preUpdate).isEqualTo(expectedManagerReward),
       'Expected and actual rewards were different'
@@ -86,5 +90,40 @@ describe('MockVault', function () {
       postUpdate.minus(preUpdate).isEqualTo(expectedManagerReward),
       'Expected and actual rewards were different'
     );
+  });
+
+  it('should update manager rewards and active votes when its active votes are revoked', async function () {
+    const voteManager = (await this.mockVault.getVoteManager())[0];
+
+    if (voteManager === this.zeroAddress) {
+      await this.mockVault.setVoteManager(this.persistentVoteManagerInstance.address);
+    }
+
+    const { networkActiveVotes, localActiveVotes, managerCommission } = this.generateRandomMockValues();
+
+    await this.setMockActiveVotes(networkActiveVotes, localActiveVotes, managerCommission);
+
+    const preRevokeActiveVotes = new BigNumber(await this.mockVault.activeVotes(primarySenderAddress));
+    const revokeAmount = new BigNumber(networkActiveVotes).dividedBy(2).toFixed(0);
+
+    await this.persistentVoteManagerInstance.revokeActive(
+      this.mockVault.address,
+      primarySenderAddress,
+      revokeAmount,
+      // Since we are using MockedElection, these can be zero values
+      this.zeroAddress,
+      this.zeroAddress,
+      0
+    );
+
+    const postRevokeActiveVotes = new BigNumber(await this.mockVault.activeVotes(primarySenderAddress));
+    const expectedActiveVotesRevoked = preRevokeActiveVotes.minus(postRevokeActiveVotes);
+    const expectedManagerReward = new BigNumber(
+      mockUpdateManagerRewardsForGroup(networkActiveVotes, localActiveVotes, managerCommission)
+    );
+    const actualManagerReward = await this.mockVault.managerRewards();
+
+    assert.isTrue(expectedManagerReward.isEqualTo(actualManagerReward));
+    return assert.isTrue(expectedActiveVotesRevoked.isEqualTo(revokeAmount));
   });
 });
