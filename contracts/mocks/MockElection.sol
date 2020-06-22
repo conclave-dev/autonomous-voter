@@ -18,6 +18,7 @@ contract MockElection {
         public pendingVotesForGroupsByAccounts;
 
     mapping(address => uint256) public groupTotalVotes;
+    mapping(address => address[]) groupsVotedFor;
 
     address[] public validatorGroups;
 
@@ -42,6 +43,8 @@ contract MockElection {
             activeVotesForGroupsByAccounts[account][groups[i]] = 0;
             pendingVotesForGroupsByAccounts[account][groups[i]] = 0;
         }
+
+        groupsVotedFor[account].length = 0;
     }
 
     function distributeRewardForGroupByAccount(
@@ -81,11 +84,23 @@ contract MockElection {
             );
     }
 
+    function getGroupsVotedForByAccount(address account)
+        public
+        view
+        returns (address[] memory)
+    {
+        return groupsVotedFor[account];
+    }
+
     function voteForGroupByAccount(
         address group,
         address account,
         uint256 amount
     ) public {
+        if (getTotalVotesForGroupByAccount(group, account) == 0) {
+            groupsVotedFor[account].push(group);
+        }
+
         pendingVotesForGroupsByAccounts[account][group] = pendingVotesForGroupsByAccounts[account][group]
             .add(amount);
         groupTotalVotes[group] = groupTotalVotes[group].add(amount);
@@ -108,6 +123,13 @@ contract MockElection {
         address adjacentGroupWithMoreVotes,
         uint256 accountGroupIndex
     ) public returns (bool) {
+        if (getTotalVotesForGroupByAccount(group, msg.sender) == 0) {
+            uint256 lastIndex = groupsVotedFor[msg.sender].length.sub(1);
+            groupsVotedFor[msg.sender][accountGroupIndex] = groupsVotedFor[msg
+                .sender][lastIndex];
+            groupsVotedFor[msg.sender].length = lastIndex;
+        }
+
         activeVotesForGroupsByAccounts[msg
             .sender][group] = activeVotesForGroupsByAccounts[msg.sender][group]
             .sub(amount);
@@ -126,6 +148,13 @@ contract MockElection {
         address adjacentGroupWithMoreVotes,
         uint256 accountGroupIndex
     ) public returns (bool) {
+        if (getTotalVotesForGroupByAccount(group, msg.sender) == 0) {
+            uint256 lastIndex = groupsVotedFor[msg.sender].length.sub(1);
+            groupsVotedFor[msg.sender][accountGroupIndex] = groupsVotedFor[msg
+                .sender][lastIndex];
+            groupsVotedFor[msg.sender].length = lastIndex;
+        }
+
         pendingVotesForGroupsByAccounts[msg
             .sender][group] = pendingVotesForGroupsByAccounts[msg.sender][group]
             .sub(amount);

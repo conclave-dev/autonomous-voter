@@ -6,7 +6,6 @@ import "openzeppelin-solidity/contracts/math/SafeMath.sol";
 import "./celo/common/UsingRegistry.sol";
 import "./Archive.sol";
 import "./VaultManager.sol";
-import "./celo/common/libraries/AddressLinkedList.sol";
 
 contract Vault is UsingRegistry {
     using LinkedList for LinkedList.List;
@@ -34,7 +33,6 @@ contract Vault is UsingRegistry {
 
     VotingManager public votingManager;
     ManagerReward[] public votingManagerRewards;
-    LinkedList.List public groupsWithActiveVotes;
     mapping(address => uint256) public groupActiveVotesWithoutRewards;
     LinkedList.List public pendingWithdrawals;
 
@@ -62,8 +60,7 @@ contract Vault is UsingRegistry {
 
     modifier onlyGroupWithVotes(address group) {
         require(
-            groupsWithActiveVotes.contains(AddressLinkedList.toBytes(group)) ==
-                true,
+            election.getTotalVotesForGroupByAccount(group, address(this)) > 0,
             "Group does not have votes"
         );
         _;
@@ -78,8 +75,6 @@ contract Vault is UsingRegistry {
             election.getTotalVotesForGroupByAccount(group, address(this)) == 0
         ) {
             delete groupActiveVotesWithoutRewards[group];
-
-            groupsWithActiveVotes.remove(AddressLinkedList.toBytes(group));
         }
     }
 
@@ -168,7 +163,7 @@ contract Vault is UsingRegistry {
             "Voting vault manager does not exist"
         );
         require(
-            groupsWithActiveVotes.getKeys().length == 0,
+            _getGroupsVoted().length == 0,
             "Group votes have not been revoked"
         );
 
@@ -320,7 +315,7 @@ contract Vault is UsingRegistry {
 
     function initiateWithdrawal(uint256 amount) external onlyOwner {
         // Populate the data used to check the steps required in order to be able to withdraw the specified amount
-        address[] memory groups = _getGroupsWithActiveVotes();
+        address[] memory groups = _getGroupsVoted();
         uint256[] memory activeVotes = new uint256[](groups.length);
         uint256[] memory pendingVotes = new uint256[](groups.length);
         uint256 nonVotingBalance = getNonvotingBalance();
@@ -476,6 +471,7 @@ contract Vault is UsingRegistry {
             );
             if (pendingWithdrawals.contains(encodedWithdrawal) == true) {
                 totalWithdrawalAmount = totalWithdrawalAmount.add(amounts[i]);
+                pendingWithdrawals.remove(encodedWithdrawal);
                 lockedGold.withdraw(i);
             }
         }
@@ -542,15 +538,6 @@ contract Vault is UsingRegistry {
             adjacentGroupWithLessVotes,
             adjacentGroupWithMoreVotes
         );
-
-        if (
-            groupsWithActiveVotes.contains(AddressLinkedList.toBytes(group)) ==
-            true
-        ) {
-            return;
-        }
-
-        groupsWithActiveVotes.push(AddressLinkedList.toBytes(group));
     }
 
     /**
@@ -582,7 +569,7 @@ contract Vault is UsingRegistry {
      * @notice Iterates over voted groups and activates pending votes that are available
      */
     function activateAll() external onlyVotingManager {
-        address[] memory groups = _getGroupsWithActiveVotes();
+        address[] memory groups = _getGroupsVoted();
 
         for (uint256 i = 0; i < groups.length; i += 1) {
             // Call activate with group if it has activatable pending votes
@@ -664,19 +651,8 @@ contract Vault is UsingRegistry {
     }
 
     // Wrapper to conveniently get the addresses of groups with active votes by this vault
-    function _getGroupsWithActiveVotes()
-        internal
-        view
-        returns (address[] memory)
-    {
-        bytes32[] memory groups = groupsWithActiveVotes.getKeys();
-        address[] memory groupAddresses = new address[](groups.length);
-
-        for (uint256 i = 0; i < groups.length; i = i.add(1)) {
-            groupAddresses[i] = AddressLinkedList.toAddress(groups[i]);
-        }
-
-        return groupAddresses;
+    function _getGroupsVoted() internal view returns (address[] memory) {
+        return election.getGroupsVotedForByAccount(address(this));
     }
 
     // Internal method to allow the owner to manipulate group votes for certain operations

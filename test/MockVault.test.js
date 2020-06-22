@@ -36,6 +36,9 @@ describe('MockVault', function () {
 
     await this.mockVault.setRewardSharePercentage(this.mockRewardSharePercentage);
     await this.mockVault.setMinimumManageableBalanceRequirement(new BigNumber(this.mockActiveVotesWithoutRewards));
+
+    // Set the unlocking period to 0 second so that funds can be withdrawn immediately
+    await this.mockLockedGold.setUnlockingPeriod(0);
   });
 
   it('should calculate the voting manager rewards for a voted group', async function () {
@@ -51,46 +54,6 @@ describe('MockVault', function () {
       'Expected and actual rewards were different'
     );
   });
-
-  // describe('withdraw(uint256 index)', function () {
-  //   it('should be able to withdraw after the unlocking period has passed', async function () {
-  //     await this.mockVault.deposit({
-  //       value: new BigNumber('1e10')
-  //     });
-
-  //     const currentBalance = new BigNumber(await this.mockVault.getNonvotingBalance());
-  //     const withdrawAmount = new BigNumber('1e9');
-
-  //     // Set the unlocking period to 0 second so that funds can be withdrawn immediately
-  //     await this.mockLockedGold.setUnlockingPeriod(0);
-
-  //     await this.mockVault.initiateWithdrawal(withdrawAmount.toString());
-  //     await this.mockVault.withdraw(0);
-
-  //     assert.equal(
-  //       new BigNumber(await this.mockVault.getNonvotingBalance()).toFixed(0),
-  //       currentBalance.minus(withdrawAmount).toFixed(0),
-  //       `Updated non-voting balance doesn't match after withdrawal`
-  //     );
-
-  //     assert.equal(
-  //       new BigNumber(await kit.web3.eth.getBalance(this.mockVault.address)).toFixed(0),
-  //       withdrawAmount.toFixed(0),
-  //       `Vault's main balance doesn't match the withdrawn amount`
-  //     );
-  //   });
-
-  //   it('should not be able to withdraw before the unlocking period has passed', async function () {
-  //     const withdrawAmount = new BigNumber('1e9');
-
-  //     // Set the unlocking period to 1 day so that no funds are transfered to the Vault
-  //     await this.mockLockedGold.setUnlockingPeriod(86400);
-
-  //     await this.mockVault.initiateWithdrawal(withdrawAmount.toString());
-
-  //     assert.isRejected(this.mockVault.withdraw(0));
-  //   });
-  // });
 
   describe('initiateWithdrawal(uint256 amount)', function () {
     it('should be able to initiate withdrawal without revoking votes if there is enough NonVoting golds', async function () {
@@ -154,7 +117,7 @@ describe('MockVault', function () {
       const withdrawals = await this.mockLockedGold.getPendingWithdrawals(this.mockVault.address);
       const amount = new BigNumber(withdrawals[0][withdrawals[0].length - 1]);
 
-      await this.mockVault.cancelWithdrawal(2, amount.toString());
+      await this.mockVault.cancelWithdrawal(withdrawals[0].length - 1, amount.toString());
 
       assert.equal(
         new BigNumber(await this.mockVault.getNonvotingBalance()).toFixed(0),
@@ -168,6 +131,37 @@ describe('MockVault', function () {
       const withdrawAmount = new BigNumber(1);
 
       assert.isRejected(this.mockVault.cancelWithdrawal(withdrawals.length, withdrawAmount.toString()));
+    });
+  });
+
+  describe('withdraw()', function () {
+    it('should be able to withdraw funds after the unlocking period has passed', async function () {
+      const withdrawals = await this.mockLockedGold.getPendingWithdrawals(this.mockVault.address);
+
+      // Since we only have 1 available withdrawal, we only need to get the amount of the first record
+      const withdrawAmount = new BigNumber(withdrawals[0][0]);
+
+      await this.mockVault.withdraw();
+
+      const updatedWithdrawals = await this.mockLockedGold.getPendingWithdrawals(this.mockVault.address);
+
+      assert.equal(
+        updatedWithdrawals[0][0] !== withdrawAmount,
+        true,
+        `Vault's pending withdrawals didn't get updated after completing the withdrawal`
+      );
+    });
+
+    it('should not be able to withdraw before the unlocking period has passed', async function () {
+      // Set the unlocking period to 1 day so that no funds are transfered to the Vault
+      await this.mockLockedGold.setUnlockingPeriod(86400);
+
+      const nonVotingBalance = new BigNumber(await this.mockVault.getNonvotingBalance());
+      const withdrawalAmount = nonVotingBalance.dividedBy(10).toFixed(0);
+
+      await this.mockVault.initiateWithdrawal(withdrawalAmount.toString());
+
+      assert.isRejected(this.mockVault.withdraw());
     });
   });
 });

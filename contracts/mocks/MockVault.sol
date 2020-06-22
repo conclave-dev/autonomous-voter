@@ -6,11 +6,10 @@ import "openzeppelin-solidity/contracts/math/SafeMath.sol";
 import "../Vault.sol";
 import "../Archive.sol";
 import "../VaultManager.sol";
-import "../celo/common/libraries/AddressLinkedList.sol";
 
 contract MockVault is Vault {
     using SafeMath for uint256;
-    using AddressLinkedList for LinkedList.List;
+    using LinkedList for LinkedList.List;
 
     bool public initialized;
 
@@ -27,10 +26,6 @@ contract MockVault is Vault {
     function setActiveVotesWithoutRewardsForGroup(address group, uint256 amount)
         public
     {
-        if (groupsWithActiveVotes.contains(group) == false) {
-            groupsWithActiveVotes.push(group);
-        }
-
         groupActiveVotesWithoutRewards[group] = amount;
     }
 
@@ -45,15 +40,14 @@ contract MockVault is Vault {
     }
 
     function getVotedGroups() public view returns (address[] memory) {
-        address[] memory groups = _getGroupsWithActiveVotes();
+        address[] memory groups = _getGroupsVoted();
         return groups;
     }
 
     function reset() external {
         // Reset group related data
-        address[] memory groups = _getGroupsWithActiveVotes();
+        address[] memory groups = _getGroupsVoted();
         for (uint256 i = 0; i < groups.length; i = i.add(1)) {
-            groupsWithActiveVotes.remove(groups[i]);
             delete groupActiveVotesWithoutRewards[groups[i]];
         }
     }
