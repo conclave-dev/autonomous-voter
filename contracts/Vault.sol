@@ -160,27 +160,40 @@ contract Vault is UsingRegistry, VoteManagement {
                 totalVotes
             );
 
-            // There should never be an instance where the group's revoke amount is greater than the remaining revoke amount
-            assert(amount >= groupRevokeAmount);
-
             amountRevoked = amountRevoked.add(groupRevokeAmount);
 
-            // Get the addresses of the adjacent groups with lesser and greater votes AFTER revoking
-            (address lesser, address greater) = _findLesserAndGreater(
-                groups[i],
-                groupRevokeAmount,
-                true
-            );
+            address lesser;
+            address greater;
 
             // If the group's pending votes is greater than 0, revoke whatever is available
             if (groupPendingVotes > 0) {
-                if (groupPendingVotes >= amount) {
+                if (groupPendingVotes >= groupRevokeAmount) {
+                    // Get the addresses of the adjacent groups with lesser and greater votes AFTER revoking
+                    (lesser, greater) = _findLesserAndGreater(
+                        groups[i],
+                        groupRevokeAmount,
+                        true
+                    );
+
                     // Revoke the withdrawal amount, as it is covered by pending
-                    revokePending(groups[i], amount, lesser, greater, i);
+                    revokePending(
+                        groups[i],
+                        groupRevokeAmount,
+                        lesser,
+                        greater,
+                        i
+                    );
 
                     // Proceed to next group, since we are done here
                     continue;
                 } else {
+                    // Get the addresses of adjacent groups after groupPendingVotes are revoked
+                    (lesser, greater) = _findLesserAndGreater(
+                        groups[i],
+                        groupPendingVotes,
+                        true
+                    );
+
                     // Revoke only the pending votes, as it does not cover the withdrawal amount
                     revokePending(
                         groups[i],
@@ -197,13 +210,11 @@ contract Vault is UsingRegistry, VoteManagement {
 
                 // @NOTE: We need to run _findLesserAndGreater again since the group addresses are ordered by *total* votes.
                 // Since we've just revoked pending votes, the total will change and we'll need to re-compute those values
-                (
-                    address updatedLesser,
-                    address updatedGreater
-                ) = _findLesserAndGreater(groups[i], groupRevokeAmount, true);
-
-                lesser = updatedLesser;
-                greater = updatedGreater;
+                (lesser, greater) = _findLesserAndGreater(
+                    groups[i],
+                    groupRevokeAmount,
+                    true
+                );
             }
 
             // Revoke the remaining amount from the group's active votes
@@ -297,7 +308,10 @@ contract Vault is UsingRegistry, VoteManagement {
         // the amount needed
         uint256 revokeAmount = amount.sub(nonvotingBalance);
 
-        revokeVotesProportionatelyForGroups(revokeAmount);
+        // Return value is the actual amount that was revoked - there may be remainder
+        uint256 actualRevokeAmount = revokeVotesProportionatelyForGroups(
+            revokeAmount
+        );
 
         return _initiateWithdrawal(amount);
     }
