@@ -82,4 +82,14 @@ interface IElection {
         external
         view
         returns (bool);
+
+    function getGroupsVotedForByAccount(address account)
+        external
+        view
+        returns (address[] memory);
+
+    function getTotalVotesForEligibleValidatorGroups()
+        external
+        view
+        returns (address[] memory groups, uint256[] memory values);
 }

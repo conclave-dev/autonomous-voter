@@ -28,11 +28,6 @@ contract VoteManagement is Ownable {
         _;
     }
 
-    // Gets the Vault's nonvoting locked gold amount
-    function getNonvotingBalance() public view returns (uint256) {
-        return lockedGold.getAccountNonvotingLockedGold(address(this));
-    }
-
     function getVoteManager() external view returns (address, uint256) {
         return (manager, managerCommission);
     }
@@ -173,7 +168,7 @@ contract VoteManagement is Ownable {
         address adjacentGroupWithLessVotes,
         address adjacentGroupWithMoreVotes,
         uint256 accountGroupIndex
-    ) external onlyVoteManager returns (uint256) {
+    ) public onlyVoteManager returns (uint256) {
         // Distribute rewards before activating votes, to protect the manager from loss of rewards
         updateManagerRewardsForGroup(group);
 
