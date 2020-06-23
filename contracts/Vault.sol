@@ -220,62 +220,6 @@ contract Vault is UsingRegistry {
             .getActiveVotesForGroupByAccount(group, address(this));
     }
 
-    // Calculate the distribution of votes to be revoked in order to complete a withdrawal request
-    function _purgeVotes(
-        address[] memory groups,
-        uint256[] memory votes,
-        uint256 amount
-    ) internal pure returns (uint256[] memory) {
-        uint256[] memory indexes = new uint256[](groups.length);
-        uint256[] memory purged = new uint256[](groups.length);
-
-        for (uint256 i = 0; i < groups.length; i = i.add(1)) {
-            indexes[i] = i;
-        }
-
-        // Use a sorted indexes so we can quickly iterate through the groups
-        // and calculate the votes to be purged for each groups.
-        // Otherwise it will run much slower due to lots of repeated lookups/operations
-        uint256 tmpIndex;
-        for (uint256 i = 0; i < groups.length - 1; i = i.add(1)) {
-            for (uint256 j = i + 1; j < groups.length; j = j.add(1)) {
-                if (votes[indexes[i]] > votes[indexes[j]]) {
-                    tmpIndex = indexes[i];
-                    indexes[i] = indexes[j];
-                    indexes[j] = tmpIndex;
-                }
-            }
-        }
-
-        uint256 currentAmount = amount;
-        uint256 divided;
-        uint256 modulo;
-        divided = currentAmount.div(groups.length);
-        modulo = currentAmount.mod(groups.length);
-
-        for (uint256 i = 0; i < groups.length; i = i.add(1)) {
-            // If the mean/average is higher than the votes for this group,
-            // purge all its votes, then recalculate the mean distribution as well remainder for the remaining groups.
-            // Else, purge evenly across the groups, and add extra 1 purged vote for the top groups for the remainder
-            if (votes[indexes[i]] < divided) {
-                purged[indexes[i]] = votes[indexes[i]];
-
-                currentAmount = currentAmount.sub(votes[indexes[i]]);
-
-                if (i < groups.length.sub(1)) {
-                    divided = currentAmount.div(groups.length.sub(i).sub(1));
-                    modulo = currentAmount.mod(groups.length.sub(i).sub(1));
-                }
-            } else if (i >= groups.length - modulo) {
-                purged[indexes[i]] = divided.add(1);
-            } else {
-                purged[indexes[i]] = divided;
-            }
-        }
-
-        return purged;
-    }
-
     // Find adjacent groups with less and more votes than the specified one after the updated vote count
     function _findLesserAndGreater(
         address group,
@@ -319,8 +263,8 @@ contract Vault is UsingRegistry {
         uint256[] memory activeVotes = new uint256[](groups.length);
         uint256[] memory pendingVotes = new uint256[](groups.length);
         uint256 nonVotingBalance = getNonvotingBalance();
-        uint256 totalPending = 0;
         uint256 totalAvailableVotes = nonVotingBalance;
+        uint256 topGroupIndex = 0;
 
         for (uint256 i = 0; i < groups.length; i = i.add(1)) {
             activeVotes[i] = election
@@ -330,19 +274,28 @@ contract Vault is UsingRegistry {
                 groups[i],
                 address(this)
             );
-            totalPending = totalPending.add(pendingVotes[i]);
+
+            // Keep track of the group with highest total vote, from which we might need
+            // to purge some additional votes due to division remainder issue
+            if (
+                activeVotes[i].add(pendingVotes[i]) >
+                activeVotes[topGroupIndex].add(pendingVotes[topGroupIndex])
+            ) {
+                topGroupIndex = i;
+            }
+
             totalAvailableVotes = totalAvailableVotes.add(activeVotes[i]).add(
                 pendingVotes[i]
             );
         }
 
         // Check if the withdrawal amount specified is within the limit (after considering manager rewards, etc)
-        totalAvailableVotes = totalAvailableVotes.sub(
-            votingManager.minimumManageableBalanceRequirement
-        );
-
         require(
-            amount > 0 && amount <= totalAvailableVotes,
+            amount > 0 &&
+                amount <=
+                totalAvailableVotes.sub(
+                    votingManager.minimumManageableBalanceRequirement
+                ),
             "Invalid amount specified"
         );
 
@@ -354,63 +307,92 @@ contract Vault is UsingRegistry {
             remainingAmount = 0;
         }
 
-        // If the non voting balance doesn't cover the specified amount, attempt to revoke any available pending votes first
-        if (remainingAmount > 0 && totalPending > 0) {
-            remainingAmount = remainingAmount.sub(nonVotingBalance);
-            uint256[] memory purgedVotes = _purgeVotes(
-                groups,
-                pendingVotes,
-                remainingAmount
+        uint256 totalRevokeAmount = 0;
+        for (uint256 i = 0; i < groups.length; i = i.add(1)) {
+            uint256 revokeTarget = pendingVotes[i]
+                .add(activeVotes[i])
+                .mul(remainingAmount)
+                .div(totalAvailableVotes);
+            uint256 revokeAmount = (
+                revokeTarget <= pendingVotes[i] ? revokeTarget : pendingVotes[i]
             );
-            for (uint256 i = 0; i < groups.length; i = i.add(1)) {
-                address lesser;
-                address greater;
+            (address lesser, address greater) = _findLesserAndGreater(
+                groups[i],
+                revokeAmount,
+                true
+            );
+
+            totalRevokeAmount = totalRevokeAmount.add(revokeTarget);
+
+            // Try to revoke the pending votes first
+            if (revokeAmount > 0) {
+                _revokePending(groups[i], revokeAmount, lesser, greater, i);
+            }
+
+            // For the group with highest votes, we need to update its pending and active
+            // as we might need to shove off more votes from it, hence the votes needs to reflect the changes
+            if (i == topGroupIndex) {
+                pendingVotes[i] = pendingVotes[i].sub(revokeAmount);
+            }
+
+            revokeTarget = revokeTarget.sub(revokeAmount);
+
+            // If there's any remaining votes need to be revoked, continue with the active ones
+            if (revokeTarget > 0) {
                 (lesser, greater) = _findLesserAndGreater(
                     groups[i],
-                    purgedVotes[i],
+                    revokeTarget,
                     true
                 );
 
-                if (purgedVotes[i] > 0) {
-                    remainingAmount = remainingAmount.sub(purgedVotes[i]);
+                _revokeActive(groups[i], revokeTarget, lesser, greater, i);
+            }
 
-                    _revokePending(
-                        groups[i],
-                        purgedVotes[i],
-                        lesser,
-                        greater,
-                        i
-                    );
-                }
+            if (i == topGroupIndex) {
+                activeVotes[i] = activeVotes[i].sub(revokeTarget);
             }
         }
 
-        // If the non voting balance still doesn't cover the specified amount, proceed to revoke active votes
-        if (remainingAmount > 0) {
-            uint256[] memory purgedVotes = _purgeVotes(
-                groups,
-                activeVotes,
-                remainingAmount
+        // If we have any vote remainders, revoke the ones from the group with highest total votes
+        if (totalRevokeAmount < remainingAmount) {
+            uint256 remainder = remainingAmount.sub(totalRevokeAmount);
+            uint256 revokeAmount = (
+                remainder <= pendingVotes[topGroupIndex]
+                    ? remainder
+                    : pendingVotes[topGroupIndex]
             );
-            for (uint256 i = 0; i < groups.length; i = i.add(1)) {
-                address lesser;
-                address greater;
+            (address lesser, address greater) = _findLesserAndGreater(
+                groups[topGroupIndex],
+                revokeAmount,
+                true
+            );
 
-                if (purgedVotes[i] > 0) {
-                    (lesser, greater) = _findLesserAndGreater(
-                        groups[i],
-                        purgedVotes[i],
-                        true
-                    );
+            if (revokeAmount > 0) {
+                _revokePending(
+                    groups[topGroupIndex],
+                    revokeAmount,
+                    lesser,
+                    greater,
+                    topGroupIndex
+                );
+            }
 
-                    _revokeActive(
-                        groups[i],
-                        purgedVotes[i],
-                        lesser,
-                        greater,
-                        i
-                    );
-                }
+            remainder = remainder.sub(revokeAmount);
+
+            if (remainder > 0) {
+                (lesser, greater) = _findLesserAndGreater(
+                    groups[topGroupIndex],
+                    remainder,
+                    true
+                );
+
+                _revokeActive(
+                    groups[topGroupIndex],
+                    remainder,
+                    lesser,
+                    greater,
+                    topGroupIndex
+                );
             }
         }
 
