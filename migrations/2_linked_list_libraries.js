@@ -4,6 +4,7 @@ const Archive = artifacts.require('Archive');
 const Vault = artifacts.require('Vault');
 const MockVault = artifacts.require('MockVault');
 const VoteManager = artifacts.require('VoteManager');
+const Vault = artifacts.require('Vault');
 
 module.exports = async (deployer, network) => {
   const overwrite = network === 'local' ? true : false;
