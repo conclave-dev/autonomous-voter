@@ -95,6 +95,7 @@ before(async function () {
 
   this.mockVault = await contracts.MockVault.at((await getVaults()).pop());
   this.mockElection = await contracts.MockElection.deployed();
+  this.mockLockedGold = await contracts.MockLockedGold.deployed();
 
   await this.mockElection.initValidatorGroups([primarySenderAddress, secondarySenderAddress]);
 });

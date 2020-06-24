@@ -13,6 +13,8 @@ const mockUpdateManagerRewardsForGroup = (networkActiveVotes, localActiveVotes, 
 describe('MockVault', function () {
   before(async function () {
     this.setMockActiveVotes = async (networkActiveVotes, localActiveVotes, managerCommission) => {
+      await this.mockElection.resetVotesForAccount(this.mockVault.address);
+
       // Mock the voting process which places the votes as pending
       await this.mockElection.voteForGroupByAccount(primarySenderAddress, this.mockVault.address, localActiveVotes);
 
@@ -23,7 +25,7 @@ describe('MockVault', function () {
       await this.mockElection.distributeRewardForGroupByAccount(
         primarySenderAddress,
         this.mockVault.address,
-        networkActiveVotes - this.mockActiveVotesWithoutRewards
+        networkActiveVotes - localActiveVotes
       );
 
       await this.mockVault.setCommission(managerCommission);
@@ -207,7 +209,6 @@ describe('MockVault', function () {
 
   it('should update manager rewards and active votes when its active votes are revoked', async function () {
     const voteManager = (await this.mockVault.getVoteManager())[0];
-
     if (voteManager === this.zeroAddress) {
       await this.mockVault.setVoteManager(this.persistentVoteManagerInstance.address);
     }

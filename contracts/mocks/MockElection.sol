@@ -84,6 +84,24 @@ contract MockElection {
             );
     }
 
+    function getTotalVotesByAccount(address account)
+        public
+        view
+        returns (uint256)
+    {
+        uint256 total = 0;
+        for (uint256 i = 0; i < groupsVotedFor[account].length; i = i.add(1)) {
+            total = total.add(
+                getTotalVotesForGroupByAccount(
+                    groupsVotedFor[account][i],
+                    account
+                )
+            );
+        }
+
+        return total;
+    }
+
     function getGroupsVotedForByAccount(address account)
         public
         view

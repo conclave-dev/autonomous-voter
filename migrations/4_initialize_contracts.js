@@ -17,7 +17,7 @@ module.exports = (deployer) =>
       { contract: 'Archive', fn: async () => await archive.initialize(registryContractAddress) },
       {
         contract: 'VaultFactory',
-        fn: async () => await vaultFactory.initialize(app.address, archive.address, 'Vault')
+        fn: async () => await vaultFactory.initialize(app.address, archive.address)
       },
       {
         contract: 'ManagerFactory',

@@ -1,6 +1,8 @@
 pragma solidity ^0.5.8;
 
 import "openzeppelin-solidity/contracts/math/SafeMath.sol";
+import "./MockRegistry.sol";
+import "../celo/governance/interfaces/IElection.sol";
 
 contract MockLockedGold {
     using SafeMath for uint256;
@@ -10,10 +12,18 @@ contract MockLockedGold {
         uint256 timestamp;
     }
 
+    address public registry;
+    address public election;
+
     mapping(address => uint256) private balances;
     mapping(address => PendingWithdrawal[]) private withdrawals;
 
     uint256 private unlockingPeriod;
+
+    function setRegistry(address _registry) public {
+        registry = _registry;
+        election = MockRegistry(registry).election();
+    }
 
     function reset(address account) external {
         balances[account] = 0;
@@ -47,6 +57,17 @@ contract MockLockedGold {
             amount
         );
         balances[msg.sender] = balances[msg.sender].add(amount);
+    }
+
+    function getAccountTotalLockedGold(address account)
+        external
+        view
+        returns (uint256)
+    {
+        return
+            balances[account].add(
+                IElection(election).getTotalVotesByAccount(account)
+            );
     }
 
     function getAccountNonvotingLockedGold(address account)

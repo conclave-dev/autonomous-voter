@@ -62,4 +62,8 @@ module.exports = async (deployer) => {
   if ((await mockElection.registry()) !== mockRegistry.address) {
     await mockElection.setRegistry(mockRegistry.address);
   }
+
+  if ((await mockLockedGold.registry()) !== mockRegistry.address) {
+    await mockLockedGold.setRegistry(mockRegistry.address);
+  }
 };

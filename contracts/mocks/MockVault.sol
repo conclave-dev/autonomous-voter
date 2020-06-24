@@ -10,12 +10,6 @@ contract MockVault is Vault {
         activeVotes[group] = amount;
     }
 
-    function setActiveVotesWithoutRewardsForGroup(address group, uint256 amount)
-        public
-    {
-        groupActiveVotesWithoutRewards[group] = amount;
-    }
-
     function setCommission(uint256 percentage) public {
         managerCommission = percentage;
     }
@@ -29,11 +23,19 @@ contract MockVault is Vault {
         return groups;
     }
 
-    // function reset() external {
-    //     // Reset group related data
-    //     address[] memory groups = _getGroupsVoted();
-    //     for (uint256 i = 0; i < groups.length; i = i.add(1)) {
-    //         delete groupActiveVotesWithoutRewards[groups[i]];
-    //     }
-    // }
+    function calculateVotingManagerRewards(address group)
+        public
+        view
+        returns (uint256)
+    {
+        return _calculateManagerRewards(group);
+    }
+
+    function reset() external {
+        // Reset group related data
+        address[] memory groups = _getGroupsVoted();
+        for (uint256 i = 0; i < groups.length; i = i.add(1)) {
+            delete activeVotes[groups[i]];
+        }
+    }
 }
