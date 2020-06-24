@@ -4,14 +4,14 @@ const { registryContractAddress } = require('../config');
 const App = artifacts.require('App');
 const Archive = artifacts.require('Archive');
 const VaultFactory = artifacts.require('VaultFactory');
-const VotingVaultManagerFactory = artifacts.require('VotingVaultManagerFactory');
+const ManagerFactory = artifacts.require('ManagerFactory');
 
 module.exports = (deployer) =>
   deployer.then(async () => {
     const app = await App.deployed();
     const archive = await Archive.deployed();
     const vaultFactory = await VaultFactory.deployed();
-    const vaultManagerFactory = await VotingVaultManagerFactory.deployed();
+    const managerFactory = await ManagerFactory.deployed();
     const contractInitializers = [
       { contract: 'App', fn: async () => await app.initialize() },
       { contract: 'Archive', fn: async () => await archive.initialize(registryContractAddress) },
@@ -20,8 +20,8 @@ module.exports = (deployer) =>
         fn: async () => await vaultFactory.initialize(app.address, archive.address, 'Vault')
       },
       {
-        contract: 'VotingVaultManagerFactory',
-        fn: async () => await vaultManagerFactory.initialize(app.address, archive.address, 'VotingVaultManager')
+        contract: 'ManagerFactory',
+        fn: async () => await managerFactory.initialize(app.address, archive.address)
       }
     ];
 

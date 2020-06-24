@@ -16,8 +16,8 @@ const contractBuildFiles = [
   require('../build/contracts/Archive.json'),
   require('../build/contracts/Vault.json'),
   require('../build/contracts/VaultFactory.json'),
-  require('../build/contracts/VotingVaultManager.json'),
-  require('../build/contracts/VotingVaultManagerFactory.json'),
+  require('../build/contracts/VoteManager.json'),
+  require('../build/contracts/ManagerFactory.json'),
   require('../build/contracts/ProxyAdmin.json'),
   require('../build/contracts/MockVault.json'),
   require('../build/contracts/MockLockedGold.json'),
@@ -50,54 +50,53 @@ before(async function () {
   this.archive = await contracts.Archive.deployed();
   this.vault = await contracts.Vault.deployed();
   this.vaultFactory = await contracts.VaultFactory.deployed();
-  this.vaultManagerFactory = await contracts.VotingVaultManagerFactory.deployed();
-  this.mockVault = await contracts.MockVault.deployed();
-  this.mockLockedGold = await contracts.MockLockedGold.deployed();
-  this.mockElection = await contracts.MockElection.deployed();
-  this.mockRegistry = await contracts.MockRegistry.deployed();
+  this.managerFactory = await contracts.ManagerFactory.deployed();
 
   // Reusable testing variables
-  this.rewardSharePercentage = new BigNumber('10');
+  this.managerCommission = new BigNumber('10');
   this.minimumManageableBalanceRequirement = new BigNumber('1e16');
   this.zeroAddress = '0x0000000000000000000000000000000000000000';
 
   const getVaults = () => this.archive.getVaultsByOwner(primarySenderAddress);
-  const getVaultManagers = () => this.archive.getVaultManagersByOwner(primarySenderAddress);
+  const getManagers = () => this.archive.getManagersByOwner(primarySenderAddress);
   const createVaultInstance = () =>
-    this.vaultFactory.createInstance(registryContractAddress, {
+    this.vaultFactory.createInstance('Vault', registryContractAddress, {
       value: new BigNumber('1e17')
     });
-  const createVaultManagerInstance = () =>
-    this.vaultManagerFactory.createInstance(this.rewardSharePercentage, this.minimumManageableBalanceRequirement);
+  const createManagerInstance = () =>
+    this.managerFactory.createInstance('VoteManager', this.managerCommission, this.minimumManageableBalanceRequirement);
 
   // Conditionally create persistent test instances if they don't yet exist
   if (!(await getVaults()).length) {
     await createVaultInstance();
   }
 
-  if (!(await getVaultManagers()).length) {
-    await createVaultManagerInstance();
+  if (!(await getManagers()).length) {
+    await createManagerInstance();
   }
 
   // Always create fresh test instances
   await createVaultInstance();
-  // await createMockVaultInstance();
-  await createVaultManagerInstance();
+  await createManagerInstance();
 
   const vaults = await getVaults();
-  const vaultManagers = await getVaultManagers();
+  const managers = await getManagers();
 
   // Maintain state and used for voting tests
   this.persistentVaultInstance = await contracts.Vault.at(vaults[0]);
-  this.persistentVotingManagerInstance = await contracts.VotingVaultManager.at(vaultManagers[0]);
+  this.persistentVoteManagerInstance = await contracts.VoteManager.at(managers[0]);
   this.vaultInstance = await contracts.Vault.at(vaults.pop());
-  this.vaultManagerInstance = await contracts.VotingVaultManager.at(vaultManagers.pop());
+  this.managerInstance = await contracts.VoteManager.at(managers.pop());
   this.proxyAdmin = await contracts.ProxyAdmin.at(await this.vaultInstance.proxyAdmin());
 
+  await this.vaultFactory.createInstance('MockVault', (await contracts.MockRegistry.deployed()).address, {
+    value: new BigNumber('1e17')
+  });
+
+  this.mockVault = await contracts.MockVault.at((await getVaults()).pop());
+  this.mockElection = await contracts.MockElection.deployed();
+
   await this.mockElection.initValidatorGroups([primarySenderAddress, secondarySenderAddress]);
-  await this.mockElection.resetVotesForAccount(this.mockVault.address);
-  await this.mockLockedGold.reset(this.mockVault.address);
-  await this.mockVault.reset();
 });
 
 module.exports = {

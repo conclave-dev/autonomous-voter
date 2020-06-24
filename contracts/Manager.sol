@@ -1,4 +1,3 @@
-// contracts/VaultManager.sol
 pragma solidity ^0.5.8;
 
 import "@openzeppelin/contracts-ethereum-package/contracts/ownership/Ownable.sol";
@@ -6,13 +5,13 @@ import "./Archive.sol";
 import "./Vault.sol";
 import "./celo/common/libraries/AddressLinkedList.sol";
 
-contract VaultManager is Ownable {
+contract Manager is Ownable {
     using AddressLinkedList for LinkedList.List;
 
     Archive public archive;
 
     address public proxyAdmin;
-    uint256 public rewardSharePercentage;
+    uint256 public commission;
     uint256 public minimumManageableBalanceRequirement;
 
     LinkedList.List public vaults;
@@ -35,11 +34,11 @@ contract VaultManager is Ownable {
         Archive archive_,
         address owner_,
         address admin,
-        uint256 sharePercentage,
+        uint256 commission_,
         uint256 minimumRequirement
     ) public initializer {
         Ownable.initialize(owner_);
-        _setRewardSharePercentage(sharePercentage);
+        _setCommission(commission_);
 
         archive = archive_;
         proxyAdmin = admin;
@@ -51,23 +50,21 @@ contract VaultManager is Ownable {
         proxyAdmin = admin;
     }
 
-    function setRewardSharePercentage(uint256 percentage) public onlyOwner {
-        require(
-            percentage >= 1 && percentage <= 100,
-            "Invalid reward share percentage"
-        );
-        _setRewardSharePercentage(percentage);
+    function setCommission(uint256 commission_) public onlyOwner {
+        _setCommission(commission_);
     }
 
-    function _setRewardSharePercentage(uint256 percentage) internal {
-        rewardSharePercentage = percentage;
+    function _setCommission(uint256 commission_) internal {
+        require(commission_ >= 1 && commission_ <= 100, "Invalid commission");
+
+        commission = commission_;
     }
 
     function setMinimumManageableBalanceRequirement(uint256 amount)
         external
         onlyOwner
     {
-        require(amount > 0, "Invalid cGold amount");
+        require(amount > 0, "Invalid amount");
         minimumManageableBalanceRequirement = amount;
     }
 
@@ -78,9 +75,9 @@ contract VaultManager is Ownable {
     function registerVault() external onlyVault {
         require(vaults.contains(msg.sender) == false, "Already registered");
         require(
-            Vault(msg.sender).getManageableBalance() >=
+            Vault(msg.sender).getLockedBalance() >=
                 minimumManageableBalanceRequirement,
-            "Does not meet minimum manageable balance requirement"
+            "Insufficient manageble balance"
         );
 
         vaults.push(msg.sender);

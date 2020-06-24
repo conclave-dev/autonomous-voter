@@ -1,12 +1,12 @@
 const BigNumber = require('bignumber.js');
 const { assert, kit } = require('./setup');
 
-describe('VotingManager', function () {
+describe('VoteManager', function () {
   before(async function () {
-    const votingManager = (await this.persistentVaultInstance.getVotingManager())[0];
+    const voteManager = (await this.persistentVaultInstance.getVoteManager())[0];
 
-    if (votingManager === this.zeroAddress) {
-      await this.persistentVaultInstance.setVotingManager(this.persistentVotingManagerInstance.address);
+    if (voteManager === this.zeroAddress) {
+      await this.persistentVaultInstance.setVoteManager(this.persistentVoteManagerInstance.address);
     }
 
     this.election = (await kit._web3Contracts.getElection()).methods;
@@ -23,11 +23,11 @@ describe('VotingManager', function () {
     this.group = groupsVotedFor.length ? groupsVotedFor[0] : groups[Math.floor(Math.random() * groups.length)];
     this.groupIndex = groups.indexOf(this.group);
 
-    // Check if the voting group we are voting for is the last element
+    // Check if the group we are voting for is the last element
     // If it is, then lesser is 0, otherwise, get the index of the adjacent group with less votes
     this.lesser = this.groupIndex === groups.length - 1 ? this.zeroAddress : groups[this.groupIndex + 1];
 
-    // Check if the voting group index is non-zero (i.e. the first element)
+    // Check if the group index is non-zero (i.e. the first element)
     // If it is non-zero, get the index of the adjacent group with more votes, otherwise set to 0
     this.greater = this.groupIndex ? groups[this.groupIndex - 1] : this.zeroAddress;
 
@@ -41,7 +41,7 @@ describe('VotingManager', function () {
       ).call()
     );
 
-    await this.persistentVotingManagerInstance.vote(
+    await this.persistentVoteManagerInstance.vote(
       this.persistentVaultInstance.address,
       this.group,
       this.defaultVotes,
@@ -55,9 +55,8 @@ describe('VotingManager', function () {
       ).call()
     );
 
-    return assert.equal(
+    return assert.isTrue(
       prevotePendingAmount.plus(this.defaultVotes).isEqualTo(postvotePendingAmount),
-      true,
       `Expected ${prevotePendingAmount.plus(this.defaultVotes).toFixed(0)} pending votes`
     );
   });
@@ -72,7 +71,7 @@ describe('VotingManager', function () {
       await this.election.getGroupsVotedForByAccount(this.persistentVaultInstance.address)
     ).call();
 
-    await this.persistentVotingManagerInstance.revokePending(
+    await this.persistentVoteManagerInstance.revokePending(
       this.persistentVaultInstance.address,
       this.group,
       this.defaultVotes,
@@ -87,9 +86,8 @@ describe('VotingManager', function () {
       ).call()
     );
 
-    return assert.equal(
+    return assert.isTrue(
       prerevokePendingAmount.minus(this.defaultVotes).isEqualTo(postrevokePendingAmount),
-      true,
       `Expected ${prerevokePendingAmount.minus(this.defaultVotes).toFixed(0)} pending votes`
     );
   });
