@@ -92,13 +92,12 @@ contract VoteManagement is Ownable {
             address(this)
         );
 
-        // Return current values if active votes has not increased (i.e. no rewards)
-        if (networkActiveVotes <= activeVotes[group]) {
-            return (managerRewards, activeVotes[group]);
-        }
+        // We *always* update manager rewards *before* revoking active votes, so network
+        // active votes for a group should always be GTE to its locally-stored active votes
+        assert(networkActiveVotes >= activeVotes[group]);
 
-        // Calculate the difference between the live and local active votes
-        // to get the amount of rewards accrued for this group
+        // Calculate the difference between the network and locally-stored active votes for
+        // a group, to get the amount of rewards that have accrued since the last update
         FixidityLib.Fraction memory rewardsAccrued = FixidityLib.subtract(
             FixidityLib.newFixed(networkActiveVotes),
             FixidityLib.newFixed(activeVotes[group])
@@ -112,6 +111,8 @@ contract VoteManagement is Ownable {
                 .fromFixed()
         );
 
+        // Update locally-stored active votes to match the network's active votes
+        // so that we only account for reward accrual from this point onward
         _updateActiveVotesForGroup(group);
 
         return (managerRewards, activeVotes[group]);
