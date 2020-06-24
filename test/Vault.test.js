@@ -36,30 +36,30 @@ describe('Vault', function () {
     it('should set a vote manager with setVoteManager', async function () {
       await this.vaultInstance.setVoteManager(this.managerInstance.address);
 
-      const { 0: contractAddress, 1: commission } = await this.vaultInstance.getVoteManager();
-      const managerCommission = new BigNumber(await this.managerInstance.commission());
+      const manager = await this.vaultInstance.manager();
+      const managerCommission = new BigNumber(await this.vaultInstance.managerCommission());
 
       assert.equal(
-        contractAddress,
+        manager,
         this.managerInstance.address,
         `Vote manager address should be ${this.managerInstance.address}`
       );
       return assert.isTrue(
-        new BigNumber(commission).isEqualTo(managerCommission),
+        new BigNumber(managerCommission).isEqualTo(managerCommission),
         `Manager commission should be ${managerCommission}`
       );
     });
 
     it('should remove the vote manager with removeVoteManager', async function () {
-      const voteManagerBeforeRemoval = (await this.vaultInstance.getVoteManager())[0];
+      const managerBeforeRemoval = await this.vaultInstance.manager();
 
-      assert.equal(voteManagerBeforeRemoval, this.managerInstance.address, 'Vote manager incorrectly set');
+      assert.equal(managerBeforeRemoval, this.managerInstance.address, 'Vote manager incorrectly set');
 
       await this.vaultInstance.removeVoteManager();
 
-      const voteManagerAfterRemoval = (await this.vaultInstance.getVoteManager())[0];
+      const managerAfterRemoval = await this.vaultInstance.manager();
 
-      return assert.notEqual(voteManagerAfterRemoval, this.managerInstance.address, 'Vote manager was not removed');
+      return assert.notEqual(managerAfterRemoval, this.managerInstance.address, 'Vote manager was not removed');
     });
   });
 });

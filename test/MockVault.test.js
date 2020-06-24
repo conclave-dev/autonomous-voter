@@ -154,7 +154,8 @@ describe('MockVault', function () {
   });
 
   it('should update manager rewards and active votes when its active votes are revoked', async function () {
-    const voteManager = (await this.mockVault.getVoteManager())[0];
+    const voteManager = await this.mockVault.manager();
+
     if (voteManager === this.zeroAddress) {
       await this.mockVault.setVoteManager(this.persistentVoteManagerInstance.address);
     }
