@@ -118,9 +118,18 @@ contract Vault is UsingRegistry, VoteManagement {
         _initiateWithdrawal(amount.sub(revokeDiff));
     }
 
+    /**
+     * @notice Creates a pending withdrawal and generates a hash for verification
+     */
     function _initiateWithdrawal(uint256 amount) internal {
+        // @TODO: Consider creating 2 separate "initiate withdrawal" methods in order to
+        // thoroughly validate based on whether it's the owner or manager
+
         // Only the owner or vote manager can call this method
-        require(msg.sender == owner || msg.sender == manager, "Not authorized");
+        require(
+            msg.sender == owner() || msg.sender == manager,
+            "Not authorized"
+        );
 
         lockedGold.unlock(amount);
 
@@ -129,7 +138,7 @@ contract Vault is UsingRegistry, VoteManagement {
         (uint256[] memory amounts, uint256[] memory timestamps) = lockedGold
             .getPendingWithdrawals(address(this));
 
-        address withdrawalRecipient = msg.sender == owner ? owner : manager;
+        address withdrawalRecipient = msg.sender == owner() ? owner() : manager;
 
         // Generate a hash for withdrawal-time verification
         pendingWithdrawals.push(
@@ -148,7 +157,6 @@ contract Vault is UsingRegistry, VoteManagement {
 
     /**
      * @notice Sets the vote manager
-     * @todo Set other types of managers
      */
     function setVoteManager(Manager manager_) external onlyOwner {
         require(
@@ -165,7 +173,6 @@ contract Vault is UsingRegistry, VoteManagement {
 
     /**
      * @notice Removes the vote manager
-     * @todo Remove other types of managers
      */
     function removeVoteManager() external onlyOwner {
         require(manager != address(0), "Vote manager does not exist");

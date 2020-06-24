@@ -28,6 +28,7 @@
       "npm run lint:js"
     ],
     "*.sol": [
+      "npm run truffle:compile",
       "npm run lint:sol"
     ]
   },
