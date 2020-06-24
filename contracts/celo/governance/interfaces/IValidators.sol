@@ -1,35 +1,6 @@
-pragma solidity ^0.5.3;
-
-import "celo-monorepo/packages/protocol/contracts/common/FixidityLib.sol";
-
+pragma solidity ^0.5.8;
 
 interface IValidators {
-    struct MembershipHistoryEntry {
-        uint256 epochNumber;
-        address group;
-    }
-
-    struct MembershipHistory {
-        // The key to the most recent entry in the entries mapping.
-        uint256 tail;
-        // The number of entries in this validators membership history.
-        uint256 numEntries;
-        mapping(uint256 => MembershipHistoryEntry) entries;
-        uint256 lastRemovedFromGroupTimestamp;
-    }
-
-    struct PublicKeys {
-        bytes ecdsa;
-        bytes bls;
-    }
-
-    struct Validator {
-        PublicKeys publicKeys;
-        address affiliation;
-        FixidityLib.Fraction score;
-        MembershipHistory membershipHistory;
-    }
-
     function getAccountLockedGoldRequirement(address)
         external
         view

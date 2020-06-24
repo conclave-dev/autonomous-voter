@@ -7,28 +7,29 @@ import "celo-monorepo/packages/protocol/contracts/common/UsingPrecompiles.sol";
 
 import "./celo/common/UsingRegistry.sol";
 import "./Vault.sol";
-import "./VaultManager.sol";
+import "./Manager.sol";
+import "./celo/common/libraries/AddressLinkedList.sol";
 
 contract Archive is Initializable, Ownable, UsingRegistry, UsingPrecompiles {
     using AddressLinkedList for LinkedList.List;
 
     // Factory contracts that are able to modify the lists below
     address public vaultFactory;
-    address public vaultManagerFactory;
+    address public managerFactory;
 
-    // Vaults and vault managers mapped by their owner's address
+    // Vaults and Managers mapped by their owner's address
     mapping(address => LinkedList.List) public vaults;
-    mapping(address => LinkedList.List) public vaultManagers;
+    mapping(address => LinkedList.List) public managers;
 
     modifier onlyVaultFactory() {
-        require(msg.sender == vaultFactory, "Sender is not vault factory");
+        require(msg.sender == vaultFactory, "Sender is not the vault factory");
         _;
     }
 
-    modifier onlyVaultManagerFactory() {
+    modifier onlyManagerFactory() {
         require(
-            msg.sender == vaultManagerFactory,
-            "Not the vault manager factory"
+            msg.sender == managerFactory,
+            "Sender is not the manager factory"
         );
         _;
     }
@@ -44,11 +45,8 @@ contract Archive is Initializable, Ownable, UsingRegistry, UsingPrecompiles {
         vaultFactory = vaultFactory_;
     }
 
-    function setVaultManagerFactory(address vaultManagerFactory_)
-        public
-        onlyOwner
-    {
-        vaultManagerFactory = vaultManagerFactory_;
+    function setManagerFactory(address managerFactory_) public onlyOwner {
+        managerFactory = managerFactory_;
     }
 
     function _isVaultOwner(address vault, address owner_) internal view {
@@ -58,13 +56,10 @@ contract Archive is Initializable, Ownable, UsingRegistry, UsingPrecompiles {
         );
     }
 
-    function _isVaultManagerOwner(address vaultManager, address owner_)
-        internal
-        view
-    {
+    function _isManagerOwner(address manager, address owner_) internal view {
         require(
-            VaultManager(vaultManager).owner() == owner_,
-            "Account is not the vaultManager owner"
+            Manager(manager).owner() == owner_,
+            "Account is not the manager owner"
         );
     }
 
@@ -76,12 +71,12 @@ contract Archive is Initializable, Ownable, UsingRegistry, UsingPrecompiles {
         return vaults[owner_].getKeys();
     }
 
-    function getVaultManagersByOwner(address owner_)
+    function getManagersByOwner(address owner_)
         external
         view
         returns (address[] memory)
     {
-        return vaultManagers[owner_].getKeys();
+        return managers[owner_].getKeys();
     }
 
     function hasVault(address owner_, address vault)
@@ -92,12 +87,12 @@ contract Archive is Initializable, Ownable, UsingRegistry, UsingPrecompiles {
         return vaults[owner_].contains(vault);
     }
 
-    function hasVaultManager(address owner_, address vaultManager)
+    function hasManager(address owner_, address manager)
         external
         view
         returns (bool)
     {
-        return vaultManagers[owner_].contains(vaultManager);
+        return managers[owner_].contains(manager);
     }
 
     function associateVaultWithOwner(address vault, address owner_)
@@ -108,14 +103,14 @@ contract Archive is Initializable, Ownable, UsingRegistry, UsingPrecompiles {
         vaults[owner_].push(vault);
     }
 
-    function associateVaultManagerWithOwner(
-        address vaultManager,
-        address owner_
-    ) public onlyVaultManagerFactory {
+    function associateManagerWithOwner(address manager, address owner_)
+        public
+        onlyManagerFactory
+    {
         require(
-            !vaultManagers[owner_].contains(vaultManager),
-            "VaultManager has already been set"
+            !managers[owner_].contains(manager),
+            "Manager has already been set"
         );
-        vaultManagers[owner_].push(vaultManager);
+        managers[owner_].push(manager);
     }
 }

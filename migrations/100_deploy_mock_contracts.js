@@ -1,28 +1,19 @@
 const Promise = require('bluebird');
-const BigNumber = require('bignumber.js');
+const { newKit } = require('@celo/contractkit');
 
 const Migrations = artifacts.require('Migrations');
-const LinkedList = artifacts.require('LinkedList');
-const AddressLinkedList = artifacts.require('AddressLinkedList');
 const MockRegistry = artifacts.require('MockRegistry');
 const MockElection = artifacts.require('MockElection');
-const MockAccounts = artifacts.require('MockAccounts');
-const MockLockedGold = artifacts.require('MockLockedGold');
 const MockVault = artifacts.require('MockVault');
-const Archive = artifacts.require('Archive');
-const ProxyAdmin = artifacts.require('ProxyAdmin');
+const VaultFactory = artifacts.require('VaultFactory');
+const App = artifacts.require('App');
 
 const { compareDeployedBytecodes } = require('./util');
-const { primarySenderAddress } = require('../config');
 
-const mockContracts = [MockRegistry, MockElection, MockAccounts, MockLockedGold, MockVault];
+const mockContracts = [MockRegistry, MockElection, MockVault];
 
 module.exports = async (deployer) => {
   await deployer.deploy(Migrations, { overwrite: false });
-  await deployer.deploy(LinkedList, { overwrite: false });
-  await deployer.link(LinkedList, AddressLinkedList);
-  await deployer.deploy(AddressLinkedList, { overwrite: false });
-  await deployer.link(AddressLinkedList, MockVault);
 
   await Promise.each(mockContracts, async (contract) => {
     let hasChanged = false;
@@ -39,34 +30,31 @@ module.exports = async (deployer) => {
 
   const mockRegistry = await MockRegistry.deployed();
   const mockElection = await MockElection.deployed();
-  const mockAccounts = await MockAccounts.deployed();
-  const mockLockedGold = await MockLockedGold.deployed();
   const mockVault = await MockVault.deployed();
+  const vaultFactory = await VaultFactory.deployed();
+  const app = await App.deployed();
+  const hasMockVault =
+    (await app.contractImplementations('MockVault')) === mockVault.address &&
+    (await app.contractFactories('MockVault')) === vaultFactory.address;
+
+  if (!hasMockVault) {
+    await app.setContractImplementation('MockVault', mockVault.address);
+    await app.setContractFactory('MockVault', vaultFactory.address);
+  }
+
+  const kit = newKit(deployer.provider.host);
+  const accounts = await kit.contracts.getAccounts();
+  const lockedGold = await kit.contracts.getLockedGold();
 
   if ((await mockRegistry.election()) !== mockElection.address) {
     await mockRegistry.setElection(mockElection.address);
   }
 
-  if ((await mockRegistry.accounts()) !== mockAccounts.address) {
-    await mockRegistry.setAccounts(mockAccounts.address);
+  if ((await mockRegistry.accounts()) !== accounts.address) {
+    await mockRegistry.setAccounts(accounts.address);
   }
 
-  if ((await mockRegistry.lockedGold()) !== mockLockedGold.address) {
-    await mockRegistry.setLockedGold(mockLockedGold.address);
-  }
-
-  if (!(await mockVault.initialized())) {
-    const { address: archiveAddress } = await deployer.deploy(Archive, { overwrite: false });
-    const { address: proxyAdminAddress } = await deployer.deploy(ProxyAdmin, { overwrite: false });
-
-    await mockVault.methods['initialize(address,address,address,address)'](
-      mockRegistry.address,
-      archiveAddress,
-      primarySenderAddress,
-      proxyAdminAddress,
-      {
-        value: new BigNumber(1e17)
-      }
-    );
+  if ((await mockRegistry.lockedGold()) !== lockedGold.address) {
+    await mockRegistry.setLockedGold(lockedGold.address);
   }
 };
