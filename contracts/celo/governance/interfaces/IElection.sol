@@ -92,4 +92,9 @@ interface IElection {
         external
         view
         returns (address[] memory groups, uint256[] memory values);
+
+    function getGroupsVotedForByAccount(address account)
+        external
+        view
+        returns (address[] memory);
 }
