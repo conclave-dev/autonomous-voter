@@ -10,7 +10,7 @@ contract Vault is UsingRegistry, VoteManagement {
     using LinkedList for LinkedList.List;
 
     address public proxyAdmin;
-    LinkedList.List pendingWithdrawals;
+    LinkedList.List public pendingWithdrawals;
 
     function initialize(
         address registry_,
@@ -121,7 +121,7 @@ contract Vault is UsingRegistry, VoteManagement {
     /**
      * @notice Creates a pending withdrawal and generates a hash for verification
      */
-    function _initiateWithdrawal(uint256 amount) internal {
+    function _initiateWithdrawal(uint256 amount, bool forOwner) internal {
         // @TODO: Consider creating 2 separate "initiate withdrawal" methods in order to
         // thoroughly validate based on whether it's the owner or manager
 
@@ -138,12 +138,12 @@ contract Vault is UsingRegistry, VoteManagement {
         (uint256[] memory amounts, uint256[] memory timestamps) = lockedGold
             .getPendingWithdrawals(address(this));
 
-        address withdrawalRecipient = msg.sender == owner() ? owner() : manager;
+        address withdrawalRecipient = forOwner ? owner() : manager;
 
         // Generate a hash for withdrawal-time verification
         pendingWithdrawals.push(
             keccak256(
-                abi.encode(
+                abi.encodePacked(
                     // Account that should be receiving the withdrawal funds
                     withdrawalRecipient,
                     // Pending withdrawal amount
@@ -181,7 +181,7 @@ contract Vault is UsingRegistry, VoteManagement {
         updateManagerRewardsForGroups();
 
         // Withdraw the manager's pending withdrawal balance
-        _initiateWithdrawal(managerRewards);
+        _initiateWithdrawal(managerRewards, false);
 
         Manager(manager).deregisterVault();
 

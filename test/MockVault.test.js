@@ -9,7 +9,7 @@ const mockUpdateManagerRewardsForGroup = (networkActiveVotes, localActiveVotes, 
   return Math.floor(rewardsPercent * managerCommission);
 };
 
-describe('MockVault', function () {
+describe.only('MockVault', function () {
   before(async function () {
     this.setMockActiveVotes = async (networkActiveVotes, localActiveVotes, managerCommission) => {
       await this.mockElection.resetVotesForAccount(this.mockVault.address);
@@ -189,5 +189,44 @@ describe('MockVault', function () {
 
     assert.isTrue(expectedManagerReward.isEqualTo(actualManagerReward));
     return assert.equal(postRevokeActiveVotes, postRevokeActiveVotes);
+  });
+
+  it('should remove a manager after it updates their reward total and initiates a withdrawal', async function () {
+    const mockNetworkActiveVotes = new BigNumber(
+      await this.mockElection.getActiveVotesForGroupByAccount(primarySenderAddress, this.mockVault.address)
+    ).multipliedBy(2);
+    const currentActiveVotes = new BigNumber(await this.mockVault.activeVotes(primarySenderAddress));
+    const currentManagerRewards = await this.mockVault.managerRewards();
+    const currentManagerCommission = await this.mockVault.managerCommission();
+    const managerBeforeRemoval = await this.mockVault.manager();
+
+    // Widen spread between network active votes and locally-stored active votes to mock reward accrual
+    await this.setMockActiveVotes(mockNetworkActiveVotes, currentActiveVotes, await this.mockVault.managerCommission());
+
+    const {
+      receipt: { blockNumber }
+    } = await this.mockVault.removeVoteManager();
+
+    // Pending withdrawal value should be the previous managerRewards + rewards calculated during removal
+    const expectedPendingWithdrawalValue = new BigNumber(
+      mockUpdateManagerRewardsForGroup(mockNetworkActiveVotes, currentActiveVotes, currentManagerCommission)
+    ).plus(currentManagerRewards);
+
+    // Pending withdrawal timestamp should match the block's timestamp value
+    const expectedPendingWithdrawalTimestamp = (await kit.web3.eth.getBlock(blockNumber)).timestamp;
+
+    // Generate a hash from the expected pending withdrawal values
+    const expectedPendingWithdrawalHash = kit.web3.utils.soliditySha3(
+      // The recipient (need to use `managerBeforeRemoval` as `manager` should now be a zero address)
+      managerBeforeRemoval,
+      expectedPendingWithdrawalValue,
+      expectedPendingWithdrawalTimestamp
+    );
+
+    // Confirm manager removal
+    assert.equal(await this.mockVault.manager(), this.zeroAddress);
+
+    // Verify pending withdrawal hash
+    return assert.equal(expectedPendingWithdrawalHash, (await this.mockVault.pendingWithdrawals()).head);
   });
 });

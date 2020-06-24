@@ -40,4 +40,50 @@ contract MockVault is Vault {
             delete activeVotes[groups[i]];
         }
     }
+
+    /**
+     * @notice Creates a pending withdrawal and generates a hash for verification
+     */
+    function _initiateWithdrawal(uint256 amount, bool forOwner) internal {
+        // @TODO: Consider creating 2 separate "initiate withdrawal" methods in order to
+        // thoroughly validate based on whether it's the owner or manager
+
+        // Only the owner or vote manager can call this method
+        require(
+            msg.sender == owner() || msg.sender == manager,
+            "Not authorized"
+        );
+
+        address withdrawalRecipient = forOwner ? owner() : manager;
+
+        // Generate a hash for withdrawal-time verification
+        pendingWithdrawals.push(
+            keccak256(
+                abi.encodePacked(
+                    // Account that should be receiving the withdrawal funds
+                    withdrawalRecipient,
+                    // Pending withdrawal amount
+                    amount,
+                    // Pending withdrawal timestamp
+                    block.timestamp
+                )
+            )
+        );
+    }
+
+    function removeVoteManager() external onlyOwner {
+        require(manager != address(0), "Vote manager does not exist");
+
+        // Ensure that all outstanding manager rewards are accounted for
+        updateManagerRewardsForGroups();
+
+        // Withdraw the manager's pending withdrawal balance
+        _initiateWithdrawal(managerRewards, false);
+
+        Manager(manager).deregisterVault();
+
+        delete manager;
+        delete managerCommission;
+        delete managerRewards;
+    }
 }
