@@ -82,7 +82,9 @@ contract Vault is UsingRegistry, VoteManagement {
             require(
                 amount > 0 &&
                     amount <=
-                    totalBalance.sub(managerRewards).sub(managerMinimumFunds),
+                    totalBalance.sub(managerRewards).sub(
+                        managerMinimumBalanceRequirement
+                    ),
                 "Invalid withdrawal amount specified"
             );
         } else if (amount == totalBalance) {
@@ -106,61 +108,5 @@ contract Vault is UsingRegistry, VoteManagement {
         );
 
         _initiateWithdrawal(amount.sub(revokeDiff));
-    }
-
-    /**
-     * @notice Cancel an existing pending withdrawal record
-     * @param index Index of the pending withdrawal record to be cancelled
-     * @param amount The amount of funds of the pending withdrawal to be cancelled
-     */
-    function cancelWithdrawal(uint256 index, uint256 amount)
-        external
-        onlyOwner
-    {
-        require(amount > 0, "Invalid amount specified");
-
-        (uint256[] memory amounts, uint256[] memory timestamps) = lockedGold
-            .getPendingWithdrawals(address(this));
-
-        require(index < timestamps.length, "Index out-of-bound");
-        require(amounts[index] >= amount, "Invalid amount specified");
-
-        bytes32 encodedWithdrawal = keccak256(
-            abi.encode(owner(), amounts[index], timestamps[index])
-        );
-        require(
-            pendingWithdrawals.contains(encodedWithdrawal) == true,
-            "Invalid withdrawal specified"
-        );
-
-        lockedGold.relock(index, amount);
-    }
-
-    /**
-     * @notice Finalize completed/released withdrawal records and transfer the funds to the owner
-     */
-    function withdraw() external onlyOwner {
-        (uint256[] memory amounts, uint256[] memory timestamps) = lockedGold
-            .getPendingWithdrawals(address(this));
-
-        // Iterate through the withdrawal lists.
-        // Note that we need to fully iterate it since withdrawal with further timestamp can be located in front
-        // as they're not always sorted due to shifting on records deletion
-        uint256 totalWithdrawalAmount = 0;
-        for (uint256 i = 0; i < timestamps.length; i++) {
-            require(timestamps[i] < now, "Withdrawal is not yet available");
-            // Crosscheck with our local records
-            bytes32 encodedWithdrawal = keccak256(
-                abi.encode(owner(), amounts[i], timestamps[i])
-            );
-            if (pendingWithdrawals.contains(encodedWithdrawal) == true) {
-                totalWithdrawalAmount = totalWithdrawalAmount.add(amounts[i]);
-                pendingWithdrawals.remove(encodedWithdrawal);
-                lockedGold.withdraw(i);
-            }
-        }
-
-        // Forward the withdrawn funds to the vault owner
-        msg.sender.transfer(totalWithdrawalAmount);
     }
 }

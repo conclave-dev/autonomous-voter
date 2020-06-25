@@ -54,7 +54,7 @@ before(async function () {
 
   // Reusable testing variables
   this.managerCommission = new BigNumber('10');
-  this.minimumManageableBalanceRequirement = new BigNumber('1e16');
+  this.minimumBalanceRequirement = new BigNumber('1e16');
   this.zeroAddress = '0x0000000000000000000000000000000000000000';
 
   const getVaults = () => this.archive.getVaultsByOwner(primarySenderAddress);
@@ -64,7 +64,7 @@ before(async function () {
       value: new BigNumber('1e17')
     });
   const createManagerInstance = () =>
-    this.managerFactory.createInstance('VoteManager', this.managerCommission, this.minimumManageableBalanceRequirement);
+    this.managerFactory.createInstance('VoteManager', this.managerCommission, this.minimumBalanceRequirement);
 
   // Conditionally create persistent test instances if they don't yet exist
   if (!(await getVaults()).length) {

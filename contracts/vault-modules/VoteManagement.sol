@@ -22,7 +22,7 @@ contract VoteManagement is Ownable {
 
     address public manager;
     uint256 public managerCommission;
-    uint256 public managerMinimumFunds;
+    uint256 public managerMinimumBalanceRequirement;
     uint256 public managerRewards;
     mapping(address => uint256) public activeVotes;
     LinkedList.List public pendingWithdrawals;
@@ -64,7 +64,7 @@ contract VoteManagement is Ownable {
 
         manager = address(manager_);
         managerCommission = manager_.commission();
-        // managerMinimumFunds = manager_.minimumManageableBalanceRequirement();
+        managerMinimumBalanceRequirement = manager_.minimumBalanceRequirement();
     }
 
     /**
@@ -311,39 +311,46 @@ contract VoteManagement is Ownable {
             uint256 groupPendingVotes = election
                 .getPendingVotesForGroupByAccount(groups[i], address(this));
 
-            uint256 revokeTarget = groupPendingVotes
+            uint256 totalRevokeAmount = groupPendingVotes
                 .add(groupActiveVotes)
                 .mul(amount)
                 .div(totalVotes);
-            uint256 revokeAmount = (
-                groupPendingVotes == 0 || revokeTarget <= groupPendingVotes
-                    ? revokeTarget
-                    : groupPendingVotes
-            );
 
-            totalRevoked = totalRevoked.add(revokeTarget);
+            totalRevoked = totalRevoked.add(totalRevokeAmount);
 
             // Try to revoke the pending votes first whenever available
             if (groupPendingVotes > 0) {
+                uint256 pendingRevokeAmount = (
+                    groupPendingVotes == 0 ||
+                        totalRevokeAmount <= groupPendingVotes
+                        ? totalRevokeAmount
+                        : groupPendingVotes
+                );
                 (address lesser, address greater) = _findLesserAndGreater(
                     groups[i],
-                    revokeAmount,
+                    pendingRevokeAmount,
                     true
                 );
 
-                _revokePending(groups[i], revokeAmount, lesser, greater, i);
-                revokeTarget = revokeTarget.sub(revokeAmount);
+                _revokePending(
+                    groups[i],
+                    pendingRevokeAmount,
+                    lesser,
+                    greater,
+                    i
+                );
+                totalRevokeAmount = totalRevokeAmount.sub(pendingRevokeAmount);
             }
 
             // If there's any remaining votes need to be revoked, continue with the active ones
-            if (revokeTarget > 0) {
+            if (totalRevokeAmount > 0) {
                 (address lesser, address greater) = _findLesserAndGreater(
                     groups[i],
-                    revokeTarget,
+                    totalRevokeAmount,
                     true
                 );
 
-                _revokeActive(groups[i], revokeTarget, lesser, greater, i);
+                _revokeActive(groups[i], totalRevokeAmount, lesser, greater, i);
             }
         }
 

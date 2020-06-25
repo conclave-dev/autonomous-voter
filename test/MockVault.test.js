@@ -29,7 +29,7 @@ describe('MockVault', function () {
       );
 
       await this.mockVault.setCommission(managerCommission);
-      await this.mockVault.setManagerMinimumFunds(new BigNumber(localActiveVotes));
+      await this.mockVault.setManagerMinimumBalanceRequirement(new BigNumber(localActiveVotes));
       await this.mockVault.setLocalActiveVotesForGroup(primarySenderAddress, localActiveVotes);
 
       // Set the unlocking period to 0 second so that funds can be withdrawn immediately
@@ -151,59 +151,6 @@ describe('MockVault', function () {
       const withdrawalAmount = totalVotes.multipliedBy(2);
 
       assert.isRejected(this.mockVault.initiateWithdrawal(withdrawalAmount.toString()));
-    });
-  });
-
-  describe('cancelWithdrawal(uint256 index, uint256 amount)', function () {
-    it('should be able to cancel a valid pending withdrawal', async function () {
-      const withdrawals = await this.mockLockedGold.getPendingWithdrawals(this.mockVault.address);
-      const amount = new BigNumber(withdrawals[0][withdrawals[0].length - 1]);
-
-      await this.mockVault.cancelWithdrawal(withdrawals[0].length - 1, amount.toString());
-
-      assert.equal(
-        new BigNumber(await this.mockVault.getNonvotingBalance()).toFixed(0),
-        amount.toFixed(0),
-        `Vault's non-voting balance should be updated with the cancelled withdrawal amount`
-      );
-    });
-
-    it('should not be able to cancel non-existent withdrawal', async function () {
-      const withdrawals = await this.mockLockedGold.getPendingWithdrawals(this.mockVault.address);
-      const withdrawAmount = new BigNumber(1);
-
-      assert.isRejected(this.mockVault.cancelWithdrawal(withdrawals.length, withdrawAmount.toString()));
-    });
-  });
-
-  describe('withdraw()', function () {
-    it('should be able to withdraw funds after the unlocking period has passed', async function () {
-      const withdrawals = await this.mockLockedGold.getPendingWithdrawals(this.mockVault.address);
-
-      // Since we only have 1 available withdrawal, we only need to get the amount of the first record
-      const withdrawAmount = new BigNumber(withdrawals[0][0]);
-
-      await this.mockVault.withdraw();
-
-      const updatedWithdrawals = await this.mockLockedGold.getPendingWithdrawals(this.mockVault.address);
-
-      assert.equal(
-        updatedWithdrawals[0][0] !== withdrawAmount,
-        true,
-        `Vault's pending withdrawals didn't get updated after completing the withdrawal`
-      );
-    });
-
-    it('should not be able to withdraw before the unlocking period has passed', async function () {
-      // Set the unlocking period to 1 day so that no funds are transfered to the Vault
-      await this.mockLockedGold.setUnlockingPeriod(86400);
-
-      const nonVotingBalance = new BigNumber(await this.mockVault.getNonvotingBalance());
-      const withdrawalAmount = nonVotingBalance.dividedBy(10).toFixed(0);
-
-      await this.mockVault.initiateWithdrawal(withdrawalAmount.toString());
-
-      assert.isRejected(this.mockVault.withdraw());
     });
   });
 

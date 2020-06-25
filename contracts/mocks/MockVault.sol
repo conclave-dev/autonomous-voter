@@ -14,8 +14,10 @@ contract MockVault is Vault {
         managerCommission = percentage;
     }
 
-    function setManagerMinimumFunds(uint256 minimumBalance) public {
-        managerMinimumFunds = minimumBalance;
+    function setManagerMinimumBalanceRequirement(uint256 minimumBalance)
+        public
+    {
+        managerMinimumBalanceRequirement = minimumBalance;
     }
 
     function getVotedGroups() public view returns (address[] memory) {
