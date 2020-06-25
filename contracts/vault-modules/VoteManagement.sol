@@ -42,6 +42,13 @@ contract VoteManagement is Ownable {
         return lockedGold.getAccountTotalLockedGold(address(this));
     }
 
+    function getBalances() public view returns (uint256, uint256) {
+        uint256 nonvoting = getNonvotingBalance();
+        uint256 voting = getLockedBalance().sub(nonvoting);
+
+        return (voting, nonvoting);
+    }
+
     function getVoteManager() external view returns (address, uint256) {
         return (manager, managerCommission);
     }
