@@ -71,7 +71,7 @@ contract Vault is UsingRegistry, VoteManagement {
      * @param amount The amount of funds to be withdrawn
      */
     function initiateWithdrawal(uint256 amount) external onlyOwner {
-        (uint256 nonVotingBalance, uint256 votingBalance) = getBalances();
+        (uint256 votingBalance, uint256 nonVotingBalance) = getBalances();
         uint256 totalBalance = votingBalance.add(nonVotingBalance);
 
         if (manager != address(0)) {
