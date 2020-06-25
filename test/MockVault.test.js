@@ -9,7 +9,7 @@ const mockUpdateManagerRewardsForGroup = (networkActiveVotes, localActiveVotes, 
   return Math.floor(rewardsPercent * managerCommission);
 };
 
-describe.only('MockVault', function () {
+describe('MockVault', function () {
   before(async function () {
     this.setMockActiveVotes = async (networkActiveVotes, localActiveVotes, managerCommission) => {
       await this.mockElection.resetVotesForAccount(this.mockVault.address);

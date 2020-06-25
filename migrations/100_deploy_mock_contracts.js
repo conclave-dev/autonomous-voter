@@ -1,6 +1,8 @@
 const { newKit } = require('@celo/contractkit');
 const { deployContracts } = require('./util');
 
+const Migrations = artifacts.require('Migrations');
+const LinkedList = artifacts.require('LinkedList');
 const MockRegistry = artifacts.require('MockRegistry');
 const MockElection = artifacts.require('MockElection');
 const MockLockedGold = artifacts.require('MockLockedGold');
@@ -11,6 +13,10 @@ const App = artifacts.require('App');
 const mockContracts = [MockRegistry, MockElection, MockLockedGold, MockVault];
 
 module.exports = async (deployer, network) => {
+  await deployer.deploy(Migrations, { overwrite: false });
+
+  await deployer.link(LinkedList, MockVault);
+
   await deployContracts(deployer, network, mockContracts);
 
   const mockRegistry = await MockRegistry.deployed();
