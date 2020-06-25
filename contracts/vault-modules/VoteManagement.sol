@@ -37,6 +37,11 @@ contract VoteManagement is Ownable {
         return lockedGold.getAccountNonvotingLockedGold(address(this));
     }
 
+    // Gets the Vault's locked gold amount (both voting and nonvoting)
+    function getLockedBalance() public view returns (uint256) {
+        return lockedGold.getAccountTotalLockedGold(address(this));
+    }
+
     function getVoteManager() external view returns (address, uint256) {
         return (manager, managerCommission);
     }
@@ -85,14 +90,32 @@ contract VoteManagement is Ownable {
             return (managerRewards, activeVotes[group]);
         }
 
-        uint256 rewardsAccrued = _calculateManagerRewards(group);
+        // Calculate the difference between the live and local active votes
+        // to get the amount of rewards accrued for this group
+        FixidityLib.Fraction memory rewardsAccrued = FixidityLib.subtract(
+            FixidityLib.newFixed(networkActiveVotes),
+            FixidityLib.newFixed(activeVotes[group])
+        );
 
         // Add the manager's share of the accrued group rewards to the total
-        managerRewards = managerRewards.add(rewardsAccrued);
+        managerRewards = managerRewards.add(
+            rewardsAccrued
+                .divide(FixidityLib.newFixed(100))
+                .multiply(FixidityLib.newFixed(managerCommission))
+                .fromFixed()
+        );
 
         _updateActiveVotesForGroup(group);
 
         return (managerRewards, activeVotes[group]);
+    }
+
+    function _updateManagerRewardsForAllGroups() internal {
+        address[] memory groups = _getGroupsVoted();
+
+        for (uint256 i = 0; i < groups.length; i += 1) {
+            updateManagerRewardsForGroup(groups[i]);
+        }
     }
 
     function _calculateManagerRewards(address group)
@@ -144,7 +167,7 @@ contract VoteManagement is Ownable {
         }
 
         // Look for the adjacent groups with less and more votes, respectively
-        for (uint256 i = 0; i < groups.length; i = i.add(1)) {
+        for (uint256 i = 0; i < groups.length; i++) {
             if (groups[i] != group) {
                 if (votes[i] <= totalVote) {
                     lesser = groups[i];
@@ -224,6 +247,119 @@ contract VoteManagement is Ownable {
         );
 
         return _updateActiveVotesForGroup(group);
+    }
+
+    function _revokeVotesEntirelyForGroups() internal {
+        address[] memory groups = _getGroupsVoted();
+
+        for (uint256 i = 0; i < groups.length; i += 1) {
+            uint256 groupActiveVotes = election.getActiveVotesForGroupByAccount(
+                groups[i],
+                address(this)
+            );
+            uint256 groupPendingVotes = election
+                .getPendingVotesForGroupByAccount(groups[i], address(this));
+
+            if (groupPendingVotes > 0) {
+                (address lesser, address greater) = _findLesserAndGreater(
+                    groups[i],
+                    groupPendingVotes,
+                    true
+                );
+
+                _revokePending(
+                    groups[i],
+                    groupPendingVotes,
+                    lesser,
+                    greater,
+                    i
+                );
+            }
+
+            if (groupActiveVotes > 0) {
+                (address lesser, address greater) = _findLesserAndGreater(
+                    groups[i],
+                    groupActiveVotes,
+                    true
+                );
+
+                _revokeActive(groups[i], groupActiveVotes, lesser, greater, i);
+            }
+        }
+    }
+
+    function _revokeVotesProportionatelyForGroups(uint256 amount)
+        internal
+        returns (uint256)
+    {
+        address[] memory groups = _getGroupsVoted();
+        uint256 totalVotes = election.getTotalVotesByAccount(address(this));
+        uint256 totalRevoked = 0;
+
+        for (uint256 i = 0; i < groups.length; i++) {
+            uint256 groupActiveVotes = election.getActiveVotesForGroupByAccount(
+                groups[i],
+                address(this)
+            );
+            uint256 groupPendingVotes = election
+                .getPendingVotesForGroupByAccount(groups[i], address(this));
+
+            uint256 revokeTarget = groupPendingVotes
+                .add(groupActiveVotes)
+                .mul(amount)
+                .div(totalVotes);
+            uint256 revokeAmount = (
+                groupPendingVotes == 0 || revokeTarget <= groupPendingVotes
+                    ? revokeTarget
+                    : groupPendingVotes
+            );
+
+            totalRevoked = totalRevoked.add(revokeTarget);
+
+            // Try to revoke the pending votes first whenever available
+            if (groupPendingVotes > 0) {
+                (address lesser, address greater) = _findLesserAndGreater(
+                    groups[i],
+                    revokeAmount,
+                    true
+                );
+
+                _revokePending(groups[i], revokeAmount, lesser, greater, i);
+                revokeTarget = revokeTarget.sub(revokeAmount);
+            }
+
+            // If there's any remaining votes need to be revoked, continue with the active ones
+            if (revokeTarget > 0) {
+                (address lesser, address greater) = _findLesserAndGreater(
+                    groups[i],
+                    revokeTarget,
+                    true
+                );
+
+                _revokeActive(groups[i], revokeTarget, lesser, greater, i);
+            }
+        }
+
+        return totalRevoked;
+    }
+
+    function _initiateWithdrawal(uint256 amount) internal {
+        // At this point, it should now have enough golds to be unlocked
+        lockedGold.unlock(amount);
+
+        // Fetch the last initiated withdrawal and track it locally
+        (uint256[] memory amounts, uint256[] memory timestamps) = lockedGold
+            .getPendingWithdrawals(address(this));
+
+        pendingWithdrawals.push(
+            keccak256(
+                abi.encode(
+                    owner(),
+                    amounts[amounts.length - 1],
+                    timestamps[timestamps.length - 1]
+                )
+            )
+        );
     }
 
     /**
@@ -313,164 +449,54 @@ contract VoteManagement is Ownable {
         );
     }
 
+    /**
+     * @notice Initiate funds withdrawal
+     * @param amount The amount of funds to be withdrawn
+     */
     function initiateWithdrawal(uint256 amount) external onlyOwner {
-        // Populate the data used to check the steps required in order to be able to withdraw the specified amount
-        address[] memory groups = _getGroupsVoted();
-        uint256[] memory groupActiveVotes = new uint256[](groups.length);
-        uint256[] memory groupPendingVotes = new uint256[](groups.length);
         uint256 nonVotingBalance = getNonvotingBalance();
-        uint256 totalAvailableVotes = nonVotingBalance;
-        uint256 topGroupIndex = 0;
+        uint256 votingBalance = getLockedBalance();
+        uint256 totalBalance = votingBalance.add(nonVotingBalance);
 
-        for (uint256 i = 0; i < groups.length; i = i.add(1)) {
-            groupActiveVotes[i] = election
-                .getActiveVotesForGroupByAccount(groups[i], address(this))
-                .sub(_calculateManagerRewards(groups[i]));
-            groupPendingVotes[i] = election.getPendingVotesForGroupByAccount(
-                groups[i],
-                address(this)
+        if (manager != address(0)) {
+            _updateManagerRewardsForAllGroups();
+
+            // Check if the withdrawal amount specified is within the limit
+            // (after considering manager rewards and minimum required funds)
+            require(
+                amount > 0 &&
+                    amount <=
+                    totalBalance.sub(managerRewards).sub(managerMinimumFunds),
+                "Invalid withdrawal amount specified"
             );
-
-            // Keep track of the group with highest total vote, from which we might need
-            // to purge some additional votes due to division remainder issue
-            if (
-                groupActiveVotes[i].add(groupPendingVotes[i]) >
-                groupActiveVotes[topGroupIndex].add(
-                    groupPendingVotes[topGroupIndex]
-                )
-            ) {
-                topGroupIndex = i;
+        } else if (amount == totalBalance) {
+            // Revoke all group votes to perform full balance withdrawal
+            if (votingBalance > 0) {
+                _revokeVotesEntirelyForGroups();
             }
 
-            totalAvailableVotes = totalAvailableVotes
-                .add(groupActiveVotes[i])
-                .add(groupPendingVotes[i]);
+            return _initiateWithdrawal(amount);
         }
 
-        // Check if the withdrawal amount specified is within the limit (after considering manager rewards, etc)
-        require(
-            amount > 0 &&
-                amount <= totalAvailableVotes.sub(managerMinimumFunds),
-            "Invalid amount specified"
+        // If the nonVoting balance is sufficient, we can directly unlock the specified amount
+        if (nonVotingBalance >= amount) {
+            return _initiateWithdrawal(amount);
+        }
+
+        // Proceed with revoking votes across the groups to satisfy the specified withdrawal amount
+        uint256 revokeAmount = amount.sub(nonVotingBalance);
+        uint256 revokeDiff = revokeAmount.sub(
+            _revokeVotesProportionatelyForGroups(revokeAmount)
         );
 
-        // Calculate how many extra votes need to be revoked to make up for the remaining amount
-        uint256 remainingAmount = amount;
-        if (remainingAmount > nonVotingBalance) {
-            remainingAmount = remainingAmount.sub(nonVotingBalance);
-        } else {
-            remainingAmount = 0;
-        }
-
-        uint256 totalRevokeAmount = 0;
-        for (uint256 i = 0; i < groups.length; i = i.add(1)) {
-            uint256 revokeTarget = groupPendingVotes[i]
-                .add(groupActiveVotes[i])
-                .mul(remainingAmount)
-                .div(totalAvailableVotes);
-            uint256 revokeAmount = (
-                revokeTarget <= groupPendingVotes[i]
-                    ? revokeTarget
-                    : groupPendingVotes[i]
-            );
-            (address lesser, address greater) = _findLesserAndGreater(
-                groups[i],
-                revokeAmount,
-                true
-            );
-
-            totalRevokeAmount = totalRevokeAmount.add(revokeTarget);
-
-            // Try to revoke the pending votes first
-            if (revokeAmount > 0) {
-                _revokePending(groups[i], revokeAmount, lesser, greater, i);
-            }
-
-            // For the group with highest votes, we need to update its pending and active
-            // as we might need to shove off more votes from it, hence the votes needs to reflect the changes
-            if (i == topGroupIndex) {
-                groupPendingVotes[i] = groupPendingVotes[i].sub(revokeAmount);
-            }
-
-            revokeTarget = revokeTarget.sub(revokeAmount);
-
-            // If there's any remaining votes need to be revoked, continue with the active ones
-            if (revokeTarget > 0) {
-                (lesser, greater) = _findLesserAndGreater(
-                    groups[i],
-                    revokeTarget,
-                    true
-                );
-
-                _revokeActive(groups[i], revokeTarget, lesser, greater, i);
-            }
-
-            if (i == topGroupIndex) {
-                groupActiveVotes[i] = groupActiveVotes[i].sub(revokeTarget);
-            }
-        }
-
-        // If we have any vote remainders, revoke the ones from the group with highest total votes
-        if (totalRevokeAmount < remainingAmount) {
-            uint256 remainder = remainingAmount.sub(totalRevokeAmount);
-            uint256 revokeAmount = (
-                remainder <= groupPendingVotes[topGroupIndex]
-                    ? remainder
-                    : groupPendingVotes[topGroupIndex]
-            );
-            (address lesser, address greater) = _findLesserAndGreater(
-                groups[topGroupIndex],
-                revokeAmount,
-                true
-            );
-
-            if (revokeAmount > 0) {
-                _revokePending(
-                    groups[topGroupIndex],
-                    revokeAmount,
-                    lesser,
-                    greater,
-                    topGroupIndex
-                );
-            }
-
-            remainder = remainder.sub(revokeAmount);
-
-            if (remainder > 0) {
-                (lesser, greater) = _findLesserAndGreater(
-                    groups[topGroupIndex],
-                    remainder,
-                    true
-                );
-
-                _revokeActive(
-                    groups[topGroupIndex],
-                    remainder,
-                    lesser,
-                    greater,
-                    topGroupIndex
-                );
-            }
-        }
-
-        // At this point, it should now have enough golds to be unlocked
-        lockedGold.unlock(amount);
-
-        // Fetch the last initiated withdrawal and track it locally
-        (uint256[] memory amounts, uint256[] memory timestamps) = lockedGold
-            .getPendingWithdrawals(address(this));
-
-        pendingWithdrawals.push(
-            keccak256(
-                abi.encode(
-                    owner(),
-                    amounts[amounts.length - 1],
-                    timestamps[timestamps.length - 1]
-                )
-            )
-        );
+        _initiateWithdrawal(amount.sub(revokeDiff));
     }
 
+    /**
+     * @notice Cancel an existing pending withdrawal record
+     * @param index Index of the pending withdrawal record to be cancelled
+     * @param amount The amount of funds of the pending withdrawal to be cancelled
+     */
     function cancelWithdrawal(uint256 index, uint256 amount)
         external
         onlyOwner
@@ -494,6 +520,9 @@ contract VoteManagement is Ownable {
         lockedGold.relock(index, amount);
     }
 
+    /**
+     * @notice Finalize completed/released withdrawal records and transfer the funds to the owner
+     */
     function withdraw() external onlyOwner {
         (uint256[] memory amounts, uint256[] memory timestamps) = lockedGold
             .getPendingWithdrawals(address(this));
@@ -502,7 +531,7 @@ contract VoteManagement is Ownable {
         // Note that we need to fully iterate it since withdrawal with further timestamp can be located in front
         // as they're not always sorted due to shifting on records deletion
         uint256 totalWithdrawalAmount = 0;
-        for (uint256 i = 0; i < timestamps.length; i = i.add(1)) {
+        for (uint256 i = 0; i < timestamps.length; i++) {
             require(timestamps[i] < now, "Withdrawal is not yet available");
             // Crosscheck with our local records
             bytes32 encodedWithdrawal = keccak256(

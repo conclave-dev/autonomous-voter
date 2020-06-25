@@ -34,7 +34,7 @@ contract MockVault is Vault {
     function reset() external {
         // Reset group related data
         address[] memory groups = _getGroupsVoted();
-        for (uint256 i = 0; i < groups.length; i = i.add(1)) {
+        for (uint256 i = 0; i < groups.length; i++) {
             delete activeVotes[groups[i]];
         }
     }

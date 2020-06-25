@@ -45,9 +45,4 @@ contract Vault is UsingRegistry, VoteManagement {
         // Immediately lock the deposit
         lockedGold.lock.value(msg.value)();
     }
-
-    // Gets the Vault's locked gold amount (both voting and nonvoting)
-    function getLockedBalance() external view returns (uint256) {
-        return lockedGold.getAccountTotalLockedGold(address(this));
-    }
 }

@@ -25,7 +25,7 @@ contract MockElection {
     function initValidatorGroups(address[] memory groups) public {
         validatorGroups.length = 0;
 
-        for (uint256 i = 0; i < groups.length; i = i.add(1)) {
+        for (uint256 i = 0; i < groups.length; i++) {
             validatorGroups.push(groups[i]);
             groupTotalVotes[groups[i]] = 0;
         }
@@ -39,7 +39,7 @@ contract MockElection {
     function resetVotesForAccount(address payable account) public {
         address[] memory groups = MockVault(account).getVotedGroups();
 
-        for (uint256 i = 0; i < groups.length; i = i.add(1)) {
+        for (uint256 i = 0; i < groups.length; i++) {
             activeVotesForGroupsByAccounts[account][groups[i]] = 0;
             pendingVotesForGroupsByAccounts[account][groups[i]] = 0;
         }
@@ -90,7 +90,7 @@ contract MockElection {
         returns (uint256)
     {
         uint256 total = 0;
-        for (uint256 i = 0; i < groupsVotedFor[account].length; i = i.add(1)) {
+        for (uint256 i = 0; i < groupsVotedFor[account].length; i++) {
             total = total.add(
                 getTotalVotesForGroupByAccount(
                     groupsVotedFor[account][i],
@@ -191,7 +191,7 @@ contract MockElection {
     {
         address[] memory groups = new address[](validatorGroups.length);
         uint256[] memory votes = new uint256[](validatorGroups.length);
-        for (uint256 i = 0; i < validatorGroups.length; i = i.add(1)) {
+        for (uint256 i = 0; i < validatorGroups.length; i++) {
             groups[i] = validatorGroups[i];
             votes[i] = groupTotalVotes[validatorGroups[i]];
         }

@@ -99,7 +99,7 @@ contract MockLockedGold {
         uint256[] memory amounts = new uint256[](length);
         uint256[] memory timestamps = new uint256[](length);
 
-        for (uint256 i = 0; i < length; i = i.add(1)) {
+        for (uint256 i = 0; i < length; i++) {
 
                 PendingWithdrawal memory pendingWithdrawal
              = withdrawals[account][i];
