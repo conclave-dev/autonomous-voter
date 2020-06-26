@@ -4,6 +4,8 @@
   "description": "",
   "main": "index.js",
   "scripts": {
+    "dev": "node ./ganache.js",
+    "dev:setup": "npm run build -- baklava && truffle migrate --network local",
     "build": "./scripts/setup.sh",
     "lint": "npm run lint:js && npm run lint:sol",
     "lint:js": "eslint './**/*.js'",
@@ -63,7 +65,8 @@
     "prettier-plugin-solidity": "^1.0.0-alpha.52",
     "pretty-quick": "^2.0.1",
     "solhint": "^3.0.0",
-    "truffle": "^5.1.28"
+    "truffle": "^5.1.28",
+    "ganache-core": "git+https://github.com/celo-org/ganache-core#26ffbd7"
   },
   "dependencies": {
     "solc": "^0.5.17"
