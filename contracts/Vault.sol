@@ -61,7 +61,7 @@ contract Vault is UsingRegistry, VoteManagement {
 
         pendingWithdrawals.push(
             keccak256(
-                abi.encode(
+                abi.encodePacked(
                     owner(),
                     amounts[amounts.length - 1],
                     timestamps[timestamps.length - 1]
@@ -178,7 +178,7 @@ contract Vault is UsingRegistry, VoteManagement {
         require(manager != address(0), "Vote manager does not exist");
 
         // Ensure that all outstanding manager rewards are accounted for
-        updateManagerRewardsForGroups();
+        _updateManagerRewardsForAllGroups();
 
         // Withdraw the manager's pending withdrawal balance
         _initiateWithdrawal(managerRewards, false);

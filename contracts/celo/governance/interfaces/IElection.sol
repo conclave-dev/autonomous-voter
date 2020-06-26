@@ -68,11 +68,6 @@ interface IElection {
         uint256 index
     ) external returns (bool);
 
-    function getGroupsVotedForByAccount(address account)
-        external
-        view
-        returns (address[] memory);
-
     function getPendingVotesForGroupByAccount(address group, address account)
         external
         view

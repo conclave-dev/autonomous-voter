@@ -25,7 +25,6 @@ contract VoteManagement is Ownable {
     uint256 public managerMinimumBalanceRequirement;
     uint256 public managerRewards;
     mapping(address => uint256) public activeVotes;
-    LinkedList.List public pendingWithdrawals;
 
     modifier onlyVoteManager() {
         require(msg.sender == manager, "Not the vote manager");

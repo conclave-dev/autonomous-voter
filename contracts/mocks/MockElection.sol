@@ -53,6 +53,16 @@ contract MockElection {
         address account,
         uint256 reward
     ) public {
+        activeVotesForGroupsByAccounts[account][group] = activeVotesForGroupsByAccounts[account][group]
+            .add(reward);
+        groupTotalVotes[group] = groupTotalVotes[group].add(reward);
+    }
+
+    function setActiveVotesForGroupByAccount(
+        address group,
+        address account,
+        uint256 activeVotes
+    ) public {
         groupsVotedForByAccount[account].push(group);
 
         activeVotesForGroupsByAccounts[account][group] = activeVotes;
@@ -185,7 +195,6 @@ contract MockElection {
         return true;
     }
 
-<<<<<<< HEAD
     function getTotalVotesForEligibleValidatorGroups()
         public
         view
@@ -199,13 +208,5 @@ contract MockElection {
         }
 
         return (groups, votes);
-=======
-    function getGroupsVotedForByAccount(address account)
-        public
-        view
-        returns (address[] memory)
-    {
-        return groupsVotedForByAccount[account];
->>>>>>> Add test for verifying post-removal pending withdrawal
     }
 }

@@ -75,7 +75,7 @@ contract MockVault is Vault {
         require(manager != address(0), "Vote manager does not exist");
 
         // Ensure that all outstanding manager rewards are accounted for
-        updateManagerRewardsForGroups();
+        _updateManagerRewardsForAllGroups();
 
         // Withdraw the manager's pending withdrawal balance
         _initiateWithdrawal(managerRewards, false);
