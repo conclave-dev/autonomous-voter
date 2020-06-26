@@ -321,8 +321,7 @@ contract VoteManagement is Ownable {
             // Try to revoke the pending votes first whenever available
             if (groupPendingVotes > 0) {
                 uint256 pendingRevokeAmount = (
-                    groupPendingVotes == 0 ||
-                        totalRevokeAmount <= groupPendingVotes
+                    totalRevokeAmount <= groupPendingVotes
                         ? totalRevokeAmount
                         : groupPendingVotes
                 );

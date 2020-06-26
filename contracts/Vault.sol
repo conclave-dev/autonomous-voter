@@ -74,18 +74,22 @@ contract Vault is UsingRegistry, VoteManagement {
         (uint256 votingBalance, uint256 nonVotingBalance) = getBalances();
         uint256 totalBalance = votingBalance.add(nonVotingBalance);
 
+        require(
+            amount > 0 && amount <= totalBalance,
+            "Invalid withdrawal amount"
+        );
+
         if (manager != address(0)) {
             _updateManagerRewardsForAllGroups();
 
             // Check if the withdrawal amount specified is within the limit
             // (after considering manager rewards and minimum required funds)
             require(
-                amount > 0 &&
-                    amount <=
+                amount <=
                     totalBalance.sub(managerRewards).sub(
                         managerMinimumBalanceRequirement
                     ),
-                "Invalid withdrawal amount specified"
+                "Specified withdrawal amount exceeds the withdrawable limit"
             );
         } else if (amount == totalBalance) {
             // Revoke all group votes to perform full balance withdrawal
