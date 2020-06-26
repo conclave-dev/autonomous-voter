@@ -36,6 +36,9 @@ contract Vault is UsingRegistry, VoteManagement {
         proxyAdmin = admin;
     }
 
+    // Fallback function so the vault can accept incoming withdrawal/reward transfers
+    function() external payable {}
+
     function deposit() public payable {
         require(msg.value > 0, "Deposit must be greater than zero");
 
@@ -43,8 +46,71 @@ contract Vault is UsingRegistry, VoteManagement {
         lockedGold.lock.value(msg.value)();
     }
 
-    // Gets the Vault's locked gold amount (both voting and nonvoting)
-    function getLockedBalance() external view returns (uint256) {
-        return lockedGold.getAccountTotalLockedGold(address(this));
+    // Perform funds unlock and save it as pending withdrawal record
+    function _initiateWithdrawal(uint256 amount) internal {
+        // At this point, it should now have enough golds to be unlocked
+        lockedGold.unlock(amount);
+
+        // Fetch the last initiated withdrawal and track it locally
+        (uint256[] memory amounts, uint256[] memory timestamps) = lockedGold
+            .getPendingWithdrawals(address(this));
+
+        pendingWithdrawals.push(
+            keccak256(
+                abi.encode(
+                    owner(),
+                    amounts[amounts.length - 1],
+                    timestamps[timestamps.length - 1]
+                )
+            )
+        );
+    }
+
+    /**
+     * @notice Initiate funds withdrawal
+     * @param amount The amount of funds to be withdrawn
+     */
+    function initiateWithdrawal(uint256 amount) external onlyOwner {
+        (uint256 votingBalance, uint256 nonVotingBalance) = getBalances();
+        uint256 totalBalance = votingBalance.add(nonVotingBalance);
+
+        require(
+            amount > 0 && amount <= totalBalance,
+            "Invalid withdrawal amount"
+        );
+
+        if (manager != address(0)) {
+            _updateManagerRewardsForAllGroups();
+
+            // Check if the withdrawal amount specified is within the limit
+            // (after considering manager rewards and minimum required funds)
+            require(
+                amount <=
+                    totalBalance.sub(managerRewards).sub(
+                        managerMinimumBalanceRequirement
+                    ),
+                "Specified withdrawal amount exceeds the withdrawable limit"
+            );
+        } else if (amount == totalBalance) {
+            // Revoke all group votes to perform full balance withdrawal
+            if (votingBalance > 0) {
+                _revokeVotesEntirelyForGroups();
+            }
+
+            return _initiateWithdrawal(amount);
+        }
+
+        // If the nonVoting balance is sufficient, we can directly unlock the specified amount
+        if (nonVotingBalance >= amount) {
+            return _initiateWithdrawal(amount);
+        }
+
+        // Proceed with revoking votes across the groups to satisfy the specified withdrawal amount
+        uint256 revokeAmount = amount.sub(nonVotingBalance);
+        uint256 revokeDiff = revokeAmount.sub(
+            _revokeVotesProportionatelyForGroups(revokeAmount)
+        );
+
+        _initiateWithdrawal(amount.sub(revokeDiff));
     }
 }

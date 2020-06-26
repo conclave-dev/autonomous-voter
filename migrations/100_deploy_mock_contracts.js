@@ -4,13 +4,14 @@ const { newKit } = require('@celo/contractkit');
 const Migrations = artifacts.require('Migrations');
 const MockRegistry = artifacts.require('MockRegistry');
 const MockElection = artifacts.require('MockElection');
+const MockLockedGold = artifacts.require('MockLockedGold');
 const MockVault = artifacts.require('MockVault');
 const VaultFactory = artifacts.require('VaultFactory');
 const App = artifacts.require('App');
 
 const { compareDeployedBytecodes } = require('./util');
 
-const mockContracts = [MockRegistry, MockElection, MockVault];
+const mockContracts = [MockRegistry, MockElection, MockLockedGold, MockVault];
 
 module.exports = async (deployer) => {
   await deployer.deploy(Migrations, { overwrite: false });
@@ -30,6 +31,7 @@ module.exports = async (deployer) => {
 
   const mockRegistry = await MockRegistry.deployed();
   const mockElection = await MockElection.deployed();
+  const mockLockedGold = await MockLockedGold.deployed();
   const mockVault = await MockVault.deployed();
   const vaultFactory = await VaultFactory.deployed();
   const app = await App.deployed();
@@ -44,7 +46,6 @@ module.exports = async (deployer) => {
 
   const kit = newKit(deployer.provider.host);
   const accounts = await kit.contracts.getAccounts();
-  const lockedGold = await kit.contracts.getLockedGold();
 
   if ((await mockRegistry.election()) !== mockElection.address) {
     await mockRegistry.setElection(mockElection.address);
@@ -54,7 +55,15 @@ module.exports = async (deployer) => {
     await mockRegistry.setAccounts(accounts.address);
   }
 
-  if ((await mockRegistry.lockedGold()) !== lockedGold.address) {
-    await mockRegistry.setLockedGold(lockedGold.address);
+  if ((await mockRegistry.lockedGold()) !== mockLockedGold.address) {
+    await mockRegistry.setLockedGold(mockLockedGold.address);
+  }
+
+  if ((await mockElection.registry()) !== mockRegistry.address) {
+    await mockElection.setRegistry(mockRegistry.address);
+  }
+
+  if ((await mockLockedGold.registry()) !== mockRegistry.address) {
+    await mockLockedGold.setRegistry(mockRegistry.address);
   }
 };

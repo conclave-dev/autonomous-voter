@@ -12,7 +12,7 @@ contract Manager is Ownable {
 
     address public proxyAdmin;
     uint256 public commission;
-    uint256 public minimumManageableBalanceRequirement;
+    uint256 public minimumBalanceRequirement;
 
     LinkedList.List public vaults;
 
@@ -42,7 +42,7 @@ contract Manager is Ownable {
 
         archive = archive_;
         proxyAdmin = admin;
-        minimumManageableBalanceRequirement = minimumRequirement;
+        minimumBalanceRequirement = minimumRequirement;
     }
 
     function setProxyAdmin(address admin) external onlyOwner {
@@ -60,12 +60,9 @@ contract Manager is Ownable {
         commission = commission_;
     }
 
-    function setMinimumManageableBalanceRequirement(uint256 amount)
-        external
-        onlyOwner
-    {
+    function setMinimumBalanceRequirement(uint256 amount) external onlyOwner {
         require(amount > 0, "Invalid amount");
-        minimumManageableBalanceRequirement = amount;
+        minimumBalanceRequirement = amount;
     }
 
     function getVaults() external view returns (address[] memory) {
@@ -75,8 +72,7 @@ contract Manager is Ownable {
     function registerVault() external onlyVault {
         require(vaults.contains(msg.sender) == false, "Already registered");
         require(
-            Vault(msg.sender).getLockedBalance() >=
-                minimumManageableBalanceRequirement,
+            Vault(msg.sender).getLockedBalance() >= minimumBalanceRequirement,
             "Insufficient manageble balance"
         );
 

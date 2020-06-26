@@ -3,7 +3,7 @@ const { assert } = require('./setup');
 const { secondarySenderAddress } = require('../config');
 
 describe('Manager', function () {
-  describe('initialize(address archive, address owner, uint256 commission, uint256 minimumManageableBalanceRequirement)', function () {
+  describe('initialize(address archive, address owner, uint256 commission, uint256 minimumBalanceRequirement)', function () {
     it('should initialize with an owner, initial share percentage, and mininum managed gold', async function () {
       assert.isTrue(
         new BigNumber(await this.managerInstance.commission()).isEqualTo(this.managerCommission),
@@ -11,8 +11,8 @@ describe('Manager', function () {
       );
 
       return assert.equal(
-        (await this.managerInstance.minimumManageableBalanceRequirement()).toString(),
-        this.minimumManageableBalanceRequirement,
+        (await this.managerInstance.minimumBalanceRequirement()).toString(),
+        this.minimumBalanceRequirement,
         'Invalid minimum managed gold'
       );
     });
@@ -36,23 +36,21 @@ describe('Manager', function () {
     });
   });
 
-  describe('setMinimumManageableBalanceRequirement(uint256 minimumManageableBalanceRequirement)', function () {
+  describe('setMinimumBalanceRequirement(uint256 minimumBalanceRequirement)', function () {
     it('should update the minimum managed gold', async function () {
-      this.minimumManageableBalanceRequirement = new BigNumber('1e17').toString();
+      this.minimumBalanceRequirement = new BigNumber('1e17').toString();
 
-      await this.managerInstance.setMinimumManageableBalanceRequirement(this.minimumManageableBalanceRequirement);
+      await this.managerInstance.setMinimumBalanceRequirement(this.minimumBalanceRequirement);
 
       return assert.equal(
-        (await this.managerInstance.minimumManageableBalanceRequirement()).toString(),
-        this.minimumManageableBalanceRequirement,
+        (await this.managerInstance.minimumBalanceRequirement()).toString(),
+        this.minimumBalanceRequirement,
         'Failed to update minimum managed gold'
       );
     });
 
     it('should not be able to update the minimum managed gold from a non-owner account', function () {
-      return assert.isRejected(
-        this.managerInstance.setMinimumManageableBalanceRequirement({ from: secondarySenderAddress })
-      );
+      return assert.isRejected(this.managerInstance.setMinimumBalanceRequirement({ from: secondarySenderAddress }));
     });
   });
 });
