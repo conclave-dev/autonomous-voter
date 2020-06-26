@@ -1,7 +1,6 @@
-const Promise = require('bluebird');
 const { newKit } = require('@celo/contractkit');
+const { deployContracts } = require('./util');
 
-const Migrations = artifacts.require('Migrations');
 const MockRegistry = artifacts.require('MockRegistry');
 const MockElection = artifacts.require('MockElection');
 const MockLockedGold = artifacts.require('MockLockedGold');
@@ -9,25 +8,10 @@ const MockVault = artifacts.require('MockVault');
 const VaultFactory = artifacts.require('VaultFactory');
 const App = artifacts.require('App');
 
-const { compareDeployedBytecodes } = require('./util');
-
 const mockContracts = [MockRegistry, MockElection, MockLockedGold, MockVault];
 
-module.exports = async (deployer) => {
-  await deployer.deploy(Migrations, { overwrite: false });
-
-  await Promise.each(mockContracts, async (contract) => {
-    let hasChanged = false;
-
-    try {
-      const { address } = await contract.deployed();
-      hasChanged = !(await compareDeployedBytecodes(deployer, address, contract.deployedBytecode));
-    } catch (err) {
-      console.error(err);
-    }
-
-    await deployer.deploy(contract, { overwrite: hasChanged });
-  });
+module.exports = async (deployer, network) => {
+  await deployContracts(deployer, network, mockContracts);
 
   const mockRegistry = await MockRegistry.deployed();
   const mockElection = await MockElection.deployed();

@@ -1,3 +1,7 @@
 const Migrations = artifacts.require('Migrations');
 
-module.exports = (deployer) => deployer.deploy(Migrations, { overwrite: false });
+module.exports = async (deployer, network) => {
+  const overwrite = network === 'local' ? true : false;
+
+  await deployer.deploy(Migrations, { overwrite });
+};
