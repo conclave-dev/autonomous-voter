@@ -6,6 +6,7 @@ const {
   primarySenderAddress,
   secondarySenderAddress,
   alfajoresRpcAPI,
+  localRpcAPI,
   defaultGas,
   defaultGasPrice,
   registryContractAddress
@@ -25,14 +26,14 @@ const contractBuildFiles = [
   require('../build/contracts/MockRegistry.json')
 ];
 
-const getTruffleContracts = () =>
+const getTruffleContracts = (primarySender, rpcAPI) =>
   contractBuildFiles.reduce((contracts, { contractName, abi, networks }) => {
     const truffleContract = contract({ contractName, abi, networks });
 
-    truffleContract.setProvider(alfajoresRpcAPI);
+    truffleContract.setProvider(rpcAPI);
 
     truffleContract.defaults({
-      from: primarySenderAddress,
+      from: primarySender,
       gas: defaultGas,
       gasPrice: defaultGasPrice
     });
@@ -43,9 +44,28 @@ const getTruffleContracts = () =>
     };
   }, {});
 
-const contracts = getTruffleContracts();
+let contracts;
 
 before(async function () {
+  try {
+    this.kit = newKit(localRpcAPI);
+
+    const localAccounts = await this.kit.web3.eth.getAccounts();
+
+    this.primarySender = localAccounts[0];
+    this.secondarySender = localAccounts[1];
+
+    contracts = getTruffleContracts(this.primarySender, localRpcAPI);
+  } catch (err) {
+    console.log('Local accounts unavailable', err);
+
+    this.kit = newKit(alfajoresRpcAPI);
+    this.primarySender = primarySenderAddress;
+    this.secondarySender = secondarySenderAddress;
+
+    contracts = getTruffleContracts(this.primarySender, alfajoresRpcAPI);
+  }
+
   this.app = await contracts.App.deployed();
   this.archive = await contracts.Archive.deployed();
   this.vault = await contracts.Vault.deployed();
@@ -57,8 +77,8 @@ before(async function () {
   this.minimumBalanceRequirement = new BigNumber('1e16');
   this.zeroAddress = '0x0000000000000000000000000000000000000000';
 
-  const getVaults = () => this.archive.getVaultsByOwner(primarySenderAddress);
-  const getManagers = () => this.archive.getManagersByOwner(primarySenderAddress);
+  const getVaults = () => this.archive.getVaultsByOwner(this.primarySender);
+  const getManagers = () => this.archive.getManagersByOwner(this.primarySender);
   const createVaultInstance = () =>
     this.vaultFactory.createInstance('Vault', registryContractAddress, {
       value: new BigNumber('1e17')
@@ -76,7 +96,6 @@ before(async function () {
   }
 
   // Always create fresh test instances
-  await createVaultInstance();
   await createManagerInstance();
 
   const vaults = await getVaults();
@@ -102,6 +121,5 @@ before(async function () {
 
 module.exports = {
   assert,
-  contracts,
-  kit: newKit(alfajoresRpcAPI)
+  contracts
 };

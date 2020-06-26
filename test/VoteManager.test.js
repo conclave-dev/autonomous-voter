@@ -1,5 +1,5 @@
 const BigNumber = require('bignumber.js');
-const { assert, kit } = require('./setup');
+const { assert } = require('./setup');
 
 describe('VoteManager', function () {
   before(async function () {
@@ -9,7 +9,7 @@ describe('VoteManager', function () {
       await this.persistentVaultInstance.setVoteManager(this.persistentVoteManagerInstance.address);
     }
 
-    this.election = (await kit._web3Contracts.getElection()).methods;
+    this.election = (await this.kit._web3Contracts.getElection()).methods;
   });
 
   // Runs before each test in case group ordering changes

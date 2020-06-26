@@ -1,13 +1,12 @@
 const BigNumber = require('bignumber.js');
-const { assert, kit } = require('./setup');
-const { primarySenderAddress } = require('../config');
+const { assert } = require('./setup');
 
 describe('Vault', function () {
   describe('initialize(address registry, address owner)', function () {
     it('should initialize with an owner and register a Celo account', async function () {
-      const accounts = await kit.contracts.getAccounts();
+      const accounts = await this.kit.contracts.getAccounts();
 
-      assert.equal(await this.vaultInstance.owner.call(), primarySenderAddress, 'Does not have owner set');
+      assert.equal(await this.vaultInstance.owner.call(), this.primarySender, 'Does not have owner set');
       return assert.equal(await accounts.isAccount(this.vaultInstance.address), true, 'Not a registered Celo account');
     });
   });
