@@ -1,6 +1,5 @@
 const BigNumber = require('bignumber.js');
 const { assert } = require('./setup');
-const { secondarySenderAddress } = require('../config');
 
 describe('Manager', function () {
   describe('initialize(address archive, address owner, uint256 commission, uint256 minimumBalanceRequirement)', function () {
@@ -32,7 +31,7 @@ describe('Manager', function () {
     });
 
     it('should not be able to update the share percentage from a non-owner account', function () {
-      return assert.isRejected(this.managerInstance.setCommission({ from: secondarySenderAddress }));
+      return assert.isRejected(this.managerInstance.setCommission({ from: this.secondarySender }));
     });
   });
 
@@ -50,7 +49,7 @@ describe('Manager', function () {
     });
 
     it('should not be able to update the minimum managed gold from a non-owner account', function () {
-      return assert.isRejected(this.managerInstance.setMinimumBalanceRequirement({ from: secondarySenderAddress }));
+      return assert.isRejected(this.managerInstance.setMinimumBalanceRequirement({ from: this.secondarySender }));
     });
   });
 });

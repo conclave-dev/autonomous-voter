@@ -1,5 +1,4 @@
 const { assert } = require('./setup');
-const { secondarySenderAddress } = require('../config');
 
 describe('ProxyAdmin', function () {
   describe('initialize(App _app, address _owner)', function () {
@@ -9,8 +8,8 @@ describe('ProxyAdmin', function () {
 
     it('should not allow an unknown account to upgrade', function () {
       return assert.isRejected(
-        this.proxyAdmin.upgradeProxy(secondarySenderAddress, this.vault.address, {
-          from: secondarySenderAddress
+        this.proxyAdmin.upgradeProxy(this.secondarySender, this.vault.address, {
+          from: this.secondarySender
         })
       );
     });

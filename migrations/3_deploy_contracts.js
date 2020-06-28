@@ -1,5 +1,4 @@
-const Promise = require('bluebird');
-const { compareDeployedBytecodes } = require('./util');
+const { deployContracts, contractHasUpdates } = require('./util');
 
 const App = artifacts.require('App');
 const Vault = artifacts.require('Vault');
@@ -10,32 +9,16 @@ const ManagerFactory = artifacts.require('ManagerFactory');
 
 const contracts = [App, Vault, VoteManager, Archive, VaultFactory, ManagerFactory];
 
-module.exports = (deployer) => {
-  deployer.then(async () => {
-    // Iterate over contracts and deploy the undeployed
-    await Promise.each(contracts, async (contract) => {
-      let hasChanged = false;
+module.exports = async (deployer, network) => {
+  await deployContracts(deployer, network, contracts);
 
-      try {
-        // Update contracts if the deployed contract runtime bytecodes differ from Truffle's
-        // NOTE: A few contracts (such as Archive) will always update. Need to come up with better solution
-        const { address } = await contract.deployed();
-        hasChanged = !(await compareDeployedBytecodes(deployer, address, contract.deployedBytecode));
-      } catch (err) {
-        console.error(err);
-      }
+  // Force deployment of factories if Archive was updated
+  const archiveUpdated = await contractHasUpdates(deployer, network, Archive);
 
-      await deployer.deploy(contract, { overwrite: hasChanged });
-    });
-
-    const archive = await Archive.deployed();
-    const archiveChanged = !(await compareDeployedBytecodes(deployer, archive.address, App.deployedBytecode));
-
-    if (archiveChanged) {
-      // These contracts must be re-deployed if Archive changes (which is always, atm) as they set the Archive address
-      // when initializing. TODO: Replace initialize with setter fns to update instead of re-deploying
-      await deployer.deploy(VaultFactory);
-      await deployer.deploy(ManagerFactory);
-    }
-  });
+  if (archiveUpdated) {
+    // These contracts must be re-deployed if Archive changes (which is always, atm) as they set the Archive address
+    // when initializing. TODO: Replace initialize with setter fns to update instead of re-deploying
+    await deployer.deploy(VaultFactory);
+    await deployer.deploy(ManagerFactory);
+  }
 };

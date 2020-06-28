@@ -1,7 +1,7 @@
 // Thanks @ critesjosh
 // https://docs.celo.org/developer-guide/start/hello-contract-remote-node
 const { newKit } = require('@celo/contractkit');
-const { alfajoresRpcAPI, baklavaRpcAPI, defaultGas, defaultGasPrice } = require('./config');
+const { alfajoresRpcAPI, baklavaRpcAPI, localRpcAPI, defaultGas, defaultGasPrice } = require('./config');
 
 const {
   web3: {
@@ -13,6 +13,11 @@ const {
     _provider: { existingProvider: baklavaProvider }
   }
 } = newKit(baklavaRpcAPI);
+const {
+  web3: {
+    _provider: { existingProvider: localProvider }
+  }
+} = newKit(localRpcAPI);
 
 module.exports = {
   networks: {
@@ -29,6 +34,13 @@ module.exports = {
       gas: defaultGas,
       gasPrice: defaultGasPrice,
       from: '0xB950E83464D7BB84e7420e460DEEc2A7ced656aA'
+    },
+    local: {
+      provider: localProvider, // CeloProvider
+      network_id: '*',
+      gas: defaultGas,
+      gasPrice: defaultGasPrice,
+      from: '0x5409ED021D9299bf6814279A6A1411A7e866A631'
     }
   },
 
