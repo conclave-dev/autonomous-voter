@@ -21,7 +21,6 @@ const contractBuildFiles = [
   require('../build/contracts/ManagerFactory.json'),
   require('../build/contracts/ProxyAdmin.json'),
   require('../build/contracts/MockVault.json'),
-  require('../build/contracts/MockLockedGold.json'),
   require('../build/contracts/MockElection.json'),
   require('../build/contracts/MockRegistry.json')
 ];
@@ -114,7 +113,6 @@ before(async function () {
 
   this.mockVault = await contracts.MockVault.at((await getVaults()).pop());
   this.mockElection = await contracts.MockElection.deployed();
-  this.mockLockedGold = await contracts.MockLockedGold.deployed();
 });
 
 module.exports = {
