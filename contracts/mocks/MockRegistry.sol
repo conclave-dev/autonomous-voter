@@ -20,19 +20,19 @@ contract MockRegistry {
         abi.encodePacked("LockedGold")
     );
 
-    function setElection(address mockElection) public {
-        contracts[ELECTION_REGISTRY_ID] = mockElection;
-        election = mockElection;
+    function setElection(address election_) public {
+        contracts[ELECTION_REGISTRY_ID] = election_;
+        election = election_;
     }
 
-    function setAccounts(address mockAccounts) public {
-        contracts[ACCOUNTS_REGISTRY_ID] = mockAccounts;
-        accounts = mockAccounts;
+    function setAccounts(address accounts_) public {
+        contracts[ACCOUNTS_REGISTRY_ID] = accounts_;
+        accounts = accounts_;
     }
 
-    function setLockedGold(address mockLockedGold) public {
-        contracts[LOCKED_GOLD_REGISTRY_ID] = mockLockedGold;
-        lockedGold = mockLockedGold;
+    function setLockedGold(address lockedGold_) public {
+        contracts[LOCKED_GOLD_REGISTRY_ID] = lockedGold_;
+        lockedGold = lockedGold_;
     }
 
     function getAddressForOrDie(bytes32 contractName)
