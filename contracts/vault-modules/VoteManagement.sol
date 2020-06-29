@@ -31,23 +31,6 @@ contract VoteManagement is Ownable {
         _;
     }
 
-    // Gets the Vault's nonvoting locked gold amount
-    function getNonvotingBalance() public view returns (uint256) {
-        return lockedGold.getAccountNonvotingLockedGold(address(this));
-    }
-
-    // Gets the Vault's locked gold amount (both voting and nonvoting)
-    function getLockedBalance() public view returns (uint256) {
-        return lockedGold.getAccountTotalLockedGold(address(this));
-    }
-
-    function getBalances() public view returns (uint256, uint256) {
-        uint256 nonvoting = getNonvotingBalance();
-        uint256 voting = getLockedBalance().sub(nonvoting);
-
-        return (voting, nonvoting);
-    }
-
     function getVoteManager() external view returns (address, uint256) {
         return (manager, managerCommission);
     }
@@ -151,11 +134,11 @@ contract VoteManagement is Ownable {
     }
 
     // Find adjacent groups with less and more votes than the specified one after the updated vote count
-    function _findLesserAndGreater(
+    function findLesserAndGreater(
         address group,
         uint256 vote,
         bool isRevoke
-    ) internal view returns (address, address) {
+    ) public view returns (address, address) {
         address[] memory groups;
         uint256[] memory votes;
         (groups, votes) = election.getTotalVotesForEligibleValidatorGroups();
@@ -268,7 +251,7 @@ contract VoteManagement is Ownable {
                 .getPendingVotesForGroupByAccount(groups[i], address(this));
 
             if (groupPendingVotes > 0) {
-                (address lesser, address greater) = _findLesserAndGreater(
+                (address lesser, address greater) = findLesserAndGreater(
                     groups[i],
                     groupPendingVotes,
                     true
@@ -284,7 +267,7 @@ contract VoteManagement is Ownable {
             }
 
             if (groupActiveVotes > 0) {
-                (address lesser, address greater) = _findLesserAndGreater(
+                (address lesser, address greater) = findLesserAndGreater(
                     groups[i],
                     groupActiveVotes,
                     true
@@ -325,7 +308,7 @@ contract VoteManagement is Ownable {
                         ? totalRevokeAmount
                         : groupPendingVotes
                 );
-                (address lesser, address greater) = _findLesserAndGreater(
+                (address lesser, address greater) = findLesserAndGreater(
                     groups[i],
                     pendingRevokeAmount,
                     true
@@ -343,7 +326,7 @@ contract VoteManagement is Ownable {
 
             // If there's any remaining votes need to be revoked, continue with the active ones
             if (totalRevokeAmount > 0) {
-                (address lesser, address greater) = _findLesserAndGreater(
+                (address lesser, address greater) = findLesserAndGreater(
                     groups[i],
                     totalRevokeAmount,
                     true

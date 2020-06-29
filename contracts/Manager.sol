@@ -1,11 +1,13 @@
 pragma solidity ^0.5.8;
 
 import "@openzeppelin/contracts-ethereum-package/contracts/ownership/Ownable.sol";
+import "openzeppelin-solidity/contracts/math/SafeMath.sol";
 import "./Archive.sol";
 import "./Vault.sol";
 import "./celo/common/libraries/AddressLinkedList.sol";
 
 contract Manager is Ownable {
+    using SafeMath for uint256;
     using AddressLinkedList for LinkedList.List;
 
     Archive public archive;
@@ -71,8 +73,12 @@ contract Manager is Ownable {
 
     function registerVault() external onlyVault {
         require(vaults.contains(msg.sender) == false, "Already registered");
+
+        (uint256 votingBalance, uint256 nonvotingBalance) = Vault(msg.sender)
+            .getBalances();
+
         require(
-            Vault(msg.sender).getLockedBalance() >= minimumBalanceRequirement,
+            votingBalance.add(nonvotingBalance) >= minimumBalanceRequirement,
             "Insufficient manageble balance"
         );
 

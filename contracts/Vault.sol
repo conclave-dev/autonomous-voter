@@ -40,6 +40,17 @@ contract Vault is UsingRegistry, VoteManagement {
         proxyAdmin = admin;
     }
 
+    function getBalances() public view returns (uint256, uint256) {
+        uint256 nonvoting = lockedGold.getAccountNonvotingLockedGold(
+            address(this)
+        );
+        uint256 voting = lockedGold
+            .getAccountTotalLockedGold(address(this))
+            .sub(nonvoting);
+
+        return (voting, nonvoting);
+    }
+
     // Fallback function so the vault can accept incoming withdrawal/reward transfers
     function() external payable {}
 
@@ -48,26 +59,6 @@ contract Vault is UsingRegistry, VoteManagement {
 
         // Immediately lock the deposit
         lockedGold.lock.value(msg.value)();
-    }
-
-    // Perform funds unlock and save it as pending withdrawal record
-    function _initiateWithdrawal(uint256 amount) internal {
-        // At this point, it should now have enough golds to be unlocked
-        lockedGold.unlock(amount);
-
-        // Fetch the last initiated withdrawal and track it locally
-        (uint256[] memory amounts, uint256[] memory timestamps) = lockedGold
-            .getPendingWithdrawals(address(this));
-
-        pendingWithdrawals.push(
-            keccak256(
-                abi.encodePacked(
-                    owner(),
-                    amounts[amounts.length - 1],
-                    timestamps[timestamps.length - 1]
-                )
-            )
-        );
     }
 
     /**
@@ -101,12 +92,12 @@ contract Vault is UsingRegistry, VoteManagement {
                 _revokeVotesEntirelyForGroups();
             }
 
-            return _initiateWithdrawal(amount);
+            return _initiateWithdrawal(amount, true);
         }
 
         // If the nonVoting balance is sufficient, we can directly unlock the specified amount
         if (nonVotingBalance >= amount) {
-            return _initiateWithdrawal(amount);
+            return _initiateWithdrawal(amount, true);
         }
 
         // Proceed with revoking votes across the groups to satisfy the specified withdrawal amount
@@ -115,7 +106,7 @@ contract Vault is UsingRegistry, VoteManagement {
             _revokeVotesProportionatelyForGroups(revokeAmount)
         );
 
-        _initiateWithdrawal(amount.sub(revokeDiff));
+        _initiateWithdrawal(amount.sub(revokeDiff), true);
     }
 
     /**
