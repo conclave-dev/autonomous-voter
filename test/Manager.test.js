@@ -37,7 +37,7 @@ describe('Manager', function () {
 
   describe('setMinimumBalanceRequirement(uint256 minimumBalanceRequirement)', function () {
     it('should update the minimum managed gold', async function () {
-      this.minimumBalanceRequirement = new BigNumber('1e17').toString();
+      this.minimumBalanceRequirement = new BigNumber('1e11').toString();
 
       await this.managerInstance.setMinimumBalanceRequirement(this.minimumBalanceRequirement);
 

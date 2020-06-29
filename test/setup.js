@@ -74,7 +74,7 @@ before(async function () {
 
   // Reusable testing variables
   this.managerCommission = new BigNumber('10');
-  this.minimumBalanceRequirement = new BigNumber('1e16');
+  this.minimumBalanceRequirement = new BigNumber('1e10');
   this.zeroAddress = '0x0000000000000000000000000000000000000000';
 
   const getVaults = () => this.archive.getVaultsByOwner(this.primarySender);
@@ -115,8 +115,6 @@ before(async function () {
   this.mockVault = await contracts.MockVault.at((await getVaults()).pop());
   this.mockElection = await contracts.MockElection.deployed();
   this.mockLockedGold = await contracts.MockLockedGold.deployed();
-
-  await this.mockElection.initValidatorGroups([primarySenderAddress, secondarySenderAddress]);
 });
 
 module.exports = {

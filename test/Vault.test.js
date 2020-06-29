@@ -13,39 +13,73 @@ describe('Vault', function () {
 
   describe('deposit()', function () {
     it('should enable owners to make deposits', async function () {
-      const manageableBalance = new BigNumber(await this.vaultInstance.getLockedBalance());
-      const nonvotingBalance = new BigNumber(await this.vaultInstance.getNonvotingBalance());
+      const balances = await this.vaultInstance.getBalances();
+      const balanceTotal = new BigNumber(balances[0]).plus(new BigNumber(balances[1]));
       const deposit = 1;
 
       await this.vaultInstance.deposit({
         value: deposit
       });
 
-      const newManageableBalance = new BigNumber(await this.vaultInstance.getLockedBalance());
-      const newNonvotingBalance = new BigNumber(await this.vaultInstance.getNonvotingBalance());
+      const newBalances = await this.vaultInstance.getBalances();
+      const newBalanceTotal = new BigNumber(newBalances[0]).plus(new BigNumber(newBalances[1]));
 
-      assert.isTrue(newManageableBalance.isEqualTo(manageableBalance.plus(1)), 'Manageable balance did not increase');
       return assert.isTrue(
-        newNonvotingBalance.isEqualTo(nonvotingBalance.plus(1)),
-        'Nonvoting balance did not increase'
+        newBalanceTotal.isEqualTo(balanceTotal.plus(deposit)),
+        'Manageable balance did not increase'
       );
+    });
+  });
+
+  describe('withdrawals', function () {
+    it('should initiate a withdrawal without revoking votes if the nonvoting balance is sufficient', async function () {
+      const balances = await this.vaultInstance.getBalances();
+      const votingBeforeWithdrawal = new BigNumber(balances[0]);
+      const nonvotingBeforeWithdrawal = new BigNumber(balances[1]);
+      const withdrawalAmount = nonvotingBeforeWithdrawal.dividedBy(10).toFixed(0);
+
+      await this.vaultInstance.initiateWithdrawal(withdrawalAmount);
+
+      const postWithdrawalBalances = await this.vaultInstance.getBalances();
+      const votingAfterWithdrawal = new BigNumber(postWithdrawalBalances[0]);
+      const nonvotingAfterWithdrawal = new BigNumber(postWithdrawalBalances[1]);
+
+      assert.isTrue(
+        votingBeforeWithdrawal.isEqualTo(votingAfterWithdrawal),
+        `Voting balance should not be drawn from if the nonvoting balance is sufficient`
+      );
+      return assert.isTrue(
+        nonvotingBeforeWithdrawal.minus(withdrawalAmount).isEqualTo(nonvotingAfterWithdrawal),
+        `Updated non-voting balance doesn't match after withdrawal`
+      );
+    });
+
+    it('should not initiate withdrawal with an amount larger than the total balance', async function () {
+      const balances = await this.vaultInstance.getBalances();
+      const totalBalance = new BigNumber(balances[0]).plus(new BigNumber(balances[1]));
+      const invalidWithdrawalAmount = totalBalance.plus(1).toFixed(0);
+
+      assert.isRejected(this.vaultInstance.initiateWithdrawal(invalidWithdrawalAmount));
     });
   });
 
   describe('Managers', function () {
     it('should set a vote manager with setVoteManager', async function () {
-      await this.vaultInstance.setVoteManager(this.managerInstance.address);
-
       const manager = await this.vaultInstance.manager();
+
+      if (manager !== this.managerInstance.address) {
+        await this.vaultInstance.setVoteManager(this.managerInstance.address);
+      }
+
       const managerCommission = new BigNumber(await this.vaultInstance.managerCommission());
 
       assert.equal(
-        manager,
+        await this.vaultInstance.manager(),
         this.managerInstance.address,
         `Vote manager address should be ${this.managerInstance.address}`
       );
       return assert.isTrue(
-        new BigNumber(managerCommission).isEqualTo(managerCommission),
+        managerCommission.isEqualTo(managerCommission),
         `Manager commission should be ${managerCommission}`
       );
     });
