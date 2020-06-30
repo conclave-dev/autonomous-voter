@@ -9,7 +9,7 @@ describe('App', function () {
     });
   });
 
-  describe('Methods - Success', function () {
+  describe('Methods :white_check_mark:', function () {
     it('should allow its owner to set contract implementation', function () {
       return assert.isFulfilled(this.app.setContractImplementation('Vault', this.vault.address));
     });
@@ -27,7 +27,7 @@ describe('App', function () {
     });
   });
 
-  describe('Methods - Fail', function () {
+  describe('Methods :octagonal_sign:', function () {
     it('should not allow non-owner to set contract implementation', function () {
       return assert.isRejected(
         this.app.setContractImplementation('Vault', this.vault.address, { from: this.secondarySender })
