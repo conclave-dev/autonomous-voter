@@ -3,9 +3,9 @@ const { assert } = require('./setup');
 
 describe('VoteManager', function () {
   before(async function () {
-    const voteManager = (await this.persistentVaultInstance.getVoteManager())[0];
+    const manager = await this.persistentVaultInstance.manager();
 
-    if (voteManager === this.zeroAddress) {
+    if (manager === this.zeroAddress) {
       await this.persistentVaultInstance.setVoteManager(this.persistentVoteManagerInstance.address);
     }
 

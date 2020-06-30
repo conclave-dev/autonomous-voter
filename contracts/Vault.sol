@@ -4,9 +4,13 @@ pragma solidity ^0.5.8;
 import "./vault-modules/VoteManagement.sol";
 import "./celo/common/UsingRegistry.sol";
 import "./Archive.sol";
+import "./celo/common/libraries/LinkedList.sol";
 
 contract Vault is UsingRegistry, VoteManagement {
+    using LinkedList for LinkedList.List;
+
     address public proxyAdmin;
+    LinkedList.List public pendingWithdrawals;
 
     function initialize(
         address registry_,
@@ -36,6 +40,17 @@ contract Vault is UsingRegistry, VoteManagement {
         proxyAdmin = admin;
     }
 
+    function getBalances() public view returns (uint256, uint256) {
+        uint256 nonvoting = lockedGold.getAccountNonvotingLockedGold(
+            address(this)
+        );
+        uint256 voting = lockedGold
+            .getAccountTotalLockedGold(address(this))
+            .sub(nonvoting);
+
+        return (voting, nonvoting);
+    }
+
     // Fallback function so the vault can accept incoming withdrawal/reward transfers
     function() external payable {}
 
@@ -44,26 +59,6 @@ contract Vault is UsingRegistry, VoteManagement {
 
         // Immediately lock the deposit
         lockedGold.lock.value(msg.value)();
-    }
-
-    // Perform funds unlock and save it as pending withdrawal record
-    function _initiateWithdrawal(uint256 amount) internal {
-        // At this point, it should now have enough golds to be unlocked
-        lockedGold.unlock(amount);
-
-        // Fetch the last initiated withdrawal and track it locally
-        (uint256[] memory amounts, uint256[] memory timestamps) = lockedGold
-            .getPendingWithdrawals(address(this));
-
-        pendingWithdrawals.push(
-            keccak256(
-                abi.encode(
-                    owner(),
-                    amounts[amounts.length - 1],
-                    timestamps[timestamps.length - 1]
-                )
-            )
-        );
     }
 
     /**
@@ -97,12 +92,12 @@ contract Vault is UsingRegistry, VoteManagement {
                 _revokeVotesEntirelyForGroups();
             }
 
-            return _initiateWithdrawal(amount);
+            return _initiateWithdrawal(amount, true);
         }
 
         // If the nonVoting balance is sufficient, we can directly unlock the specified amount
         if (nonVotingBalance >= amount) {
-            return _initiateWithdrawal(amount);
+            return _initiateWithdrawal(amount, true);
         }
 
         // Proceed with revoking votes across the groups to satisfy the specified withdrawal amount
@@ -111,6 +106,78 @@ contract Vault is UsingRegistry, VoteManagement {
             _revokeVotesProportionatelyForGroups(revokeAmount)
         );
 
-        _initiateWithdrawal(amount.sub(revokeDiff));
+        _initiateWithdrawal(amount.sub(revokeDiff), true);
+    }
+
+    /**
+     * @notice Creates a pending withdrawal and generates a hash for verification
+     */
+    function _initiateWithdrawal(uint256 amount, bool forOwner) internal {
+        // @TODO: Consider creating 2 separate "initiate withdrawal" methods in order to
+        // thoroughly validate based on whether it's the owner or manager
+
+        // Only the owner or vote manager can call this method
+        require(
+            msg.sender == owner() || msg.sender == manager,
+            "Not authorized"
+        );
+
+        lockedGold.unlock(amount);
+
+        // Fetch pending withdrawals (last element should be the pending withdrawal
+        // for the amount that was unlocked above)
+        (uint256[] memory amounts, uint256[] memory timestamps) = lockedGold
+            .getPendingWithdrawals(address(this));
+
+        address withdrawalRecipient = forOwner ? owner() : manager;
+
+        // Generate a hash for withdrawal-time verification
+        pendingWithdrawals.push(
+            keccak256(
+                abi.encodePacked(
+                    // Account that should be receiving the withdrawal funds
+                    withdrawalRecipient,
+                    // Pending withdrawal amount
+                    amounts[amounts.length - 1],
+                    // Pending withdrawal timestamp
+                    timestamps[timestamps.length - 1]
+                )
+            )
+        );
+    }
+
+    /**
+     * @notice Sets the vote manager
+     */
+    function setVoteManager(Manager manager_) external onlyOwner {
+        require(
+            archive.hasManager(manager_.owner(), address(manager_)),
+            "Vote manager is invalid"
+        );
+        require(manager == address(0), "Vote manager already exists");
+
+        manager_.registerVault();
+
+        manager = address(manager_);
+        managerCommission = manager_.commission();
+    }
+
+    /**
+     * @notice Removes the vote manager
+     */
+    function removeVoteManager() external onlyOwner {
+        require(manager != address(0), "Vote manager does not exist");
+
+        // Ensure that all outstanding manager rewards are accounted for
+        _updateManagerRewardsForAllGroups();
+
+        // Withdraw the manager's pending withdrawal balance
+        _initiateWithdrawal(managerRewards, false);
+
+        Manager(manager).deregisterVault();
+
+        delete manager;
+        delete managerCommission;
+        delete managerRewards;
     }
 }

@@ -1,5 +1,6 @@
 const BigNumber = require('bignumber.js');
 const { assert } = require('./setup');
+const { localRpcAPI } = require('../config');
 
 const mockUpdateManagerRewardsForGroup = (networkActiveVotes, localActiveVotes, managerCommission) => {
   // Vault updateManagerRewardsForGroup logic in JS
@@ -12,28 +13,15 @@ const mockUpdateManagerRewardsForGroup = (networkActiveVotes, localActiveVotes, 
 describe('MockVault', function () {
   before(async function () {
     this.setMockActiveVotes = async (networkActiveVotes, localActiveVotes, managerCommission) => {
-      await this.mockElection.resetVotesForAccount(this.mockVault.address);
-
-      // Mock the voting process which places the votes as pending
-      await this.mockElection.voteForGroupByAccount(this.primarySender, this.mockVault.address, localActiveVotes);
-
-      // Mock the vote activation
-      await this.mockElection.activateForGroupByAccount(this.primarySender, this.mockVault.address);
-
-      // Mock the reward distribution for further tests related to manager rewards
-      await this.mockElection.distributeRewardForGroupByAccount(
+      await this.mockElection.setActiveVotesForGroupByAccount(
         this.primarySender,
         this.mockVault.address,
-        networkActiveVotes - localActiveVotes
+        networkActiveVotes
       );
-
       await this.mockVault.setCommission(managerCommission);
-      await this.mockVault.setManagerMinimumBalanceRequirement(new BigNumber(localActiveVotes));
       await this.mockVault.setLocalActiveVotesForGroup(this.primarySender, localActiveVotes);
-
-      // Set the unlocking period to 0 second so that funds can be withdrawn immediately
-      await this.mockLockedGold.setUnlockingPeriod(0);
     };
+
     this.generateRandomMockValues = () => ({
       networkActiveVotes: Math.floor(Math.random() * 1e8) + 1e6,
       localActiveVotes: Math.floor(Math.random() * 1e5) + 1e3,
@@ -96,65 +84,9 @@ describe('MockVault', function () {
     );
   });
 
-  describe('initiateWithdrawal(uint256 amount)', function () {
-    it('should be able to initiate withdrawal without revoking votes if there is enough NonVoting golds', async function () {
-      const nonVotingBalance = new BigNumber(await this.mockVault.getNonvotingBalance());
-      const withdrawalAmount = nonVotingBalance.dividedBy(10).toFixed(0);
-
-      await this.mockVault.initiateWithdrawal(withdrawalAmount.toString());
-
-      assert.equal(
-        new BigNumber(await this.mockVault.getNonvotingBalance()).toFixed(0),
-        nonVotingBalance.minus(withdrawalAmount).toFixed(0),
-        `Updated non-voting balance doesn't match after withdrawal`
-      );
-    });
-
-    it('should be able to initiate withdrawal by revoking votes if there is not enough NonVoting golds', async function () {
-      const nonVotingBalance = new BigNumber(await this.mockVault.getNonvotingBalance());
-      const managerReward = new BigNumber(await this.mockVault.calculateVotingManagerRewards(this.primarySender));
-      const activeVotes = new BigNumber(
-        await this.mockElection.getActiveVotesForGroupByAccount(this.primarySender, this.mockVault.address)
-      ).minus(managerReward);
-
-      const amountDiff = new BigNumber(100);
-      const withdrawalAmount = nonVotingBalance.plus(amountDiff);
-      await this.mockVault.initiateWithdrawal(withdrawalAmount.toString());
-
-      // In this scenario, it should use up all nonVoting golds of the vault
-      assert.equal(
-        new BigNumber(await this.mockVault.getNonvotingBalance()).toFixed(0),
-        0,
-        `Updated non-voting balance doesn't match after withdrawal`
-      );
-
-      // Then, check if the vault's active vote count has been updated as well (after the revoke)
-      assert.equal(
-        new BigNumber(
-          await this.mockElection.getActiveVotesForGroupByAccount(this.primarySender, this.mockVault.address)
-        ).toFixed(0),
-        activeVotes.minus(amountDiff).toFixed(0),
-        `Updated voting balance doesn't match after revoking for initiating withdrawal`
-      );
-    });
-
-    it('should not be able to initiate withdrawal with amount larger than total owned golds', async function () {
-      const nonVotingBalance = new BigNumber(await this.mockVault.getNonvotingBalance());
-      const activeVotes = new BigNumber(
-        await this.mockElection.getActiveVotesForGroupByAccount(this.primarySender, this.mockVault.address)
-      );
-      const pendingVotes = new BigNumber(
-        await this.mockElection.getPendingVotesForGroupByAccount(this.primarySender, this.mockVault.address)
-      );
-      const totalVotes = nonVotingBalance.plus(activeVotes).plus(pendingVotes);
-      const withdrawalAmount = totalVotes.multipliedBy(2);
-
-      assert.isRejected(this.mockVault.initiateWithdrawal(withdrawalAmount.toString()));
-    });
-  });
-
   it('should update manager rewards and active votes when its active votes are revoked', async function () {
-    const voteManager = (await this.mockVault.getVoteManager())[0];
+    const voteManager = await this.mockVault.manager();
+
     if (voteManager === this.zeroAddress) {
       await this.mockVault.setVoteManager(this.persistentVoteManagerInstance.address);
     }
@@ -188,5 +120,46 @@ describe('MockVault', function () {
 
     assert.isTrue(expectedManagerReward.isEqualTo(actualManagerReward));
     return assert.equal(postRevokeActiveVotes, postRevokeActiveVotes);
+  });
+
+  it('should remove a manager after it updates their reward total and initiates a withdrawal', async function () {
+    const mockNetworkActiveVotes = new BigNumber(
+      await this.mockElection.getActiveVotesForGroupByAccount(this.primarySender, this.mockVault.address)
+    ).multipliedBy(2);
+    const currentActiveVotes = new BigNumber(await this.mockVault.activeVotes(this.primarySender));
+    const currentManagerRewards = await this.mockVault.managerRewards();
+    const currentManagerCommission = await this.mockVault.managerCommission();
+    const managerBeforeRemoval = await this.mockVault.manager();
+
+    // Widen spread between network active votes and locally-stored active votes to mock reward accrual
+    await this.setMockActiveVotes(mockNetworkActiveVotes, currentActiveVotes, await this.mockVault.managerCommission());
+
+    const {
+      receipt: { blockNumber }
+    } = await this.mockVault.removeVoteManager();
+
+    // Pending withdrawal value should be the previous managerRewards + rewards calculated during removal
+    const expectedPendingWithdrawalValue = new BigNumber(
+      mockUpdateManagerRewardsForGroup(mockNetworkActiveVotes, currentActiveVotes, currentManagerCommission)
+    ).plus(currentManagerRewards);
+
+    // Pending withdrawal timestamp should match the block's timestamp value
+    const expectedPendingWithdrawalTimestamp = new BigNumber(
+      (await this.kit.web3.eth.getBlock(blockNumber)).timestamp
+    ).plus(this.kit.web3.currentProvider.existingProvider.host === localRpcAPI ? 21600 : 0);
+
+    // Generate a hash from the expected pending withdrawal values
+    const expectedPendingWithdrawalHash = this.kit.web3.utils.soliditySha3(
+      // The recipient (need to use `managerBeforeRemoval` as `manager` should now be a zero address)
+      managerBeforeRemoval,
+      expectedPendingWithdrawalValue,
+      expectedPendingWithdrawalTimestamp
+    );
+
+    // Confirm manager removal
+    assert.equal(await this.mockVault.manager(), this.zeroAddress);
+
+    // Verify pending withdrawal hash
+    return assert.equal(expectedPendingWithdrawalHash, (await this.mockVault.pendingWithdrawals()).head);
   });
 });

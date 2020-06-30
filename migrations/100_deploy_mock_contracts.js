@@ -1,21 +1,24 @@
 const { newKit } = require('@celo/contractkit');
 const { deployContracts } = require('./util');
 
+const LinkedList = artifacts.require('LinkedList');
+const AddressLinkedList = artifacts.require('AddressLinkedList');
 const MockRegistry = artifacts.require('MockRegistry');
 const MockElection = artifacts.require('MockElection');
-const MockLockedGold = artifacts.require('MockLockedGold');
 const MockVault = artifacts.require('MockVault');
 const VaultFactory = artifacts.require('VaultFactory');
 const App = artifacts.require('App');
 
-const mockContracts = [MockRegistry, MockElection, MockLockedGold, MockVault];
+const mockContracts = [MockRegistry, MockElection, MockVault];
 
 module.exports = async (deployer, network) => {
+  await deployer.link(LinkedList, MockVault);
+  await deployer.link(AddressLinkedList, MockElection);
+
   await deployContracts(deployer, network, mockContracts);
 
   const mockRegistry = await MockRegistry.deployed();
   const mockElection = await MockElection.deployed();
-  const mockLockedGold = await MockLockedGold.deployed();
   const mockVault = await MockVault.deployed();
   const vaultFactory = await VaultFactory.deployed();
   const app = await App.deployed();
@@ -30,6 +33,7 @@ module.exports = async (deployer, network) => {
 
   const kit = newKit(deployer.provider.host);
   const accounts = await kit.contracts.getAccounts();
+  const lockedGold = await kit.contracts.getLockedGold();
 
   if ((await mockRegistry.election()) !== mockElection.address) {
     await mockRegistry.setElection(mockElection.address);
@@ -39,15 +43,7 @@ module.exports = async (deployer, network) => {
     await mockRegistry.setAccounts(accounts.address);
   }
 
-  if ((await mockRegistry.lockedGold()) !== mockLockedGold.address) {
-    await mockRegistry.setLockedGold(mockLockedGold.address);
-  }
-
-  if ((await mockElection.registry()) !== mockRegistry.address) {
-    await mockElection.setRegistry(mockRegistry.address);
-  }
-
-  if ((await mockLockedGold.registry()) !== mockRegistry.address) {
-    await mockLockedGold.setRegistry(mockRegistry.address);
+  if ((await mockRegistry.lockedGold()) !== lockedGold.address) {
+    await mockRegistry.setLockedGold(lockedGold.address);
   }
 };
