@@ -1,7 +1,7 @@
 pragma solidity ^0.5.8;
 
 import "@openzeppelin/contracts-ethereum-package/contracts/ownership/Ownable.sol";
-import "openzeppelin-solidity/contracts/math/SafeMath.sol";
+import "@openzeppelin/contracts-ethereum-package/contracts/math/SafeMath.sol";
 import "./Archive.sol";
 import "./Vault.sol";
 import "./celo/common/libraries/AddressLinkedList.sol";

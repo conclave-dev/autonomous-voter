@@ -1,6 +1,6 @@
 {
-  "extends": ["eslint:recommended", "plugin:mocha/recommended"],
-  "plugins": ["prettier", "truffle"],
+  "extends": ["eslint:recommended", "plugin:mocha/recommended", "plugin:prettier/recommended"],
+  "plugins": ["prettier", "truffle", "mocha"],
   "env": {
     "node": true,
     "es6": true,
