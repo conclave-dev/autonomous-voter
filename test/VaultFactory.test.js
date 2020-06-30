@@ -1,21 +1,18 @@
+const BigNumber = require('bignumber.js');
 const { assert } = require('./setup');
-const { registryContractAddress } = require('../config');
 
 describe('VaultFactory', function () {
-  describe('initialize(App _app, Archive _archive)', function () {
-    it('should initialize with deployed App and Archive addresses', async function () {
-      assert.equal(await this.vaultFactory.app(), this.app.address, 'Did not match deployed App address');
-      return assert.equal(
-        await this.vaultFactory.archive(),
-        this.archive.address,
-        'Did not match deployed Archive address'
-      );
+  describe('State', function () {
+    it('should have a minimum deposit set', async function () {
+      return assert.isTrue(new BigNumber(await this.vaultFactory.MINIMUM_DEPOSIT()).isGreaterThan(0));
     });
-  });
 
-  describe('createInstance(bytes memory _data)', function () {
-    it('should not create an instance if the initial deposit is insufficient', function () {
-      return assert.isRejected(this.vaultFactory.createInstance('Vault', registryContractAddress));
+    it('should have app set', async function () {
+      return assert.equal(await this.vaultFactory.app(), this.app.address);
+    });
+
+    it('should have archive set', async function () {
+      return assert.equal(await this.vaultFactory.archive(), this.archive.address);
     });
   });
 });
