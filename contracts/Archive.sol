@@ -3,12 +3,12 @@ pragma solidity ^0.5.8;
 
 import "@openzeppelin/upgrades/contracts/Initializable.sol";
 import "@openzeppelin/contracts-ethereum-package/contracts/ownership/Ownable.sol";
-import "celo-monorepo/packages/protocol/contracts/common/UsingPrecompiles.sol";
 
 import "./celo/common/UsingRegistry.sol";
+import "./celo/common/libraries/UsingPrecompiles.sol";
+import "./celo/common/libraries/AddressLinkedList.sol";
 import "./Vault.sol";
 import "./Manager.sol";
-import "./celo/common/libraries/AddressLinkedList.sol";
 
 contract Archive is Initializable, Ownable, UsingRegistry, UsingPrecompiles {
     using AddressLinkedList for LinkedList.List;
