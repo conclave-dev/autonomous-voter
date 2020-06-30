@@ -91,7 +91,8 @@ before(async function () {
     await createManagerInstance();
   }
 
-  // Always create fresh test instances
+  // New test instances
+  await createVaultInstance();
   await createManagerInstance();
 
   const vaults = await getVaults();
