@@ -43,6 +43,9 @@ const getTruffleContracts = (primarySender, rpcAPI) =>
 let contracts;
 
 before(async function () {
+  // For convenient access
+  this.registryContractAddress = registryContractAddress;
+
   try {
     this.kit = newKit(localRpcAPI);
 
@@ -91,7 +94,8 @@ before(async function () {
     await createManagerInstance();
   }
 
-  // Always create fresh test instances
+  // New test instances
+  await createVaultInstance();
   await createManagerInstance();
 
   const vaults = await getVaults();

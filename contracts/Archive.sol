@@ -41,11 +41,11 @@ contract Archive is Initializable, Ownable, UsingRegistry, UsingPrecompiles {
         initializeRegistry(msg.sender, registry_);
     }
 
-    function setVaultFactory(address vaultFactory_) public onlyOwner {
+    function setVaultFactory(address vaultFactory_) external onlyOwner {
         vaultFactory = vaultFactory_;
     }
 
-    function setManagerFactory(address managerFactory_) public onlyOwner {
+    function setManagerFactory(address managerFactory_) external onlyOwner {
         managerFactory = managerFactory_;
     }
 
@@ -82,7 +82,7 @@ contract Archive is Initializable, Ownable, UsingRegistry, UsingPrecompiles {
     }
 
     function associateVaultWithOwner(address vault, address owner_)
-        public
+        external
         onlyVaultFactory
     {
         require(!vaults[owner_].contains(vault), "Vault has already been set");
@@ -90,7 +90,7 @@ contract Archive is Initializable, Ownable, UsingRegistry, UsingPrecompiles {
     }
 
     function associateManagerWithOwner(address manager, address owner_)
-        public
+        external
         onlyManagerFactory
     {
         require(
