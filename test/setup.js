@@ -19,10 +19,7 @@ const contractBuildFiles = [
   require('../build/contracts/VaultFactory.json'),
   require('../build/contracts/VoteManager.json'),
   require('../build/contracts/ManagerFactory.json'),
-  require('../build/contracts/ProxyAdmin.json'),
-  require('../build/contracts/MockVault.json'),
-  require('../build/contracts/MockElection.json'),
-  require('../build/contracts/MockRegistry.json')
+  require('../build/contracts/ProxyAdmin.json')
 ];
 
 const getTruffleContracts = (primarySender, rpcAPI) =>
@@ -106,13 +103,6 @@ before(async function () {
   this.vaultInstance = await contracts.Vault.at(vaults.pop());
   this.managerInstance = await contracts.VoteManager.at(managers.pop());
   this.proxyAdmin = await contracts.ProxyAdmin.at(await this.vaultInstance.proxyAdmin());
-
-  await this.vaultFactory.createInstance('MockVault', (await contracts.MockRegistry.deployed()).address, {
-    value: new BigNumber('1e17')
-  });
-
-  this.mockVault = await contracts.MockVault.at((await getVaults()).pop());
-  this.mockElection = await contracts.MockElection.deployed();
 });
 
 module.exports = {
