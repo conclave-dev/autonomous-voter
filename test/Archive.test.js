@@ -20,4 +20,34 @@ describe('Archive', () => {
       return assert.isTrue(primarySenderManagers.length > 0);
     });
   });
+
+  describe('Methods ✅', function () {
+    it('should initialize with an owner', async function () {
+      return assert.equal(await this.archive.owner(), this.primarySender);
+    });
+
+    it('should initialize with the Celo Registry contract', async function () {
+      return assert.equal(await this.archive.registry(), this.registryContractAddress);
+    });
+
+    it('should allow the owner to set the vault factory', function () {
+      return assert.isFulfilled(this.archive.setVaultFactory(this.vaultFactory.address));
+    });
+
+    it('should allow the owner to set the manager factory', function () {
+      return assert.isFulfilled(this.archive.setManagerFactory(this.managerFactory.address));
+    });
+  });
+
+  describe('Methods 🛑', function () {
+    it('should disallow non-owners from setting the vault factory', function () {
+      return assert.isRejected(this.archive.setVaultFactory(this.vaultFactory.address, { from: this.secondarySender }));
+    });
+
+    it('should disallow non-owners from setting the manager factory', function () {
+      return assert.isRejected(
+        this.archive.setManagerFactory(this.managerFactory.address, { from: this.secondarySender })
+      );
+    });
+  });
 });

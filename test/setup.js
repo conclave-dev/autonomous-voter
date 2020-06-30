@@ -43,6 +43,9 @@ const getTruffleContracts = (primarySender, rpcAPI) =>
 let contracts;
 
 before(async function () {
+  // For convenient access
+  this.registryContractAddress = registryContractAddress;
+
   try {
     this.kit = newKit(localRpcAPI);
 
