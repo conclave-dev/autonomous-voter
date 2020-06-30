@@ -16,10 +16,10 @@ contract ManagerFactory is Initializable {
     }
 
     function createInstance(
-        string memory contractName,
-        uint256 sharePercentage,
-        uint256 minimumGold
-    ) public payable {
+        string calldata contractName,
+        uint256 commission,
+        uint256 minimumBalanceRequirement
+    ) external payable {
         address managerOwner = msg.sender;
 
         // Create a proxy admin for managing the new manager instance's upgradeability
@@ -29,7 +29,7 @@ contract ManagerFactory is Initializable {
 
         // Create the actual manager instance
         address manager = address(
-            app.create.value(msg.value)(
+            app.create(
                 contractName,
                 proxyAdminAddress,
                 abi.encodeWithSignature(
@@ -37,8 +37,8 @@ contract ManagerFactory is Initializable {
                     address(archive),
                     managerOwner,
                     proxyAdminAddress,
-                    sharePercentage,
-                    minimumGold
+                    commission,
+                    minimumBalanceRequirement
                 )
             )
         );
