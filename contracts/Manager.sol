@@ -41,10 +41,10 @@ contract Manager is Ownable {
     ) public initializer {
         Ownable.initialize(owner_);
         _setCommission(commission_);
+        _setMinimumBalanceRequirement(minimumRequirement);
 
         archive = archive_;
         proxyAdmin = admin;
-        minimumBalanceRequirement = minimumRequirement;
     }
 
     function setProxyAdmin(address admin) external onlyOwner {
@@ -52,7 +52,7 @@ contract Manager is Ownable {
         proxyAdmin = admin;
     }
 
-    function setCommission(uint256 commission_) public onlyOwner {
+    function setCommission(uint256 commission_) external onlyOwner {
         _setCommission(commission_);
     }
 
@@ -62,9 +62,21 @@ contract Manager is Ownable {
         commission = commission_;
     }
 
-    function setMinimumBalanceRequirement(uint256 amount) external onlyOwner {
-        require(amount > 0, "Invalid amount");
-        minimumBalanceRequirement = amount;
+    function setMinimumBalanceRequirement(uint256 minimumBalanceRequirement_)
+        external
+        onlyOwner
+    {
+        _setMinimumBalanceRequirement(minimumBalanceRequirement_);
+    }
+
+    function _setMinimumBalanceRequirement(uint256 minimumBalanceRequirement_)
+        internal
+    {
+        require(
+            minimumBalanceRequirement_ > 0,
+            "Invalid minimum balance requirement"
+        );
+        minimumBalanceRequirement = minimumBalanceRequirement_;
     }
 
     function getVaults() external view returns (address[] memory) {
