@@ -18,8 +18,8 @@ contract VaultFactory is Initializable {
         archive = archive_;
     }
 
-    function createInstance(string memory contractName, address registry)
-        public
+    function createInstance(string calldata contractName, address registry)
+        external
         payable
     {
         require(
