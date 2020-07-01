@@ -5,7 +5,7 @@ const { registryContractAddress } = require('../config');
 describe('App', function () {
   describe('State', function () {
     it('should initialize with an owner', async function () {
-      return assert.equal(await this.app.owner(), this.primarySender, 'Owner does not match sender');
+      return assert.equal(await this.app.owner(), this.primarySender);
     });
   });
 

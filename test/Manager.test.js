@@ -2,53 +2,94 @@ const BigNumber = require('bignumber.js');
 const { assert } = require('./setup');
 
 describe('Manager', function () {
-  describe('initialize(address archive, address owner, uint256 commission, uint256 minimumBalanceRequirement)', function () {
-    it('should initialize with an owner, initial share percentage, and mininum managed gold', async function () {
-      assert.isTrue(
-        new BigNumber(await this.managerInstance.commission()).isEqualTo(this.managerCommission),
-        'Invalid reward share percentage'
-      );
+  describe('State', function () {
+    it('should initialize with a reference to the archive contract', async function () {
+      return assert.equal(await this.managerInstance.archive(), this.archive.address);
+    });
 
+    it('should initialize with a valid proxy admin', async function () {
+      return assert.notEqual(await this.managerInstance.proxyAdmin(), this.zeroAddress);
+    });
+
+    it('should have a linked list for storing vaults', async function () {
+      const vaults = await this.managerInstance.vaults();
+
+      assert.property(vaults, 'head');
+      assert.property(vaults, 'tail');
+      return assert.property(vaults, 'numElements');
+    });
+
+    it('should initialize with no registered vault', async function () {
+      return assert.isEmpty(await this.managerInstance.getVaults());
+    });
+
+    it('should initialize with a manager commission', async function () {
+      return assert.equal((await this.managerInstance.commission()).toString(), this.managerCommission);
+    });
+
+    it('should initialize with a mininum required balance', async function () {
       return assert.equal(
         (await this.managerInstance.minimumBalanceRequirement()).toString(),
-        this.minimumBalanceRequirement,
-        'Invalid minimum managed gold'
+        this.minimumBalanceRequirement
       );
     });
   });
 
-  describe('setCommission(uint256 commission_)', function () {
-    it('should update the reward share percentage', async function () {
+  describe('Methods ✅', function () {
+    it('should allow its owner to update the proxy admin', async function () {
+      await this.managerInstance.setProxyAdmin(this.secondarySender);
+
+      return assert.equal(await this.managerInstance.proxyAdmin(), this.secondarySender);
+    });
+
+    it('should allow its owner to update the manager commission', async function () {
       this.managerCommission = '20';
 
       await this.managerInstance.setCommission(this.managerCommission);
 
-      return assert.equal(
-        (await this.managerInstance.commission()).toString(),
-        this.managerCommission,
-        'Failed to update reward share percentage'
-      );
+      return assert.equal((await this.managerInstance.commission()).toString(), this.managerCommission);
     });
 
-    it('should not be able to update the share percentage from a non-owner account', function () {
-      return assert.isRejected(this.managerInstance.setCommission({ from: this.secondarySender }));
-    });
-  });
-
-  describe('setMinimumBalanceRequirement(uint256 minimumBalanceRequirement)', function () {
-    it('should update the minimum managed gold', async function () {
+    it('should allow its owner to update the minimum required balance', async function () {
       this.minimumBalanceRequirement = new BigNumber('1e11').toString();
 
       await this.managerInstance.setMinimumBalanceRequirement(this.minimumBalanceRequirement);
 
       return assert.equal(
         (await this.managerInstance.minimumBalanceRequirement()).toString(),
-        this.minimumBalanceRequirement,
-        'Failed to update minimum managed gold'
+        this.minimumBalanceRequirement
+      );
+    });
+  });
+
+  describe('Methods 🛑', function () {
+    it('should not allow non-owner account to update the proxy admin', function () {
+      return assert.isRejected(
+        this.managerInstance.setProxyAdmin(this.secondarySender, { from: this.secondarySender })
       );
     });
 
-    it('should not be able to update the minimum managed gold from a non-owner account', function () {
+    it('should not allow zero-address when updating the proxy admin', function () {
+      return assert.isRejected(this.managerInstance.setProxyAdmin(this.zeroAddress));
+    });
+
+    it('should not allow percentage value lower than 1 to update the manager commission', function () {
+      return assert.isRejected(this.managerInstance.setCommission(0));
+    });
+
+    it('should not allow percentage value higher than 100 to update the manager commission', function () {
+      return assert.isRejected(this.managerInstance.setCommission(101));
+    });
+
+    it('should not allow non-owner account to update the manager commission', function () {
+      return assert.isRejected(this.managerInstance.setCommission({ from: this.secondarySender }));
+    });
+
+    it('should not allow 0 as to update the minimum required balance', function () {
+      return assert.isRejected(this.managerInstance.setMinimumBalanceRequirement(0));
+    });
+
+    it('should not allow non-owner account to update the minimum required balance', function () {
       return assert.isRejected(this.managerInstance.setMinimumBalanceRequirement({ from: this.secondarySender }));
     });
   });
