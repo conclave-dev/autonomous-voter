@@ -40,8 +40,6 @@ const getTruffleContracts = (primarySender, rpcAPI) =>
     };
   }, {});
 
-let contracts;
-
 before(async function () {
   // For convenient access
   this.registryContractAddress = registryContractAddress;
@@ -53,23 +51,21 @@ before(async function () {
 
     this.primarySender = localAccounts[0];
     this.secondarySender = localAccounts[1];
-
-    contracts = getTruffleContracts(this.primarySender, localRpcAPI);
+    this.contracts = getTruffleContracts(this.primarySender, localRpcAPI);
   } catch (err) {
     console.log('Local accounts unavailable', err);
 
     this.kit = newKit(alfajoresRpcAPI);
     this.primarySender = primarySenderAddress;
     this.secondarySender = secondarySenderAddress;
-
-    contracts = getTruffleContracts(this.primarySender, alfajoresRpcAPI);
+    this.contracts = getTruffleContracts(this.primarySender, alfajoresRpcAPI);
   }
 
-  this.app = await contracts.App.deployed();
-  this.archive = await contracts.Archive.deployed();
-  this.vault = await contracts.Vault.deployed();
-  this.vaultFactory = await contracts.VaultFactory.deployed();
-  this.managerFactory = await contracts.ManagerFactory.deployed();
+  this.app = await this.contracts.App.deployed();
+  this.archive = await this.contracts.Archive.deployed();
+  this.vault = await this.contracts.Vault.deployed();
+  this.vaultFactory = await this.contracts.VaultFactory.deployed();
+  this.managerFactory = await this.contracts.ManagerFactory.deployed();
 
   // Reusable testing variables
   this.managerCommission = new BigNumber('10');
@@ -102,14 +98,13 @@ before(async function () {
   const managers = await getManagers();
 
   // Maintain state and used for voting tests
-  this.persistentVaultInstance = await contracts.Vault.at(vaults[0]);
-  this.persistentVoteManagerInstance = await contracts.VoteManager.at(managers[0]);
-  this.vaultInstance = await contracts.Vault.at(vaults.pop());
-  this.managerInstance = await contracts.VoteManager.at(managers.pop());
-  this.proxyAdmin = await contracts.ProxyAdmin.at(await this.vaultInstance.proxyAdmin());
+  this.persistentVaultInstance = await this.contracts.Vault.at(vaults[0]);
+  this.persistentVoteManagerInstance = await this.contracts.VoteManager.at(managers[0]);
+  this.vaultInstance = await this.contracts.Vault.at(vaults.pop());
+  this.managerInstance = await this.contracts.VoteManager.at(managers.pop());
+  this.proxyAdmin = await this.contracts.ProxyAdmin.at(await this.vaultInstance.proxyAdmin());
 });
 
 module.exports = {
-  assert,
-  contracts
+  assert
 };

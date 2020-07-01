@@ -14,7 +14,7 @@ contract ProxyAdmin is Ownable {
         app = _app;
     }
 
-    function upgradeProxy(
+    function upgradeProxyImplementation(
         BaseAdminUpgradeabilityProxy proxy,
         address implementation
     ) external onlyOwner {
