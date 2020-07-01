@@ -143,39 +143,4 @@ contract Vault is UsingRegistry, VoteManagement {
             )
         );
     }
-
-    /**
-     * @notice Sets the vote manager
-     */
-    function setVoteManager(Manager manager_) external onlyOwner {
-        require(
-            archive.hasManager(manager_.owner(), address(manager_)),
-            "Vote manager is invalid"
-        );
-        require(manager == address(0), "Vote manager already exists");
-
-        manager_.registerVault();
-
-        manager = address(manager_);
-        managerCommission = manager_.commission();
-    }
-
-    /**
-     * @notice Removes the vote manager
-     */
-    function removeVoteManager() external onlyOwner {
-        require(manager != address(0), "Vote manager does not exist");
-
-        // Ensure that all outstanding manager rewards are accounted for
-        _updateManagerRewardsForAllGroups();
-
-        // Withdraw the manager's pending withdrawal balance
-        _initiateWithdrawal(managerRewards, false);
-
-        Manager(manager).deregisterVault();
-
-        delete manager;
-        delete managerCommission;
-        delete managerRewards;
-    }
 }

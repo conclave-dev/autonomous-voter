@@ -56,14 +56,25 @@ contract VoteManagement is Ownable {
     }
 
     /**
-     * @notice Removes a vote manager
+     * @notice Removes the vote manager
      */
     function removeVoteManager() external onlyOwner {
         require(manager != address(0), "Vote manager does not exist");
 
+        // Ensure that all outstanding manager rewards are accounted for
+        _updateManagerRewardsForAllGroups();
+
+        // Withdraw the manager's pending withdrawal balance
+        // TODO: Refactor withdrawal initiation procedure for managers by adding a
+        // "removeManager" method to Vault that handles unlocking and withdrawing
+        // and is manager agnostic (for when we have other types)
+        // this._initiateWithdrawal(managerRewards, false);
+
         Manager(manager).deregisterVault();
 
-        manager = address(0);
+        delete manager;
+        delete managerCommission;
+        delete managerRewards;
     }
 
     /**
