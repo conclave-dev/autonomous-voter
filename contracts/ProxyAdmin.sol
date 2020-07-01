@@ -7,7 +7,7 @@ import "@openzeppelin/contracts-ethereum-package/contracts/ownership/Ownable.sol
 import "./App.sol";
 
 contract ProxyAdmin is Ownable {
-    App private app;
+    App public app;
 
     function initialize(App _app, address owner_) public initializer {
         Ownable.initialize(owner_);
@@ -17,7 +17,7 @@ contract ProxyAdmin is Ownable {
     function upgradeProxy(
         BaseAdminUpgradeabilityProxy proxy,
         address implementation
-    ) public onlyOwner {
+    ) external onlyOwner {
         proxy.upgradeTo(implementation);
     }
 }
