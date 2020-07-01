@@ -3,13 +3,13 @@ pragma solidity ^0.5.8;
 
 import "./vault-modules/VoteManagement.sol";
 import "./celo/common/UsingRegistry.sol";
-import "./Archive.sol";
 import "./celo/common/libraries/LinkedList.sol";
 
 contract Vault is UsingRegistry, VoteManagement {
     using LinkedList for LinkedList.List;
 
     address public proxyAdmin;
+    ILockedGold public lockedGold;
     LinkedList.List public pendingWithdrawals;
 
     function initialize(
@@ -19,23 +19,21 @@ contract Vault is UsingRegistry, VoteManagement {
         address proxyAdmin_
     ) public payable initializer {
         UsingRegistry.initializeRegistry(msg.sender, registry_);
+        VoteManagement.initialize(archive_, getElection());
         Ownable.initialize(owner_);
 
-        proxyAdmin = proxyAdmin_;
-        archive = Archive(archive_);
+        lockedGold = getLockedGold();
 
-        setRegistryContracts();
-
+        _setProxyAdmin(proxyAdmin_);
         getAccounts().createAccount();
         deposit();
     }
 
-    function setRegistryContracts() internal {
-        election = getElection();
-        lockedGold = getLockedGold();
+    function setProxyAdmin(address admin) external onlyOwner {
+        _setProxyAdmin(admin);
     }
 
-    function setProxyAdmin(address admin) external onlyOwner {
+    function _setProxyAdmin(address admin) internal {
         require(admin != address(0), "Invalid admin address");
         proxyAdmin = admin;
     }

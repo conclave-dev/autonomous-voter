@@ -7,7 +7,6 @@ import "@openzeppelin/contracts-ethereum-package/contracts/math/SafeMath.sol";
 import "../Archive.sol";
 import "../Manager.sol";
 import "../celo/governance/interfaces/IElection.sol";
-import "../celo/governance/interfaces/ILockedGold.sol";
 import "../celo/common/FixidityLib.sol";
 import "../celo/common/libraries/LinkedList.sol";
 
@@ -18,13 +17,20 @@ contract VoteManagement is Ownable {
 
     Archive public archive;
     IElection public election;
-    ILockedGold public lockedGold;
 
     address public manager;
     uint256 public managerCommission;
     uint256 public managerMinimumBalanceRequirement;
     uint256 public managerRewards;
     mapping(address => uint256) public activeVotes;
+
+    function initialize(address archive_, IElection election_)
+        public
+        initializer
+    {
+        archive = Archive(archive_);
+        election = election_;
+    }
 
     modifier onlyVoteManager() {
         require(msg.sender == manager, "Not the vote manager");
