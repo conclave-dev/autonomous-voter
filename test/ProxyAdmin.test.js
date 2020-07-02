@@ -1,7 +1,7 @@
 const BigNumber = require('bignumber.js');
 const { assert } = require('./setup');
 
-describe.only('ProxyAdmin', function () {
+describe('ProxyAdmin', function () {
   before(async function () {
     // Create a vault instance for proxy admin tests
     await this.vaultFactory.createInstance('Vault', this.registryContractAddress, {

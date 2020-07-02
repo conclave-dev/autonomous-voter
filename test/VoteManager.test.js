@@ -34,61 +34,115 @@ describe('VoteManager', function () {
     this.defaultVotes = new BigNumber(1);
   });
 
-  it('should place votes on behalf of a managed vault', async function () {
-    const prevotePendingAmount = new BigNumber(
-      await (
-        await this.election.getPendingVotesForGroupByAccount(this.group, this.persistentVaultInstance.address)
-      ).call()
-    );
+  describe('Methods ✅', function () {
+    it('should place votes on behalf of a managed vault', async function () {
+      const prevotePendingAmount = new BigNumber(
+        await (
+          await this.election.getPendingVotesForGroupByAccount(this.group, this.persistentVaultInstance.address)
+        ).call()
+      );
 
-    await this.persistentVoteManagerInstance.vote(
-      this.persistentVaultInstance.address,
-      this.group,
-      this.defaultVotes,
-      this.lesser,
-      this.greater
-    );
+      await this.persistentVoteManagerInstance.vote(
+        this.persistentVaultInstance.address,
+        this.group,
+        this.defaultVotes,
+        this.lesser,
+        this.greater
+      );
 
-    const postvotePendingAmount = new BigNumber(
-      await (
-        await this.election.getPendingVotesForGroupByAccount(this.group, this.persistentVaultInstance.address)
-      ).call()
-    );
+      const postvotePendingAmount = new BigNumber(
+        await (
+          await this.election.getPendingVotesForGroupByAccount(this.group, this.persistentVaultInstance.address)
+        ).call()
+      );
 
-    return assert.isTrue(
-      prevotePendingAmount.plus(this.defaultVotes).isEqualTo(postvotePendingAmount),
-      `Expected ${prevotePendingAmount.plus(this.defaultVotes).toFixed(0)} pending votes`
-    );
+      return assert.isTrue(
+        prevotePendingAmount.plus(this.defaultVotes).isEqualTo(postvotePendingAmount),
+        `Expected ${prevotePendingAmount.plus(this.defaultVotes).toFixed(0)} pending votes`
+      );
+    });
+
+    it('should revoke pending votes on behalf of a managed vault', async function () {
+      const prerevokePendingAmount = new BigNumber(
+        await (
+          await this.election.getPendingVotesForGroupByAccount(this.group, this.persistentVaultInstance.address)
+        ).call()
+      );
+      const accountGroups = await (
+        await this.election.getGroupsVotedForByAccount(this.persistentVaultInstance.address)
+      ).call();
+
+      await this.persistentVoteManagerInstance.revokePending(
+        this.persistentVaultInstance.address,
+        this.group,
+        this.defaultVotes,
+        this.lesser,
+        this.greater,
+        accountGroups.indexOf(this.group)
+      );
+
+      const postrevokePendingAmount = new BigNumber(
+        await (
+          await this.election.getPendingVotesForGroupByAccount(this.group, this.persistentVaultInstance.address)
+        ).call()
+      );
+
+      return assert.isTrue(
+        prerevokePendingAmount.minus(this.defaultVotes).isEqualTo(postrevokePendingAmount),
+        `Expected ${prerevokePendingAmount.minus(this.defaultVotes).toFixed(0)} pending votes`
+      );
+    });
   });
 
-  it('should revoke pending votes on behalf of a managed vault', async function () {
-    const prerevokePendingAmount = new BigNumber(
-      await (
-        await this.election.getPendingVotesForGroupByAccount(this.group, this.persistentVaultInstance.address)
-      ).call()
-    );
-    const accountGroups = await (
-      await this.election.getGroupsVotedForByAccount(this.persistentVaultInstance.address)
-    ).call();
+  describe('Methods 🛑', function () {
+    it('should not allow non-owner to initiate voting', async function () {
+      return assert.isRejected(
+        this.persistentVoteManagerInstance.vote(
+          this.persistentVaultInstance.address,
+          this.group,
+          this.defaultVotes,
+          this.lesser,
+          this.greater,
+          { from: this.secondarySender }
+        )
+      );
+    });
 
-    await this.persistentVoteManagerInstance.revokePending(
-      this.persistentVaultInstance.address,
-      this.group,
-      this.defaultVotes,
-      this.lesser,
-      this.greater,
-      accountGroups.indexOf(this.group)
-    );
+    it('should not place votes for non-managed vault', async function () {
+      return assert.isRejected(
+        this.persistentVoteManagerInstance.vote(
+          this.vaultInstance.address,
+          this.group,
+          this.defaultVotes,
+          this.lesser,
+          this.greater
+        )
+      );
+    });
 
-    const postrevokePendingAmount = new BigNumber(
-      await (
-        await this.election.getPendingVotesForGroupByAccount(this.group, this.persistentVaultInstance.address)
-      ).call()
-    );
+    it('should not allow non-owner to initiate pending votes revoking', async function () {
+      return assert.isRejected(
+        this.persistentVoteManagerInstance.vote(
+          this.persistentVaultInstance.address,
+          this.group,
+          this.defaultVotes,
+          this.lesser,
+          this.greater,
+          { from: this.secondarySender }
+        )
+      );
+    });
 
-    return assert.isTrue(
-      prerevokePendingAmount.minus(this.defaultVotes).isEqualTo(postrevokePendingAmount),
-      `Expected ${prerevokePendingAmount.minus(this.defaultVotes).toFixed(0)} pending votes`
-    );
+    it('should not revoke pending votes for non-managed vault', async function () {
+      return assert.isRejected(
+        this.persistentVoteManagerInstance.vote(
+          this.vaultInstance.address,
+          this.group,
+          this.defaultVotes,
+          this.lesser,
+          this.greater
+        )
+      );
+    });
   });
 });
