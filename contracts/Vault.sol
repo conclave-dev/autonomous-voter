@@ -3,13 +3,13 @@ pragma solidity ^0.5.8;
 
 import "./vault-modules/VoteManagement.sol";
 import "./celo/common/UsingRegistry.sol";
-import "./Archive.sol";
 import "./celo/common/libraries/LinkedList.sol";
 
 contract Vault is UsingRegistry, VoteManagement {
     using LinkedList for LinkedList.List;
 
     address public proxyAdmin;
+    ILockedGold public lockedGold;
     LinkedList.List public pendingWithdrawals;
 
     function initialize(
@@ -19,23 +19,21 @@ contract Vault is UsingRegistry, VoteManagement {
         address proxyAdmin_
     ) public payable initializer {
         UsingRegistry.initializeRegistry(msg.sender, registry_);
+        VoteManagement.initialize(archive_, getElection());
         Ownable.initialize(owner_);
 
-        proxyAdmin = proxyAdmin_;
-        archive = Archive(archive_);
+        lockedGold = getLockedGold();
 
-        setRegistryContracts();
-
+        _setProxyAdmin(proxyAdmin_);
         getAccounts().createAccount();
         deposit();
     }
 
-    function setRegistryContracts() internal {
-        election = getElection();
-        lockedGold = getLockedGold();
+    function setProxyAdmin(address admin) external onlyOwner {
+        _setProxyAdmin(admin);
     }
 
-    function setProxyAdmin(address admin) external onlyOwner {
+    function _setProxyAdmin(address admin) internal {
         require(admin != address(0), "Invalid admin address");
         proxyAdmin = admin;
     }
@@ -144,40 +142,5 @@ contract Vault is UsingRegistry, VoteManagement {
                 )
             )
         );
-    }
-
-    /**
-     * @notice Sets the vote manager
-     */
-    function setVoteManager(Manager manager_) external onlyOwner {
-        require(
-            archive.hasManager(manager_.owner(), address(manager_)),
-            "Vote manager is invalid"
-        );
-        require(manager == address(0), "Vote manager already exists");
-
-        manager_.registerVault();
-
-        manager = address(manager_);
-        managerCommission = manager_.commission();
-    }
-
-    /**
-     * @notice Removes the vote manager
-     */
-    function removeVoteManager() external onlyOwner {
-        require(manager != address(0), "Vote manager does not exist");
-
-        // Ensure that all outstanding manager rewards are accounted for
-        _updateManagerRewardsForAllGroups();
-
-        // Withdraw the manager's pending withdrawal balance
-        _initiateWithdrawal(managerRewards, false);
-
-        Manager(manager).deregisterVault();
-
-        delete manager;
-        delete managerCommission;
-        delete managerRewards;
     }
 }

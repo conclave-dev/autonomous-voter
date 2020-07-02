@@ -7,7 +7,6 @@ import "@openzeppelin/contracts-ethereum-package/contracts/math/SafeMath.sol";
 import "../Archive.sol";
 import "../Manager.sol";
 import "../celo/governance/interfaces/IElection.sol";
-import "../celo/governance/interfaces/ILockedGold.sol";
 import "../celo/common/FixidityLib.sol";
 import "../celo/common/libraries/LinkedList.sol";
 
@@ -18,13 +17,20 @@ contract VoteManagement is Ownable {
 
     Archive public archive;
     IElection public election;
-    ILockedGold public lockedGold;
 
     address public manager;
     uint256 public managerCommission;
     uint256 public managerMinimumBalanceRequirement;
     uint256 public managerRewards;
     mapping(address => uint256) public activeVotes;
+
+    function initialize(address archive_, IElection election_)
+        public
+        initializer
+    {
+        archive = Archive(archive_);
+        election = election_;
+    }
 
     modifier onlyVoteManager() {
         require(msg.sender == manager, "Not the vote manager");
@@ -50,14 +56,25 @@ contract VoteManagement is Ownable {
     }
 
     /**
-     * @notice Removes a vote manager
+     * @notice Removes the vote manager
      */
     function removeVoteManager() external onlyOwner {
         require(manager != address(0), "Vote manager does not exist");
 
+        // Ensure that all outstanding manager rewards are accounted for
+        _updateManagerRewardsForAllGroups();
+
+        // Withdraw the manager's pending withdrawal balance
+        // TODO: Refactor withdrawal initiation procedure for managers by adding a
+        // "removeManager" method to Vault that handles unlocking and withdrawing
+        // and is manager agnostic (for when we have other types)
+        // this._initiateWithdrawal(managerRewards, false);
+
         Manager(manager).deregisterVault();
 
-        manager = address(0);
+        delete manager;
+        delete managerCommission;
+        delete managerRewards;
     }
 
     /**

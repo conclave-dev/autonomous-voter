@@ -1,99 +1,62 @@
-const BigNumber = require('bignumber.js');
 const { assert } = require('./setup');
+const { default: BigNumber } = require('bignumber.js');
 
 describe('Vault', function () {
-  describe('initialize(address registry, address owner)', function () {
-    it('should initialize with an owner and register a Celo account', async function () {
-      const accounts = await this.kit.contracts.getAccounts();
+  describe('State', function () {
+    it('should have a proxy admin', async function () {
+      return assert.equal(await this.vaultInstance.proxyAdmin(), this.proxyAdmin.address);
+    });
 
-      assert.equal(await this.vaultInstance.owner.call(), this.primarySender, 'Does not have owner set');
-      return assert.equal(await accounts.isAccount(this.vaultInstance.address), true, 'Not a registered Celo account');
+    it('should have lockedGold', async function () {
+      const lockedGold = await this.vaultInstance.lockedGold();
+      const celoLockedGold = (await this.kit.contracts.getLockedGold()).address;
+
+      return assert.equal(lockedGold, celoLockedGold);
+    });
+
+    it('should have a pending withdrawals linked list', async function () {
+      const pendingWithdrawals = await this.vaultInstance.pendingWithdrawals();
+
+      assert.property(pendingWithdrawals, 'head');
+      assert.property(pendingWithdrawals, 'tail');
+      return assert.property(pendingWithdrawals, 'numElements');
     });
   });
 
-  describe('deposit()', function () {
-    it('should enable owners to make deposits', async function () {
+  describe('Methods ✅', function () {
+    it('should allow its owner to set its proxy admin', function () {
+      return assert.isFulfilled(this.vaultInstance.setProxyAdmin(this.proxyAdmin.address));
+    });
+
+    it('should return the vault nonvoting and voting balances', async function () {
       const balances = await this.vaultInstance.getBalances();
-      const balanceTotal = new BigNumber(balances[0]).plus(new BigNumber(balances[1]));
-      const deposit = 1;
+      const votingBalance = balances[0];
+      const nonvotingBalance = balances[1];
 
-      await this.vaultInstance.deposit({
-        value: deposit
-      });
+      assert.isNumber(parseInt(votingBalance));
+      return assert.isNumber(parseInt(nonvotingBalance));
+    });
 
-      const newBalances = await this.vaultInstance.getBalances();
-      const newBalanceTotal = new BigNumber(newBalances[0]).plus(new BigNumber(newBalances[1]));
+    it('should allow token deposits', async function () {
+      const nonvotingBalanceBefore = new BigNumber((await this.vaultInstance.getBalances())[1]);
 
-      return assert.isTrue(
-        newBalanceTotal.isEqualTo(balanceTotal.plus(deposit)),
-        'Manageable balance did not increase'
-      );
+      await this.vaultInstance.deposit({ value: 1 });
+
+      const nonvotingBalanceAfter = new BigNumber((await this.vaultInstance.getBalances())[1]);
+
+      return assert.isTrue(nonvotingBalanceBefore.plus(1).isEqualTo(nonvotingBalanceAfter));
     });
   });
 
-  describe('withdrawals', function () {
-    it('should initiate a withdrawal without revoking votes if the nonvoting balance is sufficient', async function () {
-      const balances = await this.vaultInstance.getBalances();
-      const votingBeforeWithdrawal = new BigNumber(balances[0]);
-      const nonvotingBeforeWithdrawal = new BigNumber(balances[1]);
-      const withdrawalAmount = nonvotingBeforeWithdrawal.dividedBy(10).toFixed(0);
-
-      await this.vaultInstance.initiateWithdrawal(withdrawalAmount);
-
-      const postWithdrawalBalances = await this.vaultInstance.getBalances();
-      const votingAfterWithdrawal = new BigNumber(postWithdrawalBalances[0]);
-      const nonvotingAfterWithdrawal = new BigNumber(postWithdrawalBalances[1]);
-
-      assert.isTrue(
-        votingBeforeWithdrawal.isEqualTo(votingAfterWithdrawal),
-        `Voting balance should not be drawn from if the nonvoting balance is sufficient`
-      );
-      return assert.isTrue(
-        nonvotingBeforeWithdrawal.minus(withdrawalAmount).isEqualTo(nonvotingAfterWithdrawal),
-        `Updated non-voting balance doesn't match after withdrawal`
+  describe('Methods 🛑', function () {
+    it('should not allow a non-owner to set its proxy admin', function () {
+      return assert.isRejected(
+        this.vaultInstance.setProxyAdmin(this.proxyAdmin.address, { from: this.secondarySender })
       );
     });
 
-    it('should not initiate withdrawal with an amount larger than the total balance', async function () {
-      const balances = await this.vaultInstance.getBalances();
-      const totalBalance = new BigNumber(balances[0]).plus(new BigNumber(balances[1]));
-      const invalidWithdrawalAmount = totalBalance.plus(1).toFixed(0);
-
-      assert.isRejected(this.vaultInstance.initiateWithdrawal(invalidWithdrawalAmount));
-    });
-  });
-
-  describe('Managers', function () {
-    it('should set a vote manager with setVoteManager', async function () {
-      const manager = await this.vaultInstance.manager();
-
-      if (manager !== this.managerInstance.address) {
-        await this.vaultInstance.setVoteManager(this.managerInstance.address);
-      }
-
-      const managerCommission = new BigNumber(await this.vaultInstance.managerCommission());
-
-      assert.equal(
-        await this.vaultInstance.manager(),
-        this.managerInstance.address,
-        `Vote manager address should be ${this.managerInstance.address}`
-      );
-      return assert.isTrue(
-        managerCommission.isEqualTo(managerCommission),
-        `Manager commission should be ${managerCommission}`
-      );
-    });
-
-    it('should remove the vote manager with removeVoteManager', async function () {
-      const managerBeforeRemoval = await this.vaultInstance.manager();
-
-      assert.equal(managerBeforeRemoval, this.managerInstance.address, 'Vote manager incorrectly set');
-
-      await this.vaultInstance.removeVoteManager();
-
-      const managerAfterRemoval = await this.vaultInstance.manager();
-
-      return assert.notEqual(managerAfterRemoval, this.managerInstance.address, 'Vote manager was not removed');
+    it('should not allow token deposits if the value is 0', function () {
+      return assert.isRejected(this.vaultInstance.deposit({ value: 0 }));
     });
   });
 });
