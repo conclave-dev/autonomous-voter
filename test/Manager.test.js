@@ -11,18 +11,6 @@ describe('Manager', function () {
       return assert.notEqual(await this.managerInstance.proxyAdmin(), this.zeroAddress);
     });
 
-    it('should have a linked list for storing vaults', async function () {
-      const vaults = await this.managerInstance.vaults();
-
-      assert.property(vaults, 'head');
-      assert.property(vaults, 'tail');
-      return assert.property(vaults, 'numElements');
-    });
-
-    it('should initialize with no registered vault', async function () {
-      return assert.isEmpty(await this.managerInstance.getVaults());
-    });
-
     it('should initialize with a manager commission', async function () {
       return assert.equal((await this.managerInstance.commission()).toString(), this.managerCommission);
     });
