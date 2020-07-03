@@ -4,19 +4,15 @@ import "@openzeppelin/contracts-ethereum-package/contracts/ownership/Ownable.sol
 import "@openzeppelin/contracts-ethereum-package/contracts/math/SafeMath.sol";
 import "./Archive.sol";
 import "./Vault.sol";
-import "./celo/common/libraries/AddressLinkedList.sol";
 
 contract Manager is Ownable {
     using SafeMath for uint256;
-    using AddressLinkedList for LinkedList.List;
 
     Archive public archive;
 
     address public proxyAdmin;
     uint256 public commission;
     uint256 public minimumBalanceRequirement;
-
-    LinkedList.List public vaults;
 
     modifier onlyVault() {
         // Confirm that Vault is in the AV network (i.e. stored within the Archive contract)
@@ -28,7 +24,10 @@ contract Manager is Ownable {
     }
 
     modifier onlyManagedVault(address vault) {
-        require(vaults.contains(vault) == true, "Unmanaged vault");
+        require(
+            archive.isManagedVault(vault, address(this)),
+            "Unmanaged vault"
+        );
         _;
     }
 
@@ -77,29 +76,5 @@ contract Manager is Ownable {
             "Invalid minimum balance requirement"
         );
         minimumBalanceRequirement = minimumBalanceRequirement_;
-    }
-
-    function getVaults() external view returns (address[] memory) {
-        return vaults.getKeys();
-    }
-
-    function registerVault() external onlyVault {
-        require(vaults.contains(msg.sender) == false, "Already registered");
-
-        (uint256 votingBalance, uint256 nonvotingBalance) = Vault(msg.sender)
-            .getBalances();
-
-        require(
-            votingBalance.add(nonvotingBalance) >= minimumBalanceRequirement,
-            "Insufficient manageble balance"
-        );
-
-        vaults.push(msg.sender);
-    }
-
-    function deregisterVault() external onlyVault {
-        require(vaults.contains(msg.sender) == true, "Not registered");
-
-        vaults.remove(msg.sender);
     }
 }

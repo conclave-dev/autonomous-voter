@@ -48,9 +48,9 @@ contract VoteManagement is Ownable {
         );
         require(manager == address(0), "Vote manager already exists");
 
-        manager_.registerVault();
-
         manager = address(manager_);
+        archive.associateVaultWithManager(manager);
+
         managerCommission = manager_.commission();
         managerMinimumBalanceRequirement = manager_.minimumBalanceRequirement();
     }
@@ -70,7 +70,7 @@ contract VoteManagement is Ownable {
         // and is manager agnostic (for when we have other types)
         // this._initiateWithdrawal(managerRewards, false);
 
-        Manager(manager).deregisterVault();
+        archive.dissociateVaultFromManager(manager);
 
         delete manager;
         delete managerCommission;
