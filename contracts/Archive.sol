@@ -21,6 +21,9 @@ contract Archive is Initializable, Ownable, UsingRegistry, UsingPrecompiles {
     mapping(address => LinkedList.List) public vaults;
     mapping(address => LinkedList.List) public managers;
 
+    // Tracks the list of managed vaults for each manager
+    mapping(address => LinkedList.List) public managedVaults;
+
     modifier onlyVaultFactory() {
         require(msg.sender == vaultFactory, "Sender is not the vault factory");
         _;
@@ -30,6 +33,15 @@ contract Archive is Initializable, Ownable, UsingRegistry, UsingPrecompiles {
         require(
             msg.sender == managerFactory,
             "Sender is not the manager factory"
+        );
+        _;
+    }
+
+    modifier onlyVault() {
+        // Confirm that Vault is in the AV network and tracked by the Archive
+        require(
+            vaults[Vault(msg.sender).owner()].contains(msg.sender),
+            "Invalid vault"
         );
         _;
     }
@@ -65,6 +77,14 @@ contract Archive is Initializable, Ownable, UsingRegistry, UsingPrecompiles {
         return managers[owner_].getKeys();
     }
 
+    function getManagedVaultsByManager(address manager)
+        external
+        view
+        returns (address[] memory)
+    {
+        return managedVaults[manager].getKeys();
+    }
+
     function hasVault(address owner_, address vault)
         external
         view
@@ -98,5 +118,46 @@ contract Archive is Initializable, Ownable, UsingRegistry, UsingPrecompiles {
             "Manager has already been set"
         );
         managers[owner_].push(manager);
+    }
+
+    // Shared internal function to check if the specified vault is managed by the specified manager
+    function _isManagedVault(address vault, address manager)
+        internal
+        view
+        returns (bool)
+    {
+        return managedVaults[manager].contains(vault);
+    }
+
+    function associateVaultWithManager(address manager) external onlyVault {
+        require(
+            _isManagedVault(msg.sender, manager) == false,
+            "Already registered"
+        );
+
+        (uint256 votingBalance, uint256 nonvotingBalance) = Vault(msg.sender)
+            .getBalances();
+
+        require(
+            votingBalance.add(nonvotingBalance) >=
+                Manager(manager).minimumBalanceRequirement(),
+            "Insufficient manageble balance"
+        );
+
+        managedVaults[manager].push(msg.sender);
+    }
+
+    function dissociateVaultFromManager(address manager) external onlyVault {
+        require(_isManagedVault(msg.sender, manager) == true, "Not registered");
+
+        managedVaults[manager].remove(msg.sender);
+    }
+
+    function isManagedVault(address vault, address manager)
+        external
+        view
+        returns (bool)
+    {
+        return _isManagedVault(vault, manager);
     }
 }

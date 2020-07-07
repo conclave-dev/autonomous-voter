@@ -1,6 +1,21 @@
 const { assert } = require('./setup');
 
 describe('Archive', () => {
+  before(async function () {
+    // Setup done for testing the Archive's tracking for managed vaults
+    const manager = await this.persistentVaultInstance.manager();
+
+    // Set the vote manager, which will also serve as the test for Archive's `associateVaultWithManager` method
+    if (manager === this.zeroAddress) {
+      await this.persistentVaultInstance.setVoteManager(this.persistentVoteManagerInstance.address);
+    }
+  });
+
+  after(async function () {
+    // Unset the vote manager, which will also serve as the test for Archive's `dissociateVaultFromManager` method
+    await this.persistentVaultInstance.removeVoteManager();
+  });
+
   describe('State', function () {
     it('should have a vault factory', async function () {
       return assert.equal(await this.archive.vaultFactory(), this.vaultFactory.address);
@@ -10,14 +25,19 @@ describe('Archive', () => {
       return assert.equal(await this.archive.managerFactory(), this.managerFactory.address);
     });
 
-    it(`should have a user's vault instances`, async function () {
+    it(`should have a mapping to track user's vault instances`, async function () {
       const primarySenderVaults = await this.archive.getVaultsByOwner(this.primarySender);
       return assert.isTrue(primarySenderVaults.length > 0);
     });
 
-    it(`should have a user's manager instances`, async function () {
+    it(`should have a mapping to track user's manager instances`, async function () {
       const primarySenderManagers = await this.archive.getManagersByOwner(this.primarySender);
       return assert.isTrue(primarySenderManagers.length > 0);
+    });
+
+    it(`should have a mapping to track managed vaults with their managers`, async function () {
+      const managedVaults = await this.archive.getManagedVaultsByManager(this.persistentVoteManagerInstance.address);
+      return assert.isTrue(managedVaults.length > 0);
     });
   });
 
@@ -45,6 +65,15 @@ describe('Archive', () => {
     it('should check valid ownership of a manager', async function () {
       return assert.isTrue(await this.archive.hasManager(this.primarySender, this.managerInstance.address));
     });
+
+    it('should check valid managed vault', async function () {
+      return assert.isTrue(
+        await this.archive.isManagedVault(
+          this.persistentVaultInstance.address,
+          this.persistentVoteManagerInstance.address
+        )
+      );
+    });
   });
 
   describe('Methods 🛑', function () {
@@ -64,6 +93,12 @@ describe('Archive', () => {
 
     it('should check invalid ownership of a manager', async function () {
       return assert.isFalse(await this.archive.hasManager(this.secondarySender, this.managerInstance.address));
+    });
+
+    it('should check invalid managed vault', async function () {
+      return assert.isFalse(
+        await this.archive.isManagedVault(this.primarySender, this.persistentVoteManagerInstance.address)
+      );
     });
   });
 });
