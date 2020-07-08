@@ -1,7 +1,7 @@
 // Thanks @ critesjosh
 // https://docs.celo.org/developer-guide/start/hello-contract-remote-node
 const { newKit } = require('@celo/contractkit');
-const { alfajoresRpcAPI, localRpcAPI } = require('./config');
+const { alfajoresRpcAPI, alfajoresPrimaryAccount, localRpcAPI, localPrimaryAccount } = require('./config');
 
 const {
   web3: {
@@ -21,14 +21,14 @@ module.exports = {
       network_id: 44786,
       gas: 20000000,
       gasPrice: 100000000000,
-      from: '0x742e41440C70dFf2C78388B4a2C432A7A6cA08cf'
+      from: alfajoresPrimaryAccount
     },
     local: {
       provider: localProvider, // CeloProvider
       network_id: '*',
       gas: 20000000,
       gasPrice: 100000000000,
-      from: '0x5409ED021D9299bf6814279A6A1411A7e866A631'
+      from: localPrimaryAccount
     }
   },
 
