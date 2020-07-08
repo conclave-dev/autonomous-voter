@@ -50,7 +50,53 @@ const setUpGlobalTestVariables = async (rpcAPI, primaryAccount) => {
   };
 };
 
+const setUpGlobalTestContracts = async ({
+  archive,
+  contracts,
+  primarySender,
+  vaultFactory,
+  managerFactory,
+  managerCommission,
+  minimumBalanceRequirement
+}) => {
+  const getVaults = () => archive.getVaultsByOwner(primarySender);
+  const getManagers = () => archive.getManagersByOwner(primarySender);
+  const createVaultInstance = () =>
+    vaultFactory.createInstance('Vault', registryContractAddress, {
+      value: new BigNumber('1e17')
+    });
+  const createManagerInstance = () =>
+    managerFactory.createInstance('VoteManager', managerCommission, minimumBalanceRequirement);
+
+  // Conditionally create persistent test instances if they don't yet exist
+  if (!(await getVaults()).length) {
+    await createVaultInstance();
+  }
+
+  if (!(await getManagers()).length) {
+    await createManagerInstance();
+  }
+
+  // New test instances
+  await createVaultInstance();
+  await createManagerInstance();
+
+  const vaults = await getVaults();
+  const managers = await getManagers();
+  const vaultInstance = await contracts.Vault.at(vaults.pop());
+
+  // Maintain state and used for voting tests
+  return {
+    persistentVaultInstance: await contracts.Vault.at(vaults[0]),
+    persistentVoteManagerInstance: await contracts.VoteManager.at(managers[0]),
+    vaultInstance,
+    managerInstance: await contracts.VoteManager.at(managers.pop()),
+    proxyAdmin: await contracts.ProxyAdmin.at(await vaultInstance.proxyAdmin())
+  };
+};
+
 module.exports = {
   getTruffleContracts,
-  setUpGlobalTestVariables
+  setUpGlobalTestVariables,
+  setUpGlobalTestContracts
 };
