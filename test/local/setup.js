@@ -10,16 +10,16 @@ const {
   defaultGas,
   defaultGasPrice,
   registryContractAddress
-} = require('../config');
+} = require('../../config');
 
 const contractBuildFiles = [
-  require('../build/contracts/App.json'),
-  require('../build/contracts/Archive.json'),
-  require('../build/contracts/Vault.json'),
-  require('../build/contracts/VaultFactory.json'),
-  require('../build/contracts/VoteManager.json'),
-  require('../build/contracts/ManagerFactory.json'),
-  require('../build/contracts/ProxyAdmin.json')
+  require('../../build/contracts/App.json'),
+  require('../../build/contracts/Archive.json'),
+  require('../../build/contracts/Vault.json'),
+  require('../../build/contracts/VaultFactory.json'),
+  require('../../build/contracts/VoteManager.json'),
+  require('../../build/contracts/ManagerFactory.json'),
+  require('../../build/contracts/ProxyAdmin.json')
 ];
 
 const getTruffleContracts = (primarySender, rpcAPI) =>
