@@ -26,7 +26,7 @@ module.exports = {
       network_id: 44786,
       gas: defaultGas,
       gasPrice: defaultGasPrice,
-      from: '0x876b74eDac7b5ecad82Ac3bf446c8E1503FEF37d'
+      from: '0x742e41440C70dFf2C78388B4a2C432A7A6cA08cf'
     },
     baklava: {
       provider: baklavaProvider,
