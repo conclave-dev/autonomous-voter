@@ -15,7 +15,7 @@ jobs:
       - run:
           command: npm run dev:setup
       - run:
-          command: npm test
+          command: npm run test:local
 workflows:
   build-and-test:
     jobs:

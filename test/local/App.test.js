@@ -1,6 +1,6 @@
 const BigNumber = require('bignumber.js');
 const { assert } = require('./setup');
-const { registryContractAddress } = require('../config');
+const { registryContractAddress } = require('../../config');
 
 describe('App', function () {
   describe('State', function () {
