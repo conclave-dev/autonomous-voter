@@ -40,7 +40,6 @@ const setUpGlobalTestVariables = async (rpcAPI, primaryAccount) => {
     kit: newKit(rpcAPI),
     managerCommission: new BigNumber('10'),
     minimumBalanceRequirement: new BigNumber('1e10'),
-    registryContractAddress,
     zeroAddress: '0x0000000000000000000000000000000000000000',
     app: await contracts.App.deployed(),
     archive: await contracts.Archive.deployed(),
@@ -68,6 +67,14 @@ const setUpGlobalTestContracts = async ({
   const createManagerInstance = () =>
     managerFactory.createInstance('VoteManager', managerCommission, minimumBalanceRequirement);
 
+  try {
+    // New test instances
+    await createVaultInstance();
+    await createManagerInstance();
+  } catch (err) {
+    console.error('there was an error', err);
+  }
+
   // Conditionally create persistent test instances if they don't yet exist
   if (!(await getVaults()).length) {
     await createVaultInstance();
@@ -76,10 +83,6 @@ const setUpGlobalTestContracts = async ({
   if (!(await getManagers()).length) {
     await createManagerInstance();
   }
-
-  // New test instances
-  await createVaultInstance();
-  await createManagerInstance();
 
   const vaults = await getVaults();
   const managers = await getManagers();
