@@ -1,6 +1,5 @@
 const BigNumber = require('bignumber.js');
 const { assert } = require('./setup');
-const { registryContractAddress } = require('../../config');
 
 describe('App', function () {
   describe('State', function () {
@@ -20,7 +19,7 @@ describe('App', function () {
 
     it('should allow authorized contract factories to create instances', function () {
       return assert.isFulfilled(
-        this.vaultFactory.createInstance('Vault', registryContractAddress, {
+        this.vaultFactory.createInstance('Vault', this.registryContractAddress, {
           value: new BigNumber('1e17')
         })
       );

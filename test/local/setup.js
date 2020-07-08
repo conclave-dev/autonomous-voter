@@ -1,81 +1,21 @@
 const { assert } = require('chai').use(require('chai-as-promised'));
-const { newKit } = require('@celo/contractkit');
-const contract = require('@truffle/contract');
 const BigNumber = require('bignumber.js');
-const {
-  primarySenderAddress,
-  secondarySenderAddress,
-  alfajoresRpcAPI,
-  localRpcAPI,
-  defaultGas,
-  defaultGasPrice,
-  registryContractAddress
-} = require('../../config');
-
-const contractBuildFiles = [
-  require('../../build/contracts/App.json'),
-  require('../../build/contracts/Archive.json'),
-  require('../../build/contracts/Vault.json'),
-  require('../../build/contracts/VaultFactory.json'),
-  require('../../build/contracts/VoteManager.json'),
-  require('../../build/contracts/ManagerFactory.json'),
-  require('../../build/contracts/ProxyAdmin.json')
-];
-
-const getTruffleContracts = (primarySender, rpcAPI) =>
-  contractBuildFiles.reduce((contracts, { contractName, abi, networks }) => {
-    const truffleContract = contract({ contractName, abi, networks });
-
-    truffleContract.setProvider(rpcAPI);
-
-    truffleContract.defaults({
-      from: primarySender,
-      gas: defaultGas,
-      gasPrice: defaultGasPrice
-    });
-
-    return {
-      ...contracts,
-      [contractName]: truffleContract
-    };
-  }, {});
+const { forEach } = require('lodash');
+const { localRpcAPI } = require('../../config');
+const { setUpGlobalTestVariables } = require('../util');
 
 before(async function () {
-  // For convenient access
-  this.registryContractAddress = registryContractAddress;
+  this.primarySender = '0x5409ED021D9299bf6814279A6A1411A7e866A631';
+  this.secondarySender = '0x6Ecbe1DB9EF729CBe972C83Fb886247691Fb6beb';
 
-  try {
-    this.kit = newKit(localRpcAPI);
-
-    const localAccounts = await this.kit.web3.eth.getAccounts();
-
-    this.primarySender = localAccounts[0];
-    this.secondarySender = localAccounts[1];
-    this.contracts = getTruffleContracts(this.primarySender, localRpcAPI);
-  } catch (err) {
-    console.log('Local accounts unavailable', err);
-
-    this.kit = newKit(alfajoresRpcAPI);
-    this.primarySender = primarySenderAddress;
-    this.secondarySender = secondarySenderAddress;
-    this.contracts = getTruffleContracts(this.primarySender, alfajoresRpcAPI);
-  }
-
-  this.app = await this.contracts.App.deployed();
-  this.archive = await this.contracts.Archive.deployed();
-  this.vault = await this.contracts.Vault.deployed();
-  this.vaultFactory = await this.contracts.VaultFactory.deployed();
-  this.managerFactory = await this.contracts.ManagerFactory.deployed();
-
-  // Reusable testing variables
-  this.managerCommission = new BigNumber('10');
-  this.minimumBalanceRequirement = new BigNumber('1e10');
-  this.zeroAddress = '0x0000000000000000000000000000000000000000';
+  forEach(await setUpGlobalTestVariables(localRpcAPI, this.primarySender), (value, key) => {
+    this[key] = value;
+  });
 
   const getVaults = () => this.archive.getVaultsByOwner(this.primarySender);
   const getManagers = () => this.archive.getManagersByOwner(this.primarySender);
   const createVaultInstance = () =>
-    this.vaultFactory.createInstance('Vault', registryContractAddress, {
+    this.vaultFactory.createInstance('Vault', this.registryContractAddress, {
       value: new BigNumber('1e17')
     });
   const createManagerInstance = () =>
