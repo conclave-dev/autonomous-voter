@@ -12,6 +12,7 @@
     "lint:sol": "solhint -c .solhint_config.json -ignore_path .solhintignore './contracts/**/*.sol'",
     "format": "prettier --write ./**/*.js ./**/*.sol",
     "test:local": "mocha test/local/**/*.js --exit --bail --timeout 100000",
+    "test:alfajores": "mocha test/alfajores/**/*.js --exit --bail --timeout 100000",
     "truffle:compile": "truffle compile --all --network",
     "truffle:migrate": "truffle migrate --network"
   },
@@ -62,6 +63,7 @@
     "ganache-core": "git+https://github.com/celo-org/ganache-core#26ffbd7",
     "husky": "^4.2.5",
     "lint-staged": "^10.2.10",
+    "lodash": "^4.17.19",
     "mocha": "^7.2.0",
     "prettier": "^2.0.5",
     "prettier-plugin-solidity": "^1.0.0-alpha.52",

@@ -1,10 +1,9 @@
 module.exports = {
-  alfajoresRpcAPI: 'http://3.230.69.118:8545',
-  baklavaRpcAPI: 'http://3.230.69.118:8547',
+  alfajoresRpcAPI: 'http://3.82.157.109:8545',
+  alfajoresPrimaryAccount: '0x742e41440C70dFf2C78388B4a2C432A7A6cA08cf',
+  alfajoresSecondaryAccount: '0x03A1473a2a4a3cdf595953D28b41C0bB0b686cBD',
   localRpcAPI: 'http://localhost:8545',
-  primarySenderAddress: '0x876b74eDac7b5ecad82Ac3bf446c8E1503FEF37d',
-  secondarySenderAddress: '0x4a8fC10F153BAa6f5F6A347E11B8aA00BbffD0a6',
-  registryContractAddress: '0x000000000000000000000000000000000000ce10',
-  defaultGas: 20000000,
-  defaultGasPrice: 100000000000
+  localPrimaryAccount: '0x5409ED021D9299bf6814279A6A1411A7e866A631',
+  localSecondaryAccount: '0x6Ecbe1DB9EF729CBe972C83Fb886247691Fb6beb',
+  registryContractAddress: '0x000000000000000000000000000000000000ce10'
 };
