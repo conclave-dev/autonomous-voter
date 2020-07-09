@@ -3,7 +3,7 @@ const ImplementationDirectory = artifacts.require('ImplementationDirectory');
 const Package = artifacts.require('Package');
 const Vault = artifacts.require('Vault');
 const VoteManager = artifacts.require('VoteManager');
-const { packageName } = require('../config');
+const { packageName, packageVersion } = require('../config');
 
 module.exports = (deployer) =>
   deployer.then(async () => {
@@ -13,6 +13,9 @@ module.exports = (deployer) =>
 
     const { address: vaultAddress } = await Vault.deployed();
     const { address: managerAddress } = await VoteManager.deployed();
+
+    const hasDirectory = (await package.getContract(packageVersion)) === directory.address;
+    const hasPackage = (await app.getPackage(packageName))[0] === package.address;
     const hasVault = (await directory.getImplementation('Vault')) === vaultAddress;
     const hasVoteManager = (await directory.getImplementation('VoteManager')) === managerAddress;
 
@@ -24,6 +27,11 @@ module.exports = (deployer) =>
       await directory.setImplementation('VoteManager', managerAddress);
     }
 
-    await package.addVersion([1, 0, 0], directory.address, '0x0');
-    await app.setPackage(packageName, package.address, [1, 0, 0]);
+    if (!hasDirectory) {
+      await package.addVersion(packageVersion, directory.address, '0x0');
+    }
+
+    if (!hasPackage) {
+      await app.setPackage(packageName, package.address, packageVersion);
+    }
   });
