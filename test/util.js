@@ -67,14 +67,6 @@ const setUpGlobalTestContracts = async ({
   const createManagerInstance = () =>
     managerFactory.createInstance('VoteManager', managerCommission, minimumBalanceRequirement);
 
-  try {
-    // New test instances
-    await createVaultInstance();
-    await createManagerInstance();
-  } catch (err) {
-    console.error('there was an error', err);
-  }
-
   // Conditionally create persistent test instances if they don't yet exist
   if (!(await getVaults()).length) {
     await createVaultInstance();
@@ -83,6 +75,10 @@ const setUpGlobalTestContracts = async ({
   if (!(await getManagers()).length) {
     await createManagerInstance();
   }
+
+  // Create new instances
+  await createVaultInstance();
+  await createManagerInstance();
 
   const vaults = await getVaults();
   const managers = await getManagers();

@@ -6,10 +6,17 @@ const VoteManager = artifacts.require('VoteManager');
 
 module.exports = async (deployer, network) => {
   const overwrite = network === 'local' ? true : false;
-  const deployLinkedList =
-    overwrite || (await LinkedList.deployed()).address === '0x0000000000000000000000000000000000000000';
-  const deployAddressLinkedList =
-    overwrite || (await AddressLinkedList.deployed()).address === '0x0000000000000000000000000000000000000000';
+  let deployLinkedList;
+  let deployAddressLinkedList;
+
+  try {
+    deployLinkedList =
+      overwrite || (await LinkedList.deployed()).address === '0x0000000000000000000000000000000000000000';
+    deployAddressLinkedList =
+      overwrite || (await AddressLinkedList.deployed()).address === '0x0000000000000000000000000000000000000000';
+  } catch (err) {
+    console.error(err);
+  }
 
   await deployer.deploy(LinkedList, { overwrite: deployLinkedList });
   await deployer.link(LinkedList, AddressLinkedList);
