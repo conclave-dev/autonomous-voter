@@ -1,13 +1,15 @@
 const { deployContracts, contractHasUpdates } = require('./util');
 
 const App = artifacts.require('App');
+const ImplementationDirectory = artifacts.require('ImplementationDirectory');
+const Package = artifacts.require('Package');
 const Vault = artifacts.require('Vault');
 const VoteManager = artifacts.require('VoteManager');
 const Archive = artifacts.require('Archive');
 const VaultFactory = artifacts.require('VaultFactory');
 const ManagerFactory = artifacts.require('ManagerFactory');
 
-const contracts = [App, Vault, VoteManager, Archive, VaultFactory, ManagerFactory];
+const contracts = [App, ImplementationDirectory, Package, Vault, VoteManager, Archive, VaultFactory, ManagerFactory];
 
 module.exports = async (deployer, network) => {
   await deployContracts(deployer, network, contracts);

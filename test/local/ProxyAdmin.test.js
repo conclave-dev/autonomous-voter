@@ -4,7 +4,7 @@ const { assert } = require('./setup');
 describe('ProxyAdmin', function () {
   before(async function () {
     // Create a vault instance for proxy admin tests
-    await this.vaultFactory.createInstance('Vault', this.registryContractAddress, {
+    await this.vaultFactory.createInstance('AV', 'Vault', this.registryContractAddress, {
       value: new BigNumber('1e17')
     });
 

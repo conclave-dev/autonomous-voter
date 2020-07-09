@@ -61,11 +61,11 @@ const setUpGlobalTestContracts = async ({
   const getVaults = () => archive.getVaultsByOwner(primarySender);
   const getManagers = () => archive.getManagersByOwner(primarySender);
   const createVaultInstance = () =>
-    vaultFactory.createInstance('Vault', registryContractAddress, {
+    vaultFactory.createInstance('AV', 'Vault', registryContractAddress, {
       value: new BigNumber('1e17')
     });
   const createManagerInstance = () =>
-    managerFactory.createInstance('VoteManager', managerCommission, minimumBalanceRequirement);
+    managerFactory.createInstance('AV', 'VoteManager', managerCommission, minimumBalanceRequirement);
 
   // Conditionally create persistent test instances if they don't yet exist
   if (!(await getVaults()).length) {

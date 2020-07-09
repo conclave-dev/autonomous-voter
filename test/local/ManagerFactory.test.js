@@ -18,7 +18,7 @@ describe('ManagerFactory', function () {
       const minimumBalanceRequirement = new BigNumber(1);
 
       return assert.isFulfilled(
-        this.managerFactory.createInstance('VoteManager', managerCommission, minimumBalanceRequirement)
+        this.managerFactory.createInstance('AV', 'VoteManager', managerCommission, minimumBalanceRequirement)
       );
     });
   });
@@ -26,16 +26,23 @@ describe('ManagerFactory', function () {
   describe('Methods 🛑', function () {
     it('should not create an instance from an invalid implementation', function () {
       return assert.isRejected(
-        this.managerFactory.createInstance('BadVoteManager', this.managerCommission, this.minimumBalanceRequirement)
+        this.managerFactory.createInstance(
+          'AV',
+          'BadVoteManager',
+          this.managerCommission,
+          this.minimumBalanceRequirement
+        )
       );
     });
 
     it('should not create an instance with an invalid/missing commission', function () {
-      return assert.isRejected(this.managerFactory.createInstance('VoteManager', null, this.minimumBalanceRequirement));
+      return assert.isRejected(
+        this.managerFactory.createInstance('AV', 'VoteManager', null, this.minimumBalanceRequirement)
+      );
     });
 
     it('should not create an instance with an invalid/missing minimum balance requirement', function () {
-      return assert.isRejected(this.managerFactory.createInstance('VoteManager', this.managerCommission, null));
+      return assert.isRejected(this.managerFactory.createInstance('AV', 'VoteManager', this.managerCommission, null));
     });
   });
 });
