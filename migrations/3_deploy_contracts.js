@@ -9,9 +9,17 @@ const Archive = artifacts.require('Archive');
 const VaultFactory = artifacts.require('VaultFactory');
 const ManagerFactory = artifacts.require('ManagerFactory');
 
-const contracts = [App, ImplementationDirectory, Package, Vault, VoteManager, Archive, VaultFactory, ManagerFactory];
+const contracts = [ImplementationDirectory, Package, Vault, VoteManager, Archive, VaultFactory, ManagerFactory];
 
 module.exports = async (deployer, network) => {
+  // Handle `App` deployment separately since there seems to be a bug for contracts with defined but empty constructor
+  // when calling Truffle's deployer while including options (one of which is `overwrite`)
+  // so we would check externally and omit the usage of `overwrite` for its deployment
+  if (contractHasUpdates(deployer, network, App)) {
+    await deployer.deploy(App);
+  }
+
+  // Handle the rest of the contracts
   await deployContracts(deployer, network, contracts);
 
   // Force deployment of factories if Archive was updated

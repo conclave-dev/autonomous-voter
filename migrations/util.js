@@ -28,10 +28,7 @@ const contractHasUpdates = async (deployer, network, contract) => {
 
 const deployContracts = async (deployer, network, contracts) => {
   await Promise.each(contracts, async (contract) => {
-    const hasUpdate = await contractHasUpdates(deployer, network, contract);
-    if (hasUpdate) {
-      await deployer.deploy(contract);
-    }
+    await deployer.deploy(contract, { overwrite: await contractHasUpdates(deployer, network, contract) });
   });
 };
 
