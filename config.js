@@ -1,4 +1,5 @@
 module.exports = {
+  packageName: 'AV',
   alfajoresRpcAPI: 'http://3.82.157.109:8545',
   alfajoresPrimaryAccount: '0x742e41440C70dFf2C78388B4a2C432A7A6cA08cf',
   alfajoresSecondaryAccount: '0x03A1473a2a4a3cdf595953D28b41C0bB0b686cBD',

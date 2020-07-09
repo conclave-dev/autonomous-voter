@@ -19,7 +19,7 @@ describe('VaultFactory', function () {
   describe('Methods ✅', function () {
     it('should create an instance from a valid implementation and Celo Registry contract', function () {
       return assert.isFulfilled(
-        this.vaultFactory.createInstance('AV', 'Vault', this.registryContractAddress, {
+        this.vaultFactory.createInstance(this.packageName, 'Vault', this.registryContractAddress, {
           value: new BigNumber('1e17')
         })
       );
@@ -31,7 +31,7 @@ describe('VaultFactory', function () {
       const depositBelowMinimum = new BigNumber(await this.vaultFactory.MINIMUM_DEPOSIT()).minus(1);
 
       return assert.isRejected(
-        this.vaultFactory.createInstance('AV', 'Vault', this.registryContractAddress, {
+        this.vaultFactory.createInstance(this.packageName, 'Vault', this.registryContractAddress, {
           value: depositBelowMinimum
         })
       );
@@ -39,7 +39,7 @@ describe('VaultFactory', function () {
 
     it('should not create an instance from an invalid implementation', function () {
       return assert.isRejected(
-        this.vaultFactory.createInstance('AV', 'BadVault', this.registryContractAddress, {
+        this.vaultFactory.createInstance(this.packageName, 'BadVault', this.registryContractAddress, {
           value: new BigNumber('1e17')
         })
       );
@@ -47,7 +47,7 @@ describe('VaultFactory', function () {
 
     it('should not create an instance from an invalid Celo Registry contract', function () {
       return assert.isRejected(
-        this.vaultFactory.createInstance('AV', 'Vault', this.zeroAddress, {
+        this.vaultFactory.createInstance(this.packageName, 'Vault', this.zeroAddress, {
           value: new BigNumber('1e17')
         })
       );

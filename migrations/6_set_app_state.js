@@ -3,6 +3,7 @@ const ImplementationDirectory = artifacts.require('ImplementationDirectory');
 const Package = artifacts.require('Package');
 const Vault = artifacts.require('Vault');
 const VoteManager = artifacts.require('VoteManager');
+const { packageName } = require('../config');
 
 module.exports = (deployer) =>
   deployer.then(async () => {
@@ -24,5 +25,5 @@ module.exports = (deployer) =>
     }
 
     await package.addVersion([1, 0, 0], directory.address, '0x0');
-    await app.setPackage('AV', package.address, [1, 0, 0]);
+    await app.setPackage(packageName, package.address, [1, 0, 0]);
   });
