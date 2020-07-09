@@ -16,6 +16,7 @@ contract ManagerFactory is Initializable {
     }
 
     function createInstance(
+        string calldata packageName,
         string calldata contractName,
         uint256 commission,
         uint256 minimumBalanceRequirement
@@ -30,6 +31,7 @@ contract ManagerFactory is Initializable {
         // Create the actual manager instance
         address manager = address(
             app.create(
+                packageName,
                 contractName,
                 proxyAdminAddress,
                 abi.encodeWithSignature(
