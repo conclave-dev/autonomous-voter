@@ -13,7 +13,6 @@ module.exports = (deployer) =>
     const vaultFactory = await VaultFactory.deployed();
     const managerFactory = await ManagerFactory.deployed();
     const contractInitializers = [
-      { contract: 'App', fn: async () => await app.initialize() },
       { contract: 'Archive', fn: async () => await archive.initialize(registryContractAddress) },
       {
         contract: 'VaultFactory',

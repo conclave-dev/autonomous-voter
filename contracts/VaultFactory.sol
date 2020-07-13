@@ -18,10 +18,11 @@ contract VaultFactory is Initializable {
         archive = archive_;
     }
 
-    function createInstance(string calldata contractName, address registry)
-        external
-        payable
-    {
+    function createInstance(
+        string calldata packageName,
+        string calldata contractName,
+        address registry
+    ) external payable {
         require(
             msg.value >= MINIMUM_DEPOSIT,
             "Insufficient funds for initial deposit"
@@ -37,6 +38,7 @@ contract VaultFactory is Initializable {
         // Create the actual vault instance
         address vaultAddress = address(
             app.create.value(msg.value)(
+                packageName,
                 contractName,
                 adminAddress,
                 abi.encodeWithSignature(

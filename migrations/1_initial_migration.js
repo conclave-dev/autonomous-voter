@@ -5,7 +5,8 @@ module.exports = async (deployer, network) => {
   let deployMigrations;
 
   try {
-    deployMigrations = overwrite || (await Migrations.deployed()).address === '0x0000000000000000000000000000000000000000';
+    deployMigrations =
+      overwrite || (await Migrations.deployed()).address === '0x0000000000000000000000000000000000000000';
   } catch (err) {
     console.error(err);
   }

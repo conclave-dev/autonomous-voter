@@ -1,34 +1,37 @@
 const App = artifacts.require('App');
+const ImplementationDirectory = artifacts.require('ImplementationDirectory');
+const Package = artifacts.require('Package');
 const Vault = artifacts.require('Vault');
 const VoteManager = artifacts.require('VoteManager');
-const VaultFactory = artifacts.require('VaultFactory');
-const ManagerFactory = artifacts.require('ManagerFactory');
+const { packageName, packageVersion } = require('../config');
 
 module.exports = (deployer) =>
   deployer.then(async () => {
     const app = await App.deployed();
+    const directory = await ImplementationDirectory.deployed();
+    const package = await Package.deployed();
+
     const { address: vaultAddress } = await Vault.deployed();
     const { address: managerAddress } = await VoteManager.deployed();
-    const { address: vaultFactoryAddress } = await VaultFactory.deployed();
-    const { address: managerFactoryAddress } = await ManagerFactory.deployed();
-    const hasVault = (await app.contractImplementations('Vault')) === vaultAddress;
-    const hasVoteManager = (await app.contractImplementations('VoteManager')) === managerAddress;
-    const hasVaultFactory = (await app.contractFactories('Vault')) === vaultFactoryAddress;
-    const hasManagerFactory = (await app.contractFactories('VoteManager')) === managerFactoryAddress;
+
+    const hasDirectory = (await package.getContract(packageVersion)) === directory.address;
+    const hasPackage = (await app.getPackage(packageName))[0] === package.address;
+    const hasVault = (await directory.getImplementation('Vault')) === vaultAddress;
+    const hasVoteManager = (await directory.getImplementation('VoteManager')) === managerAddress;
 
     if (!hasVault) {
-      await app.setContractImplementation('Vault', vaultAddress);
+      await directory.setImplementation('Vault', vaultAddress);
     }
 
     if (!hasVoteManager) {
-      await app.setContractImplementation('VoteManager', managerAddress);
+      await directory.setImplementation('VoteManager', managerAddress);
     }
 
-    if (!hasVaultFactory) {
-      await app.setContractFactory('Vault', vaultFactoryAddress);
+    if (!hasDirectory) {
+      await package.addVersion(packageVersion, directory.address, '0x0');
     }
 
-    if (!hasManagerFactory) {
-      await app.setContractFactory('VoteManager', managerFactoryAddress);
+    if (!hasPackage) {
+      await app.setPackage(packageName, package.address, packageVersion);
     }
   });

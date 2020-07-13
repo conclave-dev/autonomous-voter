@@ -1,7 +1,7 @@
 const { newKit } = require('@celo/contractkit');
 const contract = require('@truffle/contract');
 const BigNumber = require('bignumber.js');
-const { registryContractAddress } = require('../config');
+const { registryContractAddress, packageName } = require('../config');
 
 const contractBuildFiles = [
   require('../build/contracts/App.json'),
@@ -38,6 +38,7 @@ const setUpGlobalTestVariables = async (rpcAPI, primaryAccount) => {
   return {
     contracts,
     kit: newKit(rpcAPI),
+    packageName,
     managerCommission: new BigNumber('10'),
     minimumBalanceRequirement: new BigNumber('1e10'),
     zeroAddress: '0x0000000000000000000000000000000000000000',
@@ -61,11 +62,11 @@ const setUpGlobalTestContracts = async ({
   const getVaults = () => archive.getVaultsByOwner(primarySender);
   const getManagers = () => archive.getManagersByOwner(primarySender);
   const createVaultInstance = () =>
-    vaultFactory.createInstance('Vault', registryContractAddress, {
+    vaultFactory.createInstance(packageName, 'Vault', registryContractAddress, {
       value: new BigNumber('1e17')
     });
   const createManagerInstance = () =>
-    managerFactory.createInstance('VoteManager', managerCommission, minimumBalanceRequirement);
+    managerFactory.createInstance(packageName, 'VoteManager', managerCommission, minimumBalanceRequirement);
 
   // Conditionally create persistent test instances if they don't yet exist
   if (!(await getVaults()).length) {
