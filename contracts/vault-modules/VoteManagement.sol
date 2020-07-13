@@ -150,43 +150,6 @@ contract VoteManagement is Ownable {
         return groupRewards;
     }
 
-    // Find adjacent groups with less and more votes than the specified one after the updated vote count
-    function findLesserAndGreater(
-        address group,
-        uint256 vote,
-        bool isRevoke
-    ) public view returns (address, address) {
-        address[] memory groups;
-        uint256[] memory votes;
-        (groups, votes) = election.getTotalVotesForEligibleValidatorGroups();
-        address lesser = address(0);
-        address greater = address(0);
-
-        // Get the current totalVote count for the specified group
-        uint256 totalVote = election.getTotalVotesForGroupByAccount(
-            group,
-            address(this)
-        );
-        if (isRevoke) {
-            totalVote = totalVote.sub(vote);
-        } else {
-            totalVote = totalVote.add(vote);
-        }
-
-        // Look for the adjacent groups with less and more votes, respectively
-        for (uint256 i = 0; i < groups.length; i++) {
-            if (groups[i] != group) {
-                if (votes[i] <= totalVote) {
-                    lesser = groups[i];
-                    break;
-                }
-                greater = groups[i];
-            }
-        }
-
-        return (lesser, greater);
-    }
-
     /**
      * @notice Fetch the list of groups with active votes from this vault
      * @return Array of group addresses
@@ -268,7 +231,7 @@ contract VoteManagement is Ownable {
                 .getPendingVotesForGroupByAccount(groups[i], address(this));
 
             if (groupPendingVotes > 0) {
-                (address lesser, address greater) = findLesserAndGreater(
+                (address lesser, address greater) = archive.findLesserAndGreater(
                     groups[i],
                     groupPendingVotes,
                     true
@@ -284,7 +247,7 @@ contract VoteManagement is Ownable {
             }
 
             if (groupActiveVotes > 0) {
-                (address lesser, address greater) = findLesserAndGreater(
+                (address lesser, address greater) = archive.findLesserAndGreater(
                     groups[i],
                     groupActiveVotes,
                     true
@@ -325,7 +288,7 @@ contract VoteManagement is Ownable {
                         ? totalRevokeAmount
                         : groupPendingVotes
                 );
-                (address lesser, address greater) = findLesserAndGreater(
+                (address lesser, address greater) = archive.findLesserAndGreater(
                     groups[i],
                     pendingRevokeAmount,
                     true
@@ -343,7 +306,7 @@ contract VoteManagement is Ownable {
 
             // If there's any remaining votes need to be revoked, continue with the active ones
             if (totalRevokeAmount > 0) {
-                (address lesser, address greater) = findLesserAndGreater(
+                (address lesser, address greater) = archive.findLesserAndGreater(
                     groups[i],
                     totalRevokeAmount,
                     true

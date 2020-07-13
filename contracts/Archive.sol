@@ -6,11 +6,12 @@ import "@openzeppelin/contracts-ethereum-package/contracts/ownership/Ownable.sol
 
 import "./celo/common/UsingRegistry.sol";
 import "./celo/common/libraries/UsingPrecompiles.sol";
+import "./archive-modules/ElectionDataProvider.sol";
 import "./celo/common/libraries/AddressLinkedList.sol";
 import "./Vault.sol";
 import "./Manager.sol";
 
-contract Archive is Initializable, Ownable, UsingRegistry, UsingPrecompiles {
+contract Archive is Initializable, Ownable, UsingRegistry, UsingPrecompiles, ElectionDataProvider {
     using AddressLinkedList for LinkedList.List;
 
     // Factory contracts that are able to modify the lists below
@@ -51,6 +52,8 @@ contract Archive is Initializable, Ownable, UsingRegistry, UsingPrecompiles {
 
         // registry_ has a trailing underscore to avoid collision with inherited prop from UsingRegistry
         initializeRegistry(msg.sender, registry_);
+
+        ElectionDataProvider.initialize(getElection());
     }
 
     function setVaultFactory(address vaultFactory_) external onlyOwner {
