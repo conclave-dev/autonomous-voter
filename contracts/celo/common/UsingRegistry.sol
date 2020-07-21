@@ -1,4 +1,4 @@
-pragma solidity ^0.5.3;
+pragma solidity ^0.5.8;
 
 // Swapped these openzeppelin contracts to their initializable counterparts
 import "@openzeppelin/contracts-ethereum-package/contracts/ownership/Ownable.sol";
@@ -8,8 +8,6 @@ import "celo-monorepo/packages/protocol/contracts/common/interfaces/IAccounts.so
 import "celo-monorepo/packages/protocol/contracts/common/interfaces/IFeeCurrencyWhitelist.sol";
 import "celo-monorepo/packages/protocol/contracts/common/interfaces/IFreezer.sol";
 import "celo-monorepo/packages/protocol/contracts/common/interfaces/IRegistry.sol";
-
-import "celo-monorepo/packages/protocol/contracts/governance/interfaces/IGovernance.sol";
 
 import "celo-monorepo/packages/protocol/contracts/identity/interfaces/IRandom.sol";
 import "celo-monorepo/packages/protocol/contracts/identity/interfaces/IAttestations.sol";
@@ -21,6 +19,7 @@ import "celo-monorepo/packages/protocol/contracts/stability/interfaces/IStableTo
 
 // AV: Use local, modified versions of Celo protocol contract interfaces
 import "../governance/interfaces/IElection.sol";
+import "../governance/interfaces/IGovernance.sol";
 import "../governance/interfaces/IValidators.sol";
 import "../governance/interfaces/IEpochRewards.sol";
 import "../governance/interfaces/ILockedGold.sol";

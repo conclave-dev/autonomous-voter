@@ -24,7 +24,7 @@ contract VoteManagement is Ownable {
     uint256 public managerRewards;
     mapping(address => uint256) public activeVotes;
 
-    function initialize(address archive_, IElection election_)
+    function initializeVoteManagement(address archive_, IElection election_)
         public
         initializer
     {
@@ -231,11 +231,8 @@ contract VoteManagement is Ownable {
                 .getPendingVotesForGroupByAccount(groups[i], address(this));
 
             if (groupPendingVotes > 0) {
-                (address lesser, address greater) = archive.findLesserAndGreater(
-                    groups[i],
-                    groupPendingVotes,
-                    true
-                );
+                (address lesser, address greater) = archive
+                    .findLesserAndGreater(groups[i], groupPendingVotes, true);
 
                 _revokePending(
                     groups[i],
@@ -247,11 +244,8 @@ contract VoteManagement is Ownable {
             }
 
             if (groupActiveVotes > 0) {
-                (address lesser, address greater) = archive.findLesserAndGreater(
-                    groups[i],
-                    groupActiveVotes,
-                    true
-                );
+                (address lesser, address greater) = archive
+                    .findLesserAndGreater(groups[i], groupActiveVotes, true);
 
                 _revokeActive(groups[i], groupActiveVotes, lesser, greater, i);
             }
@@ -288,11 +282,8 @@ contract VoteManagement is Ownable {
                         ? totalRevokeAmount
                         : groupPendingVotes
                 );
-                (address lesser, address greater) = archive.findLesserAndGreater(
-                    groups[i],
-                    pendingRevokeAmount,
-                    true
-                );
+                (address lesser, address greater) = archive
+                    .findLesserAndGreater(groups[i], pendingRevokeAmount, true);
 
                 _revokePending(
                     groups[i],
@@ -306,11 +297,8 @@ contract VoteManagement is Ownable {
 
             // If there's any remaining votes need to be revoked, continue with the active ones
             if (totalRevokeAmount > 0) {
-                (address lesser, address greater) = archive.findLesserAndGreater(
-                    groups[i],
-                    totalRevokeAmount,
-                    true
-                );
+                (address lesser, address greater) = archive
+                    .findLesserAndGreater(groups[i], totalRevokeAmount, true);
 
                 _revokeActive(groups[i], totalRevokeAmount, lesser, greater, i);
             }

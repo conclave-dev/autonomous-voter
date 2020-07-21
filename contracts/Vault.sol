@@ -2,10 +2,11 @@
 pragma solidity ^0.5.8;
 
 import "./vault-modules/VoteManagement.sol";
+import "./vault-modules/Governance.sol";
 import "./celo/common/UsingRegistry.sol";
 import "./celo/common/libraries/LinkedList.sol";
 
-contract Vault is UsingRegistry, VoteManagement {
+contract Vault is UsingRegistry, VoteManagement, Governance {
     using LinkedList for LinkedList.List;
 
     address public proxyAdmin;
@@ -19,7 +20,8 @@ contract Vault is UsingRegistry, VoteManagement {
         address proxyAdmin_
     ) public payable initializer {
         UsingRegistry.initializeRegistry(msg.sender, registry_);
-        VoteManagement.initialize(archive_, getElection());
+        VoteManagement.initializeVoteManagement(archive_, getElection());
+        Governance.initializeGovernance(getGovernance());
         Ownable.initialize(owner_);
 
         lockedGold = getLockedGold();
