@@ -11,7 +11,8 @@ const contractBuildFiles = [
   require('../build/contracts/VoteManager.json'),
   require('../build/contracts/ManagerFactory.json'),
   require('../build/contracts/ManagerFactory.json'),
-  require('../build/contracts/ProxyAdmin.json')
+  require('../build/contracts/ProxyAdmin.json'),
+  require('../build/contracts/Token.json')
 ];
 
 const getTruffleContracts = (rpcAPI, primaryAccount) =>
@@ -46,7 +47,8 @@ const setUpGlobalTestVariables = async (rpcAPI, primaryAccount) => {
     archive: await contracts.Archive.deployed(),
     vault: await contracts.Vault.deployed(),
     vaultFactory: await contracts.VaultFactory.deployed(),
-    managerFactory: await contracts.ManagerFactory.deployed()
+    managerFactory: await contracts.ManagerFactory.deployed(),
+    token: await contracts.Token.deployed()
   };
 };
 
