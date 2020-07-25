@@ -4,13 +4,12 @@ pragma solidity ^0.5.8;
 import "@openzeppelin/upgrades/contracts/Initializable.sol";
 import "@openzeppelin/contracts-ethereum-package/contracts/token/ERC20/ERC20Pausable.sol";
 import "@openzeppelin/contracts-ethereum-package/contracts/token/ERC20/ERC20Detailed.sol";
-import "@openzeppelin/contracts-ethereum-package/contracts/token/ERC20/ERC20Burnable.sol";
 
 /**
  * @title AV token contract
  *
  */
-contract Token is Initializable, ERC20Detailed, ERC20Burnable, ERC20Pausable {
+contract Token is Initializable, ERC20Detailed, ERC20Pausable {
     function initialize(
         string memory name,
         string memory symbol,
