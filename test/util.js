@@ -23,7 +23,7 @@ const getTruffleContracts = (rpcAPI, primaryAccount) =>
 
     truffleContract.defaults({
       from: primaryAccount,
-      gas: 20000000,
+      gas: 10000000,
       gasPrice: 100000000000
     });
 
