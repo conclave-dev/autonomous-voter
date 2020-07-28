@@ -1,8 +1,8 @@
 module.exports = {
-  packageName: 'AV',
+  packageName: 'VM',
   packageVersion: [1, 0, 0],
-  tokenName: 'AutonomousVoter',
-  tokenSymbol: 'AV',
+  tokenName: 'VoteManager',
+  tokenSymbol: 'VM',
   tokenDecimal: 18,
   tokenSupply: 10e18 * 10e9, // Currently set to 1,000,000,000 tokens
   alfajoresRpcAPI: 'http://3.82.157.109:8545',

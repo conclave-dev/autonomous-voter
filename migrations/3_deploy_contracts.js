@@ -8,9 +8,9 @@ const VoteManager = artifacts.require('VoteManager');
 const Archive = artifacts.require('Archive');
 const VaultFactory = artifacts.require('VaultFactory');
 const ManagerFactory = artifacts.require('ManagerFactory');
-const Token = artifacts.require('Token');
+const Bank = artifacts.require('Bank');
 
-const contracts = [ImplementationDirectory, Package, Vault, VoteManager, Archive, VaultFactory, ManagerFactory, Token];
+const contracts = [ImplementationDirectory, Package, Vault, VoteManager, Archive, VaultFactory, ManagerFactory, Bank];
 
 module.exports = async (deployer, network) => {
   // Handle `App` deployment separately since there seems to be a bug for contracts with defined but empty constructor

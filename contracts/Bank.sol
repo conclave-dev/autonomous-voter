@@ -1,4 +1,4 @@
-// contracts/Token.sol
+// contracts/Bank.sol
 pragma solidity ^0.5.8;
 
 import "@openzeppelin/upgrades/contracts/Initializable.sol";
@@ -6,10 +6,10 @@ import "@openzeppelin/contracts-ethereum-package/contracts/token/ERC20/ERC20Paus
 import "@openzeppelin/contracts-ethereum-package/contracts/token/ERC20/ERC20Detailed.sol";
 
 /**
- * @title AV token contract
+ * @title VM contract to manage token related functionalities
  *
  */
-contract Token is Initializable, ERC20Detailed, ERC20Pausable {
+contract Bank is Initializable, ERC20Detailed, ERC20Pausable {
     function initialize(
         string memory name,
         string memory symbol,
