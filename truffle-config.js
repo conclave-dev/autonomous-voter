@@ -18,8 +18,8 @@ module.exports = {
   networks: {
     alfajores: {
       provider: alfajoresProvider, // CeloProvider
-      network_id: 44786,
-      gas: 20000000,
+      network_id: 44787,
+      gas: 10000000,
       gasPrice: 100000000000,
       from: alfajoresPrimaryAccount
     },

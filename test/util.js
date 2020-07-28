@@ -11,7 +11,8 @@ const contractBuildFiles = [
   require('../build/contracts/VoteManager.json'),
   require('../build/contracts/ManagerFactory.json'),
   require('../build/contracts/ManagerFactory.json'),
-  require('../build/contracts/ProxyAdmin.json')
+  require('../build/contracts/ProxyAdmin.json'),
+  require('../build/contracts/Bank.json')
 ];
 
 const getTruffleContracts = (rpcAPI, primaryAccount) =>
@@ -22,7 +23,7 @@ const getTruffleContracts = (rpcAPI, primaryAccount) =>
 
     truffleContract.defaults({
       from: primaryAccount,
-      gas: 20000000,
+      gas: 10000000,
       gasPrice: 100000000000
     });
 
@@ -46,7 +47,8 @@ const setUpGlobalTestVariables = async (rpcAPI, primaryAccount) => {
     archive: await contracts.Archive.deployed(),
     vault: await contracts.Vault.deployed(),
     vaultFactory: await contracts.VaultFactory.deployed(),
-    managerFactory: await contracts.ManagerFactory.deployed()
+    managerFactory: await contracts.ManagerFactory.deployed(),
+    bank: await contracts.Bank.deployed()
   };
 };
 

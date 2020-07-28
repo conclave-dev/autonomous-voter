@@ -11,7 +11,13 @@ import "./celo/common/libraries/AddressLinkedList.sol";
 import "./Vault.sol";
 import "./Manager.sol";
 
-contract Archive is Initializable, Ownable, UsingRegistry, UsingPrecompiles, ElectionDataProvider {
+contract Archive is
+    Initializable,
+    Ownable,
+    UsingRegistry,
+    UsingPrecompiles,
+    ElectionDataProvider
+{
     using AddressLinkedList for LinkedList.List;
 
     // Factory contracts that are able to modify the lists below
