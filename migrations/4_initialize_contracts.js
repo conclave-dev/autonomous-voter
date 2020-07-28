@@ -1,6 +1,5 @@
 const Promise = require('bluebird');
-const { default: BigNumber } = require('bignumber.js');
-const { registryContractAddress, tokenName, tokenSymbol, tokenSupply, tokenDecimal } = require('../config');
+const { registryContractAddress, tokenName, tokenSymbol, tokenDecimal } = require('../config');
 
 const App = artifacts.require('App');
 const Archive = artifacts.require('Archive');
@@ -27,7 +26,7 @@ module.exports = (deployer) =>
       },
       {
         contract: 'Bank',
-        fn: async () => await bank.initialize(tokenName, tokenSymbol, tokenDecimal, new BigNumber(tokenSupply), [])
+        fn: async () => await bank.initialize(tokenName, tokenSymbol, tokenDecimal, [], [])
       }
     ];
 
