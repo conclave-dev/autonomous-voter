@@ -16,10 +16,6 @@ jobs:
           command: npm run dev:setup
       - run:
           command: npm run test:local
-      - run:
-          command: npm run truffle:migrate -- alfajores
-      - run:
-          command: npm run test:alfajores
 workflows:
   build-and-test:
     jobs:
