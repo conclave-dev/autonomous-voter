@@ -44,6 +44,12 @@ describe('Bank', function () {
     });
 
     it('should allow holders (owning tokens) to lock tokens', async function () {
+      // For our local network setup, 1 epoch lasts for 100 blocks
+      // Since locking can only be done after the first cycle has started,
+      // which is 7 epochs after the call to `start`,
+      // we need to fast forward 7 epochs (1 cycle)
+      await time.advanceBlockTo((await this.kit.web3.eth.getBlockNumber()) + 700);
+
       const amount = new BigNumber(1).multipliedBy(tokenDecimal);
       await this.mockBank.lock(amount);
       const lockedToken = await this.mockBank.getAccountLockedToken(localPrimaryAccount);
@@ -52,7 +58,6 @@ describe('Bank', function () {
     });
 
     it('should allow holders to unlock tokens if unlockable', async function () {
-      // For our local network setup, 1 epoch lasts for 100 blocks
       // In order to test successful unlock, we need to fast forward 14 epochs (2 cycles) for guaranteed unlock
       await time.advanceBlockTo((await this.kit.web3.eth.getBlockNumber()) + 1400);
 

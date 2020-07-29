@@ -35,7 +35,8 @@ contract Bank is Ownable, StandaloneERC20 {
     // Placeholder method to kickstart the VM service and set the epoch for the first cycle
     function start() external onlyOwner {
         require(initialCycleEpoch == 0, "First cycle epoch has been set");
-        initialCycleEpoch = _epochToCycle(archive.getEpochNumber());
+        // Set the epoch for the first cycle to be after 7 epochs from now
+        initialCycleEpoch = archive.getEpochNumber() + 7;
     }
 
     // Placeholder method to allow minting tokens to those contributing
@@ -48,8 +49,8 @@ contract Bank is Ownable, StandaloneERC20 {
     function lock(uint256 amount) external {
         require(balanceOf(msg.sender) >= amount, "Insufficient balance");
         // Set the token to be locked during the next cycle
-        uint256 currentCycle = _epochToCycle(archive.getEpochNumber()) + 1;
-        lockedTokens[msg.sender] = LockedToken(amount, currentCycle);
+        uint256 nextCycle = _epochToCycle(archive.getEpochNumber()) + 1;
+        lockedTokens[msg.sender] = LockedToken(amount, nextCycle);
     }
 
     function unlock() external {
@@ -73,8 +74,9 @@ contract Bank is Ownable, StandaloneERC20 {
         return (lockedToken.amount, lockedToken.lockedCycle);
     }
 
-    function _epochToCycle(uint256 epoch) internal pure returns (uint256) {
-        // Currently, a cycle is completed every 7 epochs
-        return epoch / 7;
+    function _epochToCycle(uint256 epoch) internal view returns (uint256) {
+        // Currently, a cycle is completed every 7 epochs, with the first cycle is identified as 0th cycle
+        require(epoch >= initialCycleEpoch, "Invalid epoch specified");
+        return (epoch - initialCycleEpoch) / 7;
     }
 }
