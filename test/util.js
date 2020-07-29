@@ -1,7 +1,7 @@
 const { newKit } = require('@celo/contractkit');
 const contract = require('@truffle/contract');
 const BigNumber = require('bignumber.js');
-const { registryContractAddress, packageName } = require('../config');
+const { localPrimaryAccount, registryContractAddress, packageName } = require('../config');
 
 const contractBuildFiles = [
   require('../build/contracts/App.json'),
@@ -12,7 +12,8 @@ const contractBuildFiles = [
   require('../build/contracts/ManagerFactory.json'),
   require('../build/contracts/ManagerFactory.json'),
   require('../build/contracts/ProxyAdmin.json'),
-  require('../build/contracts/Bank.json')
+  require('../build/contracts/Bank.json'),
+  require('../build/contracts/MockBank.json')
 ];
 
 const getTruffleContracts = (rpcAPI, primaryAccount) =>
@@ -48,7 +49,8 @@ const setUpGlobalTestVariables = async (rpcAPI, primaryAccount) => {
     vault: await contracts.Vault.deployed(),
     vaultFactory: await contracts.VaultFactory.deployed(),
     managerFactory: await contracts.ManagerFactory.deployed(),
-    bank: await contracts.Bank.deployed()
+    bank: await contracts.Bank.deployed(),
+    mockBank: await contracts.MockBank.deployed()
   };
 };
 
@@ -58,6 +60,7 @@ const setUpGlobalTestContracts = async ({
   primarySender,
   vaultFactory,
   managerFactory,
+  mockBank,
   managerCommission,
   minimumBalanceRequirement
 }) => {
@@ -86,6 +89,10 @@ const setUpGlobalTestContracts = async ({
   const vaults = await getVaults();
   const managers = await getManagers();
   const vaultInstance = await contracts.Vault.at(vaults.pop());
+
+  // Reset mocked contracts
+  await mockBank.reset();
+  await mockBank.removeLockedToken(localPrimaryAccount);
 
   // Maintain state and used for voting tests
   return {
