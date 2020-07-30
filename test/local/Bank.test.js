@@ -34,8 +34,8 @@ describe('Bank', function () {
 
     it('should mint tokens to contributors with valid contribution amount', async function () {
       const initialBalance = new BigNumber(await this.mockBank.balanceOf(localPrimaryAccount));
-      const amount = new BigNumber(10).multipliedBy(tokenDecimal);
-      await this.mockBank.contribute({ from: localPrimaryAccount, value: amount });
+      const amount = new BigNumber(10).multipliedBy(this.tokenAmountMultiplier);
+      await this.mockBank.seed({ from: localPrimaryAccount, value: amount });
 
       return assert.equal(
         new BigNumber(await this.mockBank.balanceOf(localPrimaryAccount)).toFixed(0),
@@ -50,11 +50,21 @@ describe('Bank', function () {
       // we need to fast forward 7 epochs (1 cycle)
       await time.advanceBlockTo((await this.kit.web3.eth.getBlockNumber()) + 700);
 
-      const amount = new BigNumber(1).multipliedBy(tokenDecimal);
+      const amount = new BigNumber(1).multipliedBy(this.tokenAmountMultiplier);
       await this.mockBank.lock(amount);
       const lockedToken = await this.mockBank.getAccountLockedToken(localPrimaryAccount);
 
       return assert.equal(new BigNumber(lockedToken[0]).toFixed(0), amount.toFixed(0));
+    });
+
+    it('should allow holders to lock additional tokens within locked period', async function () {
+      const previousLockedToken = await this.mockBank.getAccountLockedToken(localPrimaryAccount);
+      const previousAmount = new BigNumber(previousLockedToken[0]);
+      const amount = new BigNumber(1).multipliedBy(this.tokenAmountMultiplier);
+      await this.mockBank.lock(amount);
+      const lockedToken = await this.mockBank.getAccountLockedToken(localPrimaryAccount);
+
+      return assert.equal(new BigNumber(lockedToken[0]).toFixed(0), previousAmount.plus(amount).toFixed(0));
     });
 
     it('should allow holders to unlock tokens if unlockable', async function () {
@@ -74,18 +84,32 @@ describe('Bank', function () {
     });
 
     it('should not mint tokens to contributors with invalid contribution amount', async function () {
-      return assert.isRejected(this.mockBank.contribute({ from: localPrimaryAccount, value: 0 }));
+      return assert.isRejected(this.mockBank.seed({ from: localPrimaryAccount, value: 0 }));
     });
 
     it('should not allow non-holders (no tokens owned) to lock tokens', async function () {
-      const amount = new BigNumber(1).multipliedBy(tokenDecimal);
+      const amount = new BigNumber(1).multipliedBy(this.tokenAmountMultiplier);
+      return assert.isRejected(this.mockBank.lock(amount, { from: localSecondaryAccount }));
+    });
+
+    it('should not allow holders to lock tokens exceeding owned unlocked tokens', async function () {
+      const unlockedBalance = new BigNumber(await this.mockBank.getAccountUnlockedBalance(localPrimaryAccount));
+      const amount = unlockedBalance.plus(1).multipliedBy(this.tokenAmountMultiplier);
       return assert.isRejected(this.mockBank.lock(amount, { from: localSecondaryAccount }));
     });
 
     it('should not allow holders to unlock tokens if not yet unlockable', async function () {
-      const amount = new BigNumber(1).multipliedBy(tokenDecimal);
+      const amount = new BigNumber(1).multipliedBy(this.tokenAmountMultiplier);
       await this.mockBank.lock(amount);
       return assert.isRejected(this.mockBank.unlock());
+    });
+
+    it('should not allow holders to lock tokens if there are available unlockable tokens', async function () {
+      // Skip few cycles to make the tokens to be unlockable
+      await time.advanceBlockTo((await this.kit.web3.eth.getBlockNumber()) + 1400);
+
+      const amount = new BigNumber(1).multipliedBy(this.tokenAmountMultiplier);
+      return assert.isRejected(this.mockBank.lock(amount, { from: localSecondaryAccount }));
     });
   });
 });

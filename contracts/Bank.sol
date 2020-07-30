@@ -40,25 +40,44 @@ contract Bank is Ownable, StandaloneERC20 {
     }
 
     // Placeholder method to allow minting tokens to those contributing
-    function contribute() external payable {
+    function seed() external payable {
         require(msg.value > 0, "Invalid amount");
         // Currently set to mint on 1:1 basis
         _mint(msg.sender, msg.value);
     }
 
     function lock(uint256 amount) external {
-        require(balanceOf(msg.sender) >= amount, "Insufficient balance");
-        // Set the token to be locked during the next cycle
-        uint256 nextCycle = _epochToCycle(archive.getEpochNumber()) + 1;
-        lockedTokens[msg.sender] = LockedToken(amount, nextCycle);
+        LockedToken memory lockedToken = lockedTokens[msg.sender];
+        uint256 lockedCycle = lockedToken.lockedCycle;
+        require(
+            lockedCycle == 0 || lockedCycle > _getCurrentCycle(),
+            "Pending unlockable tokens"
+        );
+        require(
+            balanceOf(msg.sender) >= lockedToken.amount + amount,
+            "Insufficient unlocked tokens"
+        );
+
+        // Set the token to be locked during the next cycle for new locked tokens
+        // Otherwise use the existing cycle and update the locked amount
+        if (lockedCycle == 0) {
+            lockedTokens[msg.sender] = LockedToken(
+                amount,
+                _getCurrentCycle() + 1
+            );
+        } else {
+            lockedTokens[msg.sender] = LockedToken(
+                lockedToken.amount + amount,
+                lockedCycle
+            );
+        }
     }
 
     function unlock() external {
         LockedToken memory lockedToken = lockedTokens[msg.sender];
         require(lockedToken.amount > 0, "No locked token found");
-        uint256 currentCycle = _epochToCycle(archive.getEpochNumber());
         require(
-            currentCycle > lockedToken.lockedCycle,
+            _getCurrentCycle() > lockedToken.lockedCycle,
             "Tokens can not be unlocked yet"
         );
         delete lockedTokens[msg.sender];
@@ -74,9 +93,21 @@ contract Bank is Ownable, StandaloneERC20 {
         return (lockedToken.amount, lockedToken.lockedCycle);
     }
 
+    function getAccountUnlockedBalance(address account)
+        external
+        view
+        returns (uint256)
+    {
+        return balanceOf(account) - lockedTokens[account].amount;
+    }
+
     function _epochToCycle(uint256 epoch) internal view returns (uint256) {
-        // Currently, a cycle is completed every 7 epochs, with the first cycle is identified as 0th cycle
+        // Currently, a cycle is completed every 7 epochs, with cycle starts from 1
         require(epoch >= initialCycleEpoch, "Invalid epoch specified");
-        return (epoch - initialCycleEpoch) / 7;
+        return (epoch - initialCycleEpoch) / 7 + 1;
+    }
+
+    function _getCurrentCycle() internal view returns (uint256) {
+        return _epochToCycle(archive.getEpochNumber());
     }
 }
