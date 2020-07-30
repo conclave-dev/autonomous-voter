@@ -1,7 +1,7 @@
 const { newKit } = require('@celo/contractkit');
 const contract = require('@truffle/contract');
 const BigNumber = require('bignumber.js');
-const { localPrimaryAccount, registryContractAddress, packageName } = require('../config');
+const { localPrimaryAccount, registryContractAddress, packageName, tokenDecimal } = require('../config');
 
 const contractBuildFiles = [
   require('../build/contracts/App.json'),
@@ -41,6 +41,7 @@ const setUpGlobalTestVariables = async (rpcAPI, primaryAccount) => {
     contracts,
     kit: newKit(rpcAPI),
     packageName,
+    tokenAmountMultiplier: new BigNumber(10 ** tokenDecimal),
     managerCommission: new BigNumber('10'),
     minimumBalanceRequirement: new BigNumber('1e10'),
     zeroAddress: '0x0000000000000000000000000000000000000000',
