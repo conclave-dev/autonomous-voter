@@ -2,6 +2,7 @@
 pragma solidity ^0.5.8;
 
 import "@openzeppelin/contracts-ethereum-package/contracts/ownership/Ownable.sol";
+import "@openzeppelin/contracts-ethereum-package/contracts/math/SafeMath.sol";
 import "@openzeppelin/contracts-ethereum-package/contracts/token/ERC20/StandaloneERC20.sol";
 import "./Archive.sol";
 
@@ -10,6 +11,8 @@ import "./Archive.sol";
  *
  */
 contract Bank is Ownable, StandaloneERC20 {
+    using SafeMath for uint256;
+
     struct LockedToken {
         uint256 amount;
         uint256 lockedCycle;
@@ -36,7 +39,7 @@ contract Bank is Ownable, StandaloneERC20 {
     function start() external onlyOwner {
         require(initialCycleEpoch == 0, "First cycle epoch has been set");
         // Set the epoch for the first cycle to be after 7 epochs from now
-        initialCycleEpoch = archive.getEpochNumber() + 7;
+        initialCycleEpoch = archive.getEpochNumber().add(7);
     }
 
     // Placeholder method to allow minting tokens to those contributing
@@ -47,29 +50,24 @@ contract Bank is Ownable, StandaloneERC20 {
     }
 
     function lock(uint256 amount) external {
-        LockedToken memory lockedToken = lockedTokens[msg.sender];
+        LockedToken storage lockedToken = lockedTokens[msg.sender];
         uint256 lockedCycle = lockedToken.lockedCycle;
         require(
-            lockedCycle == 0 || lockedCycle > _getCurrentCycle(),
-            "Pending unlockable tokens"
-        );
-        require(
-            balanceOf(msg.sender) >= lockedToken.amount + amount,
+            getAccountUnlockedBalance(msg.sender) >= amount,
             "Insufficient unlocked tokens"
         );
 
         // Set the token to be locked during the next cycle for new locked tokens
         // Otherwise use the existing cycle and update the locked amount
         if (lockedCycle == 0) {
-            lockedTokens[msg.sender] = LockedToken(
-                amount,
-                _getCurrentCycle() + 1
-            );
+            lockedToken.amount = amount;
+            lockedToken.lockedCycle = _getCurrentCycle().add(1);
         } else {
-            lockedTokens[msg.sender] = LockedToken(
-                lockedToken.amount + amount,
-                lockedCycle
+            require(
+                lockedCycle > _getCurrentCycle(),
+                "Cannot lock additional tokens"
             );
+            lockedToken.amount = lockedToken.amount.add(amount);
         }
     }
 
@@ -94,17 +92,17 @@ contract Bank is Ownable, StandaloneERC20 {
     }
 
     function getAccountUnlockedBalance(address account)
-        external
+        public
         view
         returns (uint256)
     {
-        return balanceOf(account) - lockedTokens[account].amount;
+        return balanceOf(account).sub(lockedTokens[account].amount);
     }
 
     function _epochToCycle(uint256 epoch) internal view returns (uint256) {
         // Currently, a cycle is completed every 7 epochs, with cycle starts from 1
         require(epoch >= initialCycleEpoch, "Invalid epoch specified");
-        return (epoch - initialCycleEpoch) / 7 + 1;
+        return (epoch.sub(initialCycleEpoch)).div(7).add(1);
     }
 
     function _getCurrentCycle() internal view returns (uint256) {
