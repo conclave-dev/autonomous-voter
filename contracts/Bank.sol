@@ -24,14 +24,14 @@ contract Bank is Ownable, StandaloneERC20 {
 
     function initialize(
         address archive_,
-        string memory name,
-        string memory symbol,
-        uint8 decimals,
+        string memory name_,
+        string memory symbol_,
+        uint8 decimals_,
         address[] memory minters,
         address[] memory pausers
     ) public initializer {
         Ownable.initialize(msg.sender);
-        StandaloneERC20.initialize(name, symbol, decimals, minters, pausers);
+        StandaloneERC20.initialize(name_, symbol_, decimals_, minters, pausers);
         archive = Archive(archive_);
     }
 
