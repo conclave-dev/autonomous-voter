@@ -1,5 +1,12 @@
 const { assert } = require('./setup');
-const { tokenName, tokenSymbol, tokenDecimal, seedCapacity, seedRatio, seedFreezeDuration } = require('../../config');
+const {
+  tokenName,
+  tokenSymbol,
+  tokenDecimal,
+  seedCapacity,
+  seedRatio,
+  localSecondaryAccount
+} = require('../../config');
 
 describe('Bank', function () {
   describe('State', function () {
@@ -28,7 +35,31 @@ describe('Bank', function () {
     });
 
     it('should have a valid seed freeze duration', async function () {
-      return assert.equal(await this.bank.seedFreezeDuration(), seedFreezeDuration);
+      return assert.isAbove((await this.bank.seedFreezeDuration()).toNumber(), 1);
+    });
+  });
+
+  describe('Methods ✅', function () {
+    it('should allow owners to set the seed freeze duration', async function () {
+      const currentSeedFreezeDuration = await this.bank.seedFreezeDuration();
+      const updatedSeedFreezeDuration = currentSeedFreezeDuration * 2;
+
+      await this.bank.setSeedFreezeDuration(updatedSeedFreezeDuration);
+      return assert.equal(await this.bank.seedFreezeDuration(), updatedSeedFreezeDuration);
+    });
+  });
+
+  describe('Methods 🛑', function () {
+    it('should not allow non-owners to set the seed freeze duration', async function () {
+      return assert.isRejected(
+        this.bank.setSeedFreezeDuration(1, {
+          from: localSecondaryAccount
+        })
+      );
+    });
+
+    it('should not allow zero to be set as the seed freeze duration', async function () {
+      return assert.isRejected(this.bank.setSeedFreezeDuration(0));
     });
   });
 });
