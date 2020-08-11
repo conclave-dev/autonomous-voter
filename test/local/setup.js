@@ -21,7 +21,7 @@ before(async function () {
       primarySender: this.primarySender,
       vaultFactory: this.vaultFactory,
       managerFactory: this.managerFactory,
-      mockBank: this.mockBank,
+      bank: this.bank,
       managerCommission: this.managerCommission,
       minimumBalanceRequirement: this.minimumBalanceRequirement
     }),

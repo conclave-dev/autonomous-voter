@@ -15,13 +15,13 @@ contract Bank is Ownable, StandaloneERC20 {
     using SafeMath for uint256;
 
     // # of seed AV tokens per Vault
-    uint256 constant seedCapacity = 1000;
+    uint256 public constant seedCapacity = 1000;
     // # of minted AV tokens per CELO
-    uint256 constant seedRatio = 1;
+    uint256 public constant seedRatio = 1;
 
     // Seconds AV tokens are frozen post-mint
     // NOTE: Only modifiable seed parameter
-    uint256 seedFreezeDuration;
+    uint256 public seedFreezeDuration;
 
     struct LockedToken {
         uint256 amount;

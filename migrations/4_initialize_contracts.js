@@ -1,5 +1,5 @@
 const Promise = require('bluebird');
-const { registryContractAddress, tokenName, tokenSymbol, tokenDecimal } = require('../config');
+const { registryContractAddress, tokenName, tokenSymbol, tokenDecimal, seedFreezeDuration } = require('../config');
 
 const App = artifacts.require('App');
 const Archive = artifacts.require('Archive');
@@ -26,7 +26,7 @@ module.exports = (deployer) =>
       },
       {
         contract: 'Bank',
-        fn: async () => await bank.initialize(tokenName, tokenSymbol, tokenDecimal, [], [], 31536000)
+        fn: async () => await bank.initialize(tokenName, tokenSymbol, tokenDecimal, [], [], seedFreezeDuration)
       }
     ];
 

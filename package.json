@@ -11,6 +11,7 @@
     "lint:js": "eslint './**/*.js'",
     "lint:sol": "solhint -c .solhint_config.json -ignore_path .solhintignore './contracts/**/*.sol'",
     "format": "prettier --write ./**/*.js ./**/*.sol",
+    "test": "mocha --exit --bail --timeout 100000",
     "test:local": "mocha test/local/**/*.js --exit --bail --timeout 100000",
     "test:alfajores": "mocha test/alfajores/**/*.js --exit --bail --timeout 100000",
     "truffle:compile": "truffle compile --all --network",
