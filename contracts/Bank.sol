@@ -35,17 +35,19 @@ contract Bank is Ownable, StandaloneERC20 {
         string memory symbol_,
         uint8 decimals_,
         address[] memory minters,
-        address[] memory pausers
+        address[] memory pausers,
+        uint256 seedFreezeDuration_
     ) public initializer {
         Ownable.initialize(msg.sender);
         StandaloneERC20.initialize(name_, symbol_, decimals_, minters, pausers);
+        seedFreezeDuration = seedFreezeDuration_;
     }
 
     /**
      * @notice Sets the value of `seedFreezeDuration`
      * @param duration Seconds AV tokens are frozen post-mint
      */
-    function setSeedFreezeDuration(uint256 duration) public onlyOwner {
+    function setSeedFreezeDuration(uint256 duration) external onlyOwner {
         require(duration > 0, "Invalid duration");
         seedFreezeDuration = duration;
     }

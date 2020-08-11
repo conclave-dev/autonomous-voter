@@ -26,7 +26,7 @@ module.exports = (deployer) =>
       },
       {
         contract: 'Bank',
-        fn: async () => await bank.initialize(tokenName, tokenSymbol, tokenDecimal, [], [])
+        fn: async () => await bank.initialize(tokenName, tokenSymbol, tokenDecimal, [], [], 31536000)
       }
     ];
 
