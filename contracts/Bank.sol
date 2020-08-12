@@ -23,12 +23,12 @@ contract Bank is Ownable, StandaloneERC20 {
     // NOTE: Only modifiable seed parameter
     uint256 public seedFreezeDuration;
 
-    struct LockedToken {
+    struct LockedTokens {
         uint256 amount;
         uint256 cycle;
     }
 
-    mapping(address => LockedToken) internal lockedTokens;
+    mapping(address => LockedTokens) internal lockedTokens;
 
     function initialize(
         string memory name_,
@@ -41,6 +41,12 @@ contract Bank is Ownable, StandaloneERC20 {
         Ownable.initialize(msg.sender);
         StandaloneERC20.initialize(name_, symbol_, decimals_, minters, pausers);
         seedFreezeDuration = seedFreezeDuration_;
+    }
+
+    // Requires that the msg.sender be the vault owner
+    modifier onlyVaultOwner(Vault vault) {
+        require(msg.sender == vault.owner(), "Must be vault owner");
+        _;
     }
 
     /**
@@ -56,8 +62,7 @@ contract Bank is Ownable, StandaloneERC20 {
      * @notice Mints AV tokens for a vault
      * @param vault Vault contract deployed and owned by `msg.sender`
      */
-    function seed(Vault vault) external payable {
-        require(msg.sender == vault.owner(), "Must be vault owner");
+    function seed(Vault vault) external payable onlyVaultOwner(vault) {
         require(msg.value > 0, "Invalid amount");
 
         // Currently set to mint on 1:1 basis
@@ -66,13 +71,27 @@ contract Bank is Ownable, StandaloneERC20 {
         // TODO: Store the minted amount + lockup (worked on by EM)
     }
 
-    // Locks an account's token balance by adding it to `lockedTokens`
-    function lock(address account, uint256 cycle) external {
-        lockedTokens[account] = LockedToken(balanceOf(account), cycle);
+    // Locks an vault's token balance by adding it to `lockedTokens`
+    function lock(Vault vault, uint256 cycle) external onlyVaultOwner(vault) {
+        address vaultAddress = address(vault);
+
+        lockedTokens[vaultAddress] = LockedTokens(
+            balanceOf(vaultAddress),
+            cycle
+        );
     }
 
-    // Unlocks an account's token balance by deleting it from `lockedTokens`
-    function unlock(address account) external {
-        delete lockedTokens[account];
+    // Unlocks an vault's token balance by deleting it from `lockedTokens`
+    function unlock(Vault vault) external onlyVaultOwner(vault) {
+        delete lockedTokens[address(vault)];
+    }
+
+    function getLockedTokens(address vault)
+        external
+        view
+        returns (uint256, uint256)
+    {
+        LockedTokens memory locked = lockedTokens[vault];
+        return (locked.amount, locked.cycle);
     }
 }

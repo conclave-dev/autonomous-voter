@@ -1,7 +1,7 @@
 const { assert } = require('./setup');
 const { tokenName, tokenSymbol, tokenDecimal, seedCapacity, seedRatio } = require('../../config');
 
-describe('Bank', function () {
+describe.only('Bank', function () {
   describe('State', function () {
     it('should have a valid token name', async function () {
       return assert.equal(await this.bank.name(), tokenName);
@@ -53,6 +53,30 @@ describe('Bank', function () {
 
       return assert.equal(preSeedBalance + seedValue, postSeedBalance);
     });
+
+    it('should allow an owner of a vault to lock its balance', async function () {
+      const vaultBalance = (await this.bank.balanceOf(this.vaultInstance.address)).toNumber();
+      const lockCycle = 1;
+
+      await this.bank.lock(this.vaultInstance.address, lockCycle);
+
+      const { 0: amount, 1: cycle } = await this.bank.getLockedTokens(this.vaultInstance.address);
+
+      assert.equal(cycle.toNumber(), lockCycle);
+      return assert.equal(amount.toNumber(), vaultBalance);
+    });
+
+    it('should allow an owner of a vault to unlock its balance', async function () {
+      const vaultBalance = (await this.bank.balanceOf(this.vaultInstance.address)).toNumber();
+
+      await this.bank.unlock(this.vaultInstance.address);
+
+      const { 0: amount, 1: cycle } = await this.bank.getLockedTokens(this.vaultInstance.address);
+
+      assert.isAtLeast(vaultBalance, 1);
+      assert.equal(cycle.toNumber(), 0);
+      return assert.equal(amount.toNumber(), 0);
+    });
   });
 
   describe('Methods 🛑', function () {
@@ -72,6 +96,22 @@ describe('Bank', function () {
       return assert.isRejected(
         this.bank.seed(this.vaultInstance.address, {
           value: 1,
+          from: this.secondarySender
+        })
+      );
+    });
+
+    it('should not allow a non-owner of a vault to lock tokens', function () {
+      return assert.isRejected(
+        this.bank.lock(this.vaultInstance.address, 1, {
+          from: this.secondarySender
+        })
+      );
+    });
+
+    it('should not allow a non-owner of a vault to unlock tokens', function () {
+      return assert.isRejected(
+        this.bank.unlock(this.vaultInstance.address, {
           from: this.secondarySender
         })
       );
