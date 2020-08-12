@@ -1,12 +1,5 @@
 const { assert } = require('./setup');
-const {
-  tokenName,
-  tokenSymbol,
-  tokenDecimal,
-  seedCapacity,
-  seedRatio,
-  localSecondaryAccount
-} = require('../../config');
+const { tokenName, tokenSymbol, tokenDecimal, seedCapacity, seedRatio } = require('../../config');
 
 describe('Bank', function () {
   describe('State', function () {
@@ -47,19 +40,41 @@ describe('Bank', function () {
       await this.bank.setSeedFreezeDuration(updatedSeedFreezeDuration);
       return assert.equal(await this.bank.seedFreezeDuration(), updatedSeedFreezeDuration);
     });
+
+    it('should allow an owner of a vault to seed tokens', async function () {
+      const preSeedBalance = (await this.bank.balanceOf(this.vaultInstance.address)).toNumber();
+      const seedValue = 1;
+
+      await this.bank.seed(this.vaultInstance.address, {
+        value: preSeedBalance + seedValue
+      });
+
+      const postSeedBalance = (await this.bank.balanceOf(this.vaultInstance.address)).toNumber();
+
+      return assert.equal(preSeedBalance + seedValue, postSeedBalance);
+    });
   });
 
   describe('Methods 🛑', function () {
-    it('should not allow non-owners to set the seed freeze duration', async function () {
+    it('should not allow non-owners to set the seed freeze duration', function () {
       return assert.isRejected(
         this.bank.setSeedFreezeDuration(1, {
-          from: localSecondaryAccount
+          from: this.secondarySender
         })
       );
     });
 
-    it('should not allow zero to be set as the seed freeze duration', async function () {
+    it('should not allow zero to be set as the seed freeze duration', function () {
       return assert.isRejected(this.bank.setSeedFreezeDuration(0));
+    });
+
+    it('should not allow a non-owner of a vault to seed tokens', function () {
+      return assert.isRejected(
+        this.bank.seed(this.vaultInstance.address, {
+          value: 1,
+          from: this.secondarySender
+        })
+      );
     });
   });
 });

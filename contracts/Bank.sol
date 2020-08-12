@@ -61,7 +61,7 @@ contract Bank is Ownable, StandaloneERC20 {
         require(msg.value > 0, "Invalid amount");
 
         // Currently set to mint on 1:1 basis
-        _mint(msg.sender, msg.value);
+        _mint(address(vault), msg.value);
 
         // TODO: Store the minted amount + lockup (worked on by EM)
     }
