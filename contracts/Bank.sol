@@ -28,7 +28,13 @@ contract Bank is Ownable, StandaloneERC20 {
         uint256 cycle;
     }
 
+    struct FrozenTokens {
+        uint256 amount;
+        uint256 unlockedAt;
+    }
+
     mapping(address => LockedTokens) internal lockedTokens;
+    mapping(address => FrozenTokens[]) internal frozenTokens;
 
     function initialize(
         string memory name_,
@@ -64,11 +70,16 @@ contract Bank is Ownable, StandaloneERC20 {
      */
     function seed(Vault vault) external payable onlyVaultOwner(vault) {
         require(msg.value > 0, "Invalid amount");
+        address vaultAddress = address(vault);
 
-        // Currently set to mint on 1:1 basis
-        _mint(address(vault), msg.value);
+        // Mint tokens proportionally based on the currently set ratio and the specified amount
+        uint256 mintAmount = msg.value.mul(seedRatio);
+        _mint(vaultAddress, mintAmount);
 
-        // TODO: Store the minted amount + lockup (worked on by EM)
+        // Freeze the newly minted tokens and set it to be unlockable based on the currently set freezing duration
+        frozenTokens[vaultAddress].push(
+            FrozenTokens(mintAmount, now.add(seedFreezeDuration))
+        );
     }
 
     // Locks an vault's token balance by adding it to `lockedTokens`
@@ -86,6 +97,77 @@ contract Bank is Ownable, StandaloneERC20 {
         delete lockedTokens[address(vault)];
     }
 
+    // Unfreeze the specified account's frozenTokens if available
+    function _unfreezeTokens(address account) internal {
+        FrozenTokens[] storage userFrozenTokens = frozenTokens[account];
+
+        uint256 i = 0;
+        while (i < userFrozenTokens.length) {
+            FrozenTokens memory frozenToken = userFrozenTokens[i];
+            if (frozenToken.unlockedAt <= now) {
+                // Unfreeze by deleting the record via swapping with the last index to avoid an empty slot
+                uint256 lastIndex = userFrozenTokens.length - 1;
+
+                // Swap only if needed (the deleted index is not in the last index)
+                if (i != lastIndex) {
+                    userFrozenTokens[i] = userFrozenTokens[lastIndex];
+                }
+
+                // Resize the array to 'remove' the record
+                userFrozenTokens.length--;
+            } else {
+                i++;
+            }
+        }
+    }
+
+    // Checkpoints to make sure the account has enough unlocked and unfrozen tokens
+    function _checkAvailableTokens(address account, uint256 amount) internal {
+        // Start by unfreezing any remaining frozenTokens if available
+        _unfreezeTokens(account);
+
+        // Verify if the user has sufficient unfrozen tokens
+        require(
+            balanceOf(account).sub(getFrozenTokens(account)) >= amount,
+            "Insufficient unfrozen tokens"
+        );
+
+        // Verify if the user has sufficient unlocked tokens
+        require(
+            balanceOf(account).sub(lockedTokens[account].amount) >= amount,
+            "Insufficient unlocked tokens"
+        );
+    }
+
+    // Override ERC20's `transfer` to include checkpoint for preventing frozenTokens from being transferred
+    function transfer(address recipient, uint256 amount) public returns (bool) {
+        _checkAvailableTokens(msg.sender, amount);
+        // Call internal `_transfer` since we can't pass identical `msg.sender` into ERC20's `transfer` method
+        _transfer(msg.sender, recipient, amount);
+        return true;
+    }
+
+    // Override ERC20's `transferFrom` to include checkpoint for preventing frozenTokens from being transferred
+    function transferFrom(
+        address sender,
+        address recipient,
+        uint256 amount
+    ) public returns (bool) {
+        _checkAvailableTokens(sender, amount);
+        ERC20.transferFrom(sender, recipient, amount);
+        return true;
+    }
+
+    // Custom transfer method to allow vault owners to transfer unfrozen (and unlocked) tokens regardless of allowance
+    function transferFromVault(
+        Vault vault,
+        address recipient,
+        uint256 amount
+    ) external onlyVaultOwner(vault) {
+        _checkAvailableTokens(address(vault), amount);
+        _transfer(address(vault), recipient, amount);
+    }
+
     function getLockedTokens(address vault)
         external
         view
@@ -93,5 +175,16 @@ contract Bank is Ownable, StandaloneERC20 {
     {
         LockedTokens memory locked = lockedTokens[vault];
         return (locked.amount, locked.cycle);
+    }
+
+    function getFrozenTokens(address vault) public view returns (uint256) {
+        FrozenTokens[] memory userFrozenTokens = frozenTokens[vault];
+        uint256 totalFrozen = 0;
+        for (uint256 i = 0; i < userFrozenTokens.length; i++) {
+            if (userFrozenTokens[i].unlockedAt > now) {
+                totalFrozen = totalFrozen.add(userFrozenTokens[i].amount);
+            }
+        }
+        return totalFrozen;
     }
 }
