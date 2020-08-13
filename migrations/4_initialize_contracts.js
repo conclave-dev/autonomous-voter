@@ -1,12 +1,11 @@
 const Promise = require('bluebird');
-const { registryContractAddress, tokenName, tokenSymbol, tokenDecimal } = require('../config');
+const { registryContractAddress, tokenName, tokenSymbol, tokenDecimal, seedFreezeDuration } = require('../config');
 
 const App = artifacts.require('App');
 const Archive = artifacts.require('Archive');
 const VaultFactory = artifacts.require('VaultFactory');
 const ManagerFactory = artifacts.require('ManagerFactory');
 const Bank = artifacts.require('Bank');
-const MockBank = artifacts.require('MockBank');
 
 module.exports = (deployer) =>
   deployer.then(async () => {
@@ -15,7 +14,6 @@ module.exports = (deployer) =>
     const vaultFactory = await VaultFactory.deployed();
     const managerFactory = await ManagerFactory.deployed();
     const bank = await Bank.deployed();
-    const mockBank = await MockBank.deployed();
     const contractInitializers = [
       { contract: 'Archive', fn: async () => await archive.initialize(registryContractAddress) },
       {
@@ -28,11 +26,7 @@ module.exports = (deployer) =>
       },
       {
         contract: 'Bank',
-        fn: async () => await bank.initialize(archive.address, tokenName, tokenSymbol, tokenDecimal, [], [])
-      },
-      {
-        contract: 'MockBank',
-        fn: async () => await mockBank.initialize(archive.address, tokenName, tokenSymbol, tokenDecimal, [], [])
+        fn: async () => await bank.initialize(tokenName, tokenSymbol, tokenDecimal, [], [], seedFreezeDuration)
       }
     ];
 

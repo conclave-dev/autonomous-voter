@@ -1,115 +1,120 @@
 const { assert } = require('./setup');
-const { default: BigNumber } = require('bignumber.js');
-const { localPrimaryAccount, localSecondaryAccount, tokenName, tokenSymbol, tokenDecimal } = require('../../config');
-const { time } = require('@openzeppelin/test-helpers');
+const { tokenName, tokenSymbol, tokenDecimal, seedCapacity, seedRatio } = require('../../config');
 
 describe('Bank', function () {
   describe('State', function () {
     it('should have a valid token name', async function () {
-      return assert.equal(await this.mockBank.name(), tokenName);
+      return assert.equal(await this.bank.name(), tokenName);
     });
 
     it('should have a valid token symbol', async function () {
-      return assert.equal(await this.mockBank.symbol(), tokenSymbol);
+      return assert.equal(await this.bank.symbol(), tokenSymbol);
     });
 
     it('should have a valid token decimal', async function () {
-      return assert.equal(await this.mockBank.decimals(), tokenDecimal);
+      return assert.equal(await this.bank.decimals(), tokenDecimal);
     });
 
     it('should have the correct initial balance for non-holders', async function () {
-      return assert.equal(await this.mockBank.balanceOf(this.mockBank.address), 0);
+      return assert.equal(await this.bank.balanceOf(this.bank.address), 0);
     });
 
-    it('should have a valid initial cycle epoch', async function () {
-      return assert.equal(await this.mockBank.initialCycleEpoch(), 0);
+    it('should have a valid seed capacity', async function () {
+      return assert.equal(await this.bank.seedCapacity(), seedCapacity);
+    });
+
+    it('should have a valid seed ratio', async function () {
+      return assert.equal(await this.bank.seedRatio(), seedRatio);
+    });
+
+    it('should have a valid seed freeze duration', async function () {
+      return assert.isAbove((await this.bank.seedFreezeDuration()).toNumber(), 1);
     });
   });
 
   describe('Methods ✅', function () {
-    it('should allow admin/owner to start the VM cycle', async function () {
-      await this.mockBank.start();
-      return assert.notEqual(new BigNumber(await this.mockBank.initialCycleEpoch()).toFixed(0), '0');
+    it('should allow owners to set the seed freeze duration', async function () {
+      const currentSeedFreezeDuration = await this.bank.seedFreezeDuration();
+      const updatedSeedFreezeDuration = currentSeedFreezeDuration * 2;
+
+      await this.bank.setSeedFreezeDuration(updatedSeedFreezeDuration);
+      return assert.equal(await this.bank.seedFreezeDuration(), updatedSeedFreezeDuration);
     });
 
-    it('should mint tokens to contributors with valid contribution amount', async function () {
-      const initialBalance = new BigNumber(await this.mockBank.balanceOf(localPrimaryAccount));
-      const amount = new BigNumber(10).multipliedBy(this.tokenAmountMultiplier);
-      await this.mockBank.seed({ from: localPrimaryAccount, value: amount });
+    it('should allow an owner of a vault to seed tokens', async function () {
+      const preSeedBalance = (await this.bank.balanceOf(this.vaultInstance.address)).toNumber();
+      const seedValue = 1;
 
-      return assert.equal(
-        new BigNumber(await this.mockBank.balanceOf(localPrimaryAccount)).toFixed(0),
-        initialBalance.plus(amount).toFixed(0)
-      );
+      await this.bank.seed(this.vaultInstance.address, {
+        value: preSeedBalance + seedValue
+      });
+
+      const postSeedBalance = (await this.bank.balanceOf(this.vaultInstance.address)).toNumber();
+
+      return assert.equal(preSeedBalance + seedValue, postSeedBalance);
     });
 
-    it('should allow holders (owning tokens) to lock tokens', async function () {
-      // For our local network setup, 1 epoch lasts for 100 blocks
-      // Since locking can only be done after the first cycle has started,
-      // which is 7 epochs after the call to `start`,
-      // we need to fast forward 7 epochs (1 cycle)
-      await time.advanceBlockTo((await this.kit.web3.eth.getBlockNumber()) + 700);
+    it('should allow an owner of a vault to lock its balance', async function () {
+      const vaultBalance = (await this.bank.balanceOf(this.vaultInstance.address)).toNumber();
+      const lockCycle = 1;
 
-      const amount = new BigNumber(1).multipliedBy(this.tokenAmountMultiplier);
-      await this.mockBank.lock(amount);
-      const lockedToken = await this.mockBank.getAccountLockedToken(localPrimaryAccount);
+      await this.bank.lock(this.vaultInstance.address, lockCycle);
 
-      return assert.equal(new BigNumber(lockedToken[0]).toFixed(0), amount.toFixed(0));
+      const { 0: amount, 1: cycle } = await this.bank.getLockedTokens(this.vaultInstance.address);
+
+      assert.equal(cycle.toNumber(), lockCycle);
+      return assert.equal(amount.toNumber(), vaultBalance);
     });
 
-    it('should allow holders to lock additional tokens within locked period', async function () {
-      const previousLockedToken = await this.mockBank.getAccountLockedToken(localPrimaryAccount);
-      const previousAmount = new BigNumber(previousLockedToken[0]);
-      const amount = new BigNumber(1).multipliedBy(this.tokenAmountMultiplier);
-      await this.mockBank.lock(amount);
-      const lockedToken = await this.mockBank.getAccountLockedToken(localPrimaryAccount);
+    it('should allow an owner of a vault to unlock its balance', async function () {
+      const vaultBalance = (await this.bank.balanceOf(this.vaultInstance.address)).toNumber();
 
-      return assert.equal(new BigNumber(lockedToken[0]).toFixed(0), previousAmount.plus(amount).toFixed(0));
-    });
+      await this.bank.unlock(this.vaultInstance.address);
 
-    it('should allow holders to unlock tokens if unlockable', async function () {
-      // In order to test successful unlock, we need to fast forward 14 epochs (2 cycles) for guaranteed unlock
-      await time.advanceBlockTo((await this.kit.web3.eth.getBlockNumber()) + 1400);
+      const { 0: amount, 1: cycle } = await this.bank.getLockedTokens(this.vaultInstance.address);
 
-      await this.mockBank.unlock();
-      const lockedToken = await this.mockBank.getAccountLockedToken(localPrimaryAccount);
-
-      return assert.equal(new BigNumber(lockedToken[0]).toFixed(0), 0);
+      assert.isAtLeast(vaultBalance, 1);
+      assert.equal(cycle.toNumber(), 0);
+      return assert.equal(amount.toNumber(), 0);
     });
   });
 
   describe('Methods 🛑', function () {
-    it('should not allow admin/owner to start the cycle again if already started', async function () {
-      return assert.isRejected(this.mockBank.start());
+    it('should not allow non-owners to set the seed freeze duration', function () {
+      return assert.isRejected(
+        this.bank.setSeedFreezeDuration(1, {
+          from: this.secondarySender
+        })
+      );
     });
 
-    it('should not mint tokens to contributors with invalid contribution amount', async function () {
-      return assert.isRejected(this.mockBank.seed({ from: localPrimaryAccount, value: 0 }));
+    it('should not allow zero to be set as the seed freeze duration', function () {
+      return assert.isRejected(this.bank.setSeedFreezeDuration(0));
     });
 
-    it('should not allow non-holders (no tokens owned) to lock tokens', async function () {
-      const amount = new BigNumber(1).multipliedBy(this.tokenAmountMultiplier);
-      return assert.isRejected(this.mockBank.lock(amount, { from: localSecondaryAccount }));
+    it('should not allow a non-owner of a vault to seed tokens', function () {
+      return assert.isRejected(
+        this.bank.seed(this.vaultInstance.address, {
+          value: 1,
+          from: this.secondarySender
+        })
+      );
     });
 
-    it('should not allow holders to lock tokens exceeding owned unlocked tokens', async function () {
-      const unlockedBalance = new BigNumber(await this.mockBank.getAccountUnlockedBalance(localPrimaryAccount));
-      const amount = unlockedBalance.plus(1).multipliedBy(this.tokenAmountMultiplier);
-      return assert.isRejected(this.mockBank.lock(amount, { from: localSecondaryAccount }));
+    it('should not allow a non-owner of a vault to lock tokens', function () {
+      return assert.isRejected(
+        this.bank.lock(this.vaultInstance.address, 1, {
+          from: this.secondarySender
+        })
+      );
     });
 
-    it('should not allow holders to unlock tokens if not yet unlockable', async function () {
-      const amount = new BigNumber(1).multipliedBy(this.tokenAmountMultiplier);
-      await this.mockBank.lock(amount);
-      return assert.isRejected(this.mockBank.unlock());
-    });
-
-    it('should not allow holders to lock tokens if there are available unlockable tokens', async function () {
-      // Skip few cycles to make the tokens to be unlockable
-      await time.advanceBlockTo((await this.kit.web3.eth.getBlockNumber()) + 1400);
-
-      const amount = new BigNumber(1).multipliedBy(this.tokenAmountMultiplier);
-      return assert.isRejected(this.mockBank.lock(amount, { from: localSecondaryAccount }));
+    it('should not allow a non-owner of a vault to unlock tokens', function () {
+      return assert.isRejected(
+        this.bank.unlock(this.vaultInstance.address, {
+          from: this.secondarySender
+        })
+      );
     });
   });
 });
