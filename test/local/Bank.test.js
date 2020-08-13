@@ -1,7 +1,7 @@
 const { assert } = require('./setup');
 const { tokenName, tokenSymbol, tokenDecimal, seedCapacity, seedRatio } = require('../../config');
 
-describe.only('Bank', function () {
+describe('Bank', function () {
   describe('State', function () {
     it('should have a valid token name', async function () {
       return assert.equal(await this.bank.name(), tokenName);
