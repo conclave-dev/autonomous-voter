@@ -83,6 +83,9 @@ describe('Bank', function () {
         value: seedValue
       });
 
+      // Fast-forward 1 block
+      await time.advanceBlockTo((await this.kit.web3.eth.getBlockNumber()) + 100);
+
       // Attempt to unfreeze the second record, which should be unlockable due to the short freeze duration
       await this.bank.unfreezeTokens(this.vaultInstance.address, 1);
 
@@ -94,9 +97,6 @@ describe('Bank', function () {
     it('should allow an owner of a vault to transfer unfrozen tokens', async function () {
       const previousTargetBalance = new BigNumber(await this.bank.balanceOf(this.secondarySender));
       const amount = new BigNumber(1);
-
-      // Fast-forward 1 block
-      await time.advanceBlockTo((await this.kit.web3.eth.getBlockNumber()) + 100);
 
       await this.bank.transferFromVault(this.vaultInstance.address, this.secondarySender, amount.toString());
 
