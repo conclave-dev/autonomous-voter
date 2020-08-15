@@ -72,62 +72,38 @@ describe('Bank', function () {
       );
     });
 
-    it('should allow an owner of a vault to lock its balance', async function () {
-      const vaultBalance = (await this.bank.balanceOf(this.vaultInstance.address)).toNumber();
-      const lockCycle = 1;
-
-      await this.bank.lock(this.vaultInstance.address, lockCycle);
-
-      const { 0: amount, 1: cycle } = await this.bank.getLockedTokens(this.vaultInstance.address);
-
-      assert.equal(cycle.toNumber(), lockCycle);
-      return assert.equal(amount.toNumber(), vaultBalance);
-    });
-
-    it('should allow an owner of a vault to unlock its balance', async function () {
-      const vaultBalance = (await this.bank.balanceOf(this.vaultInstance.address)).toNumber();
-
-      await this.bank.unlock(this.vaultInstance.address);
-
-      const { 0: amount, 1: cycle } = await this.bank.getLockedTokens(this.vaultInstance.address);
-
-      assert.isAtLeast(vaultBalance, 1);
-      assert.equal(cycle.toNumber(), 0);
-      return assert.equal(amount.toNumber(), 0);
-    });
-
-    it('should allow an owner of a vault to transfer unlocked (and unfrozen) tokens', async function () {
+    it('should allow an owner of a vault to unfreeze tokens when available', async function () {
       // Set the frozen duration to a small value so we can fast-forward slightly to get them unfrozen
       await this.bank.setSeedFreezeDuration(1);
 
-      const preSeedTargetBalance = new BigNumber(await this.bank.balanceOf(this.secondarySender));
-      const preSeedFrozenBalance = new BigNumber(await this.bank.getFrozenTokens(this.vaultInstance.address));
+      const previousFrozenBalance = new BigNumber(await this.bank.getFrozenTokens(this.vaultInstance.address));
       const seedValue = new BigNumber(1);
 
       await this.bank.seed(this.vaultInstance.address, {
         value: seedValue
       });
 
+      // Attempt to unfreeze the second record, which should be unlockable due to the short freeze duration
+      await this.bank.unfreezeTokens(this.vaultInstance.address, 1);
+
+      const currentFrozenBalance = new BigNumber(await this.bank.getFrozenTokens(this.vaultInstance.address));
+
+      return assert.equal(currentFrozenBalance.toFixed(0), previousFrozenBalance.toFixed(0));
+    });
+
+    it('should allow an owner of a vault to transfer unfrozen tokens', async function () {
+      const previousTargetBalance = new BigNumber(await this.bank.balanceOf(this.secondarySender));
+      const amount = new BigNumber(1);
+
       // Fast-forward 1 block
       await time.advanceBlockTo((await this.kit.web3.eth.getBlockNumber()) + 100);
 
-      // Make sure that the last seeded tokens are already unfrozen
-      assert.equal(
-        new BigNumber(await this.bank.getFrozenTokens(this.vaultInstance.address)).toFixed(0),
-        preSeedFrozenBalance.toFixed(0)
-      );
+      await this.bank.transferFromVault(this.vaultInstance.address, this.secondarySender, amount.toString());
 
-      await this.bank.transferFromVault(this.vaultInstance.address, this.secondarySender, seedValue.toString());
-
-      // Confirm the balances of both the vault and the transfer target
-      assert.equal(
-        new BigNumber(await this.bank.balanceOf(this.vaultInstance.address)).toFixed(0),
-        preSeedFrozenBalance.toFixed(0)
-      );
-
+      // Confirm the balances of the transfer target
       return assert.equal(
         new BigNumber(await this.bank.balanceOf(this.secondarySender)).toFixed(0),
-        preSeedTargetBalance.plus(seedValue).toFixed(0)
+        previousTargetBalance.plus(amount).toFixed(0)
       );
     });
   });
@@ -154,30 +130,17 @@ describe('Bank', function () {
       );
     });
 
-    it('should not allow a non-owner of a vault to lock tokens', function () {
-      return assert.isRejected(
-        this.bank.lock(this.vaultInstance.address, 1, {
-          from: this.secondarySender
-        })
-      );
+    it('should not allow a owners to unfreeze tokens when not yet available', function () {
+      // Attempt to unfreeze the first record, which should not be unlockable yet
+      return assert.isRejected(this.bank.unfreezeTokens(this.vaultInstance.address, 0));
     });
 
-    it('should not allow a non-owner of a vault to unlock tokens', function () {
-      return assert.isRejected(
-        this.bank.unlock(this.vaultInstance.address, {
-          from: this.secondarySender
-        })
-      );
-    });
-
-    it('should not allow owners to perform transfer on locked and/or frozen tokens', async function () {
+    it('should not allow owners to perform transfer on frozen tokens', async function () {
       // Attempt to transfer the entire unlocked balance of a vault including the newly minted (and frozen) tokens
       const balance = new BigNumber(await this.bank.balanceOf(this.vaultInstance.address));
-      const { 0: amount } = await this.bank.getLockedTokens(this.vaultInstance.address);
-      const unlockedBalance = balance.plus(new BigNumber(amount));
 
       return assert.isRejected(
-        this.bank.transferFromVault(this.vaultInstance.address, this.secondarySender, unlockedBalance.toString())
+        this.bank.transferFromVault(this.vaultInstance.address, this.secondarySender, balance.toString())
       );
     });
   });
