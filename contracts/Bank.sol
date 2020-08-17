@@ -28,6 +28,7 @@ contract Bank is Ownable, StandaloneERC20 {
         uint256 unlockedAt;
     }
 
+    mapping(address => uint256) private _frozenBalance;
     mapping(address => uint256) internal totalSeeded;
     mapping(address => FrozenTokens[]) internal frozenTokens;
 
@@ -48,6 +49,14 @@ contract Bank is Ownable, StandaloneERC20 {
     modifier onlyVaultOwner(Vault vault) {
         require(msg.sender == vault.owner(), "Must be vault owner");
         _;
+    }
+
+    /**
+     * @notice Fetch the total amount of frozen balance of the specified account
+     * @param account Address of the account to be queried
+     */
+    function frozenBalanceOf(address account) public view returns (uint256) {
+        return _frozenBalance[account];
     }
 
     /**
@@ -78,6 +87,9 @@ contract Bank is Ownable, StandaloneERC20 {
         // Mint tokens proportionally based on the currently set ratio and the specified amount
         _mint(vaultAddress, mintAmount);
         totalSeeded[msg.sender] = totalSeeded[msg.sender].add(mintAmount);
+        _frozenBalance[vaultAddress] = _frozenBalance[vaultAddress].add(
+            mintAmount
+        );
 
         // Freeze the newly minted tokens and set it to be unlockable based on the currently set freezing duration
         frozenTokens[vaultAddress].push(
@@ -93,13 +105,18 @@ contract Bank is Ownable, StandaloneERC20 {
         external
         onlyVaultOwner(vault)
     {
-        FrozenTokens[] storage userFrozenTokens = frozenTokens[address(vault)];
+        address vaultAddress = address(vault);
+        FrozenTokens[] storage userFrozenTokens = frozenTokens[vaultAddress];
         require(index < userFrozenTokens.length, "Invalid index specified");
 
         FrozenTokens memory frozenToken = userFrozenTokens[index];
         require(
             frozenToken.unlockedAt <= now,
             "Unable to unfreeze frozen tokens"
+        );
+
+        _frozenBalance[vaultAddress] = _frozenBalance[vaultAddress].sub(
+            frozenToken.amount
         );
 
         // Swap only if needed (the deleted index is not in the last index)
@@ -113,18 +130,32 @@ contract Bank is Ownable, StandaloneERC20 {
     }
 
     /**
-     * @notice Fetch the total number of frozen tokens of the specified account
+     * @notice Fetch a frozen token record of the specified account and index
+     * @param account Address of the account to be queried
+     * @param index Index of the token reccord to be queried
+     */
+    function getFrozenTokenDetail(address account, uint256 index)
+        external
+        view
+        returns (uint256, uint256)
+    {
+        FrozenTokens[] memory userFrozenTokens = frozenTokens[account];
+        require(index < userFrozenTokens.length, "Invalid index specified");
+        uint256 amount = userFrozenTokens[index].amount;
+        uint256 unlockedAt = userFrozenTokens[index].unlockedAt;
+        return (amount, unlockedAt);
+    }
+
+    /**
+     * @notice Fetch the total number of frozen token records of the specified account
      * @param account Address of the account to be queried
      */
-    function getFrozenTokens(address account) public view returns (uint256) {
-        FrozenTokens[] memory userFrozenTokens = frozenTokens[account];
-        uint256 totalFrozen = 0;
-        for (uint256 i = 0; i < userFrozenTokens.length; i++) {
-            if (userFrozenTokens[i].unlockedAt > now) {
-                totalFrozen = totalFrozen.add(userFrozenTokens[i].amount);
-            }
-        }
-        return totalFrozen;
+    function getFrozenTokenCount(address account)
+        external
+        view
+        returns (uint256)
+    {
+        return frozenTokens[account].length;
     }
 
     // Checkpoints to make sure the account has enough unfrozen tokens
@@ -134,7 +165,7 @@ contract Bank is Ownable, StandaloneERC20 {
     {
         // Verify if the user has sufficient unfrozen tokens
         require(
-            balanceOf(account).sub(getFrozenTokens(account)) >= amount,
+            balanceOf(account).sub(_frozenBalance[account]) >= amount,
             "Insufficient unfrozen tokens"
         );
     }
