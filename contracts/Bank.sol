@@ -25,7 +25,7 @@ contract Bank is Ownable, StandaloneERC20 {
 
     struct FrozenTokens {
         uint256 amount;
-        uint256 unlockedAt;
+        uint256 frozenUntil;
     }
 
     mapping(address => uint256) private _frozenBalance;
@@ -111,7 +111,7 @@ contract Bank is Ownable, StandaloneERC20 {
 
         FrozenTokens memory frozenToken = userFrozenTokens[index];
         require(
-            frozenToken.unlockedAt <= now,
+            frozenToken.frozenUntil <= now,
             "Unable to unfreeze frozen tokens"
         );
 
@@ -142,8 +142,8 @@ contract Bank is Ownable, StandaloneERC20 {
         FrozenTokens[] memory userFrozenTokens = frozenTokens[account];
         require(index < userFrozenTokens.length, "Invalid index specified");
         uint256 amount = userFrozenTokens[index].amount;
-        uint256 unlockedAt = userFrozenTokens[index].unlockedAt;
-        return (amount, unlockedAt);
+        uint256 frozenUntil = userFrozenTokens[index].frozenUntil;
+        return (amount, frozenUntil);
     }
 
     /**

@@ -101,7 +101,7 @@ describe('Bank', function () {
       // Fast-forward 1 block
       await time.advanceBlockTo((await this.kit.web3.eth.getBlockNumber()) + 100);
 
-      // Attempt to unfreeze the second record, which should be unlockable due to the short freeze duration
+      // Attempt to unfreeze the second record, which should be unfrozen due to the short freeze duration
       await this.bank.unfreezeTokens(this.vaultInstance.address, 1);
 
       const currentFrozenBalance = new BigNumber(await this.bank.frozenBalanceOf(this.vaultInstance.address));
@@ -146,7 +146,7 @@ describe('Bank', function () {
     });
 
     it('should not allow a owners to unfreeze tokens when not yet available', function () {
-      // Attempt to unfreeze the first record, which should not be unlockable yet
+      // Attempt to unfreeze the first record, which should not be unfrozen yet
       return assert.isRejected(this.bank.unfreezeTokens(this.vaultInstance.address, 0));
     });
 
