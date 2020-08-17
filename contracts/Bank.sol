@@ -23,12 +23,14 @@ contract Bank is Ownable, StandaloneERC20 {
     // NOTE: Only modifiable seed parameter
     uint256 public seedFreezeDuration;
 
-    struct LockedTokens {
+    struct FrozenTokens {
         uint256 amount;
-        uint256 cycle;
+        uint256 frozenUntil;
     }
 
-    mapping(address => LockedTokens) internal lockedTokens;
+    mapping(address => uint256) private _frozenBalance;
+    mapping(address => uint256) internal totalSeeded;
+    mapping(address => FrozenTokens[]) internal frozenTokens;
 
     function initialize(
         string memory name_,
@@ -50,6 +52,14 @@ contract Bank is Ownable, StandaloneERC20 {
     }
 
     /**
+     * @notice Fetch the total amount of frozen balance of the specified account
+     * @param account Address of the account to be queried
+     */
+    function frozenBalanceOf(address account) public view returns (uint256) {
+        return _frozenBalance[account];
+    }
+
+    /**
      * @notice Sets the value of `seedFreezeDuration`
      * @param duration Seconds AV tokens are frozen post-mint
      */
@@ -64,34 +74,128 @@ contract Bank is Ownable, StandaloneERC20 {
      */
     function seed(Vault vault) external payable onlyVaultOwner(vault) {
         require(msg.value > 0, "Invalid amount");
-
-        // Currently set to mint on 1:1 basis
-        _mint(address(vault), msg.value);
-
-        // TODO: Store the minted amount + lockup (worked on by EM)
-    }
-
-    // Locks an vault's token balance by adding it to `lockedTokens`
-    function lock(Vault vault, uint256 cycle) external onlyVaultOwner(vault) {
         address vaultAddress = address(vault);
 
-        lockedTokens[vaultAddress] = LockedTokens(
-            balanceOf(vaultAddress),
-            cycle
+        // Calculate the to-be minted tokens and verify that the total seeded would still be within the capacity/limit
+        uint256 mintAmount = msg.value.mul(seedRatio);
+        require(
+            totalSeeded[msg.sender].add(mintAmount) <=
+                seedCapacity.mul(decimals()),
+            "Seed capacity exceeded"
+        );
+
+        // Mint tokens proportionally based on the currently set ratio and the specified amount
+        _mint(vaultAddress, mintAmount);
+        totalSeeded[msg.sender] = totalSeeded[msg.sender].add(mintAmount);
+        _frozenBalance[vaultAddress] = _frozenBalance[vaultAddress].add(
+            mintAmount
+        );
+
+        // Freeze the newly minted tokens and set it to be unlockable based on the currently set freezing duration
+        frozenTokens[vaultAddress].push(
+            FrozenTokens(mintAmount, now.add(seedFreezeDuration))
         );
     }
 
-    // Unlocks an vault's token balance by deleting it from `lockedTokens`
-    function unlock(Vault vault) external onlyVaultOwner(vault) {
-        delete lockedTokens[address(vault)];
+    /**
+     * @notice Unfreeze the specified account's frozen tokens if available
+     * @param index Index of the frozen tokens record to be unfrozen
+     */
+    function unfreezeTokens(Vault vault, uint256 index)
+        external
+        onlyVaultOwner(vault)
+    {
+        address vaultAddress = address(vault);
+        FrozenTokens[] storage userFrozenTokens = frozenTokens[vaultAddress];
+        require(index < userFrozenTokens.length, "Invalid index specified");
+
+        FrozenTokens memory frozenToken = userFrozenTokens[index];
+        require(
+            frozenToken.frozenUntil <= now,
+            "Unable to unfreeze frozen tokens"
+        );
+
+        _frozenBalance[vaultAddress] = _frozenBalance[vaultAddress].sub(
+            frozenToken.amount
+        );
+
+        // Swap only if needed (the deleted index is not in the last index)
+        uint256 lastIndex = userFrozenTokens.length - 1;
+        if (index != lastIndex) {
+            userFrozenTokens[index] = userFrozenTokens[lastIndex];
+        }
+
+        // Resize the array to 'remove' the record
+        userFrozenTokens.length--;
     }
 
-    function getLockedTokens(address vault)
+    /**
+     * @notice Fetch a frozen token record of the specified account and index
+     * @param account Address of the account to be queried
+     * @param index Index of the token reccord to be queried
+     */
+    function getFrozenTokenDetail(address account, uint256 index)
         external
         view
         returns (uint256, uint256)
     {
-        LockedTokens memory locked = lockedTokens[vault];
-        return (locked.amount, locked.cycle);
+        FrozenTokens[] memory userFrozenTokens = frozenTokens[account];
+        require(index < userFrozenTokens.length, "Invalid index specified");
+        uint256 amount = userFrozenTokens[index].amount;
+        uint256 frozenUntil = userFrozenTokens[index].frozenUntil;
+        return (amount, frozenUntil);
+    }
+
+    /**
+     * @notice Fetch the total number of frozen token records of the specified account
+     * @param account Address of the account to be queried
+     */
+    function getFrozenTokenCount(address account)
+        external
+        view
+        returns (uint256)
+    {
+        return frozenTokens[account].length;
+    }
+
+    // Checkpoints to make sure the account has enough unfrozen tokens
+    function _checkAvailableTokens(address account, uint256 amount)
+        internal
+        view
+    {
+        // Verify if the user has sufficient unfrozen tokens
+        require(
+            balanceOf(account).sub(_frozenBalance[account]) >= amount,
+            "Insufficient unfrozen tokens"
+        );
+    }
+
+    // Override ERC20's `transfer` to include checkpoint for preventing frozenTokens from being transferred
+    function transfer(address recipient, uint256 amount) public returns (bool) {
+        _checkAvailableTokens(msg.sender, amount);
+        // Call internal `_transfer` since we can't pass identical `msg.sender` into ERC20's `transfer` method
+        _transfer(msg.sender, recipient, amount);
+        return true;
+    }
+
+    // Override ERC20's `transferFrom` to include checkpoint for preventing frozenTokens from being transferred
+    function transferFrom(
+        address sender,
+        address recipient,
+        uint256 amount
+    ) public returns (bool) {
+        _checkAvailableTokens(sender, amount);
+        ERC20.transferFrom(sender, recipient, amount);
+        return true;
+    }
+
+    // Custom transfer method to allow vault owners to transfer unfrozen (and unlocked) tokens regardless of allowance
+    function transferFromVault(
+        Vault vault,
+        address recipient,
+        uint256 amount
+    ) external onlyVaultOwner(vault) {
+        _checkAvailableTokens(address(vault), amount);
+        _transfer(address(vault), recipient, amount);
     }
 }
