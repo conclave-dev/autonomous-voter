@@ -22,6 +22,7 @@ before(async function () {
       vaultFactory: this.vaultFactory,
       managerFactory: this.managerFactory,
       bank: this.bank,
+      portfolio: this.portfolio,
       managerCommission: this.managerCommission,
       minimumBalanceRequirement: this.minimumBalanceRequirement
     }),

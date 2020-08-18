@@ -6,7 +6,7 @@ import "./celo/common/UsingRegistry.sol";
 import "./celo/common/libraries/AddressLinkedList.sol";
 
 contract Portfolio is MVoting, UsingRegistry {
-    function initialize(address registry_, uint256 maxGroups_)
+    function initialize(address registry_, uint256 max)
         public
         payable
         initializer
@@ -16,6 +16,6 @@ contract Portfolio is MVoting, UsingRegistry {
 
         // Set Voting module parameters
         _setElection(getElection());
-        _setMaxGroups(maxGroups_);
+        _setGroupMaximum(max);
     }
 }

@@ -2,12 +2,10 @@
 pragma solidity ^0.5.8;
 
 import "@openzeppelin/contracts-ethereum-package/contracts/math/SafeMath.sol";
-import "../celo/common/libraries/AddressLinkedList.sol";
 import "../celo/governance/interfaces/IElection.sol";
 
 contract MVoting {
     using SafeMath for uint256;
-    using AddressLinkedList for LinkedList.List;
 
     struct Group {
         // Index of an eligible Celo election group
@@ -24,13 +22,12 @@ contract MVoting {
         uint256 placed;
     }
 
-    IElection internal election;
-    LinkedList.List public vaults;
+    IElection public election;
     address public manager;
 
-    // Max number of groups for `groupAllocations`
-    uint256 public maxGroupAllocations;
-    Group[] public groupAllocations;
+    // Max number of groups for `groupMaximum`
+    uint256 public groupMaximum;
+    Group[] public voteAllocations;
 
     /**
      * @notice Sets the interface for the Celo Election contract
@@ -44,8 +41,16 @@ contract MVoting {
      * @notice Sets the max number of groups that can be allocated votes
      * @param max Maximum number
      */
-    function _setMaxGroups(uint256 max) internal {
-        maxGroupAllocations = max;
+    function _setGroupMaximum(uint256 max) internal {
+        groupMaximum = max;
+    }
+
+    /**
+     * @notice Sets the voting manager
+     * @param manager_ Manager address
+     */
+    function _setManager(address manager_) internal {
+        manager = manager_;
     }
 
     /**
@@ -59,7 +64,7 @@ contract MVoting {
         uint256[] memory allocations
     ) internal {
         require(
-            groupIndexes.length < maxGroupAllocations,
+            groupIndexes.length < groupMaximum,
             "Exceeds max groups allowed"
         );
         require(
@@ -67,8 +72,8 @@ contract MVoting {
             "Mismatched indexes and allocations"
         );
 
-        // Reset `groupAllocations`
-        delete groupAllocations;
+        // Reset `voteAllocations`
+        delete voteAllocations;
 
         // Fetch eligible Celo election groups for validation purposes
         (address[] memory groups, ) = election
@@ -84,7 +89,7 @@ contract MVoting {
                 "Eligible group does not exist at index"
             );
 
-            groupAllocations.push(Group(groupIndexes[i], allocations[i], 0));
+            voteAllocations.push(Group(groupIndexes[i], allocations[i], 0));
 
             // Track allocation total to validate amount is correct
             newAllocationTotal = newAllocationTotal.add(allocations[i]);
