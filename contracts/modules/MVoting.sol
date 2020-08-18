@@ -36,15 +36,15 @@ contract MVoting {
      * @notice Sets the interface for the Celo Election contract
      * @param election_ Celo Election address
      */
-    function setElection(address election_) internal {
-        election = IElection(election_);
+    function _setElection(IElection election_) internal {
+        election = election_;
     }
 
     /**
      * @notice Sets the max number of groups that can be allocated votes
      * @param max Maximum number
      */
-    function setMaxGroups(uint256 max) internal {
+    function _setMaxGroups(uint256 max) internal {
         maxGroupAllocations = max;
     }
 
@@ -54,10 +54,10 @@ contract MVoting {
      * @param allocations # of votes allocated for a group
      * @dev The indexes and allocations
      */
-    function setGroupAllocations(
+    function _setGroupAllocations(
         uint256[] memory groupIndexes,
         uint256[] memory allocations
-    ) public {
+    ) internal {
         require(
             groupIndexes.length < maxGroupAllocations,
             "Exceeds max groups allowed"
