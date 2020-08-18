@@ -2,7 +2,7 @@ const { newKit } = require('@celo/contractkit');
 const { assert } = require('./setup');
 const { localRpcAPI, groupMaximum } = require('../../config');
 
-describe('Portfolio', function () {
+describe.only('Portfolio', function () {
   before(async function () {
     this.election = await newKit(localRpcAPI).contracts.getElection();
   });
@@ -22,5 +22,27 @@ describe('Portfolio', function () {
     });
   });
 
+  describe('Methods ✅', function () {
+    it('should add vault to Portfolio if vault owner', async function () {
+      const lowerCaseVaultAddress = this.vaultInstance.address.toLowerCase();
+      const initialTail = (await this.portfolio.vaults()).tail.substring(0, 42);
 
+      await this.portfolio.manageVault(this.vaultInstance.address);
+
+      const currentTail = (await this.portfolio.vaults()).tail.substring(0, 42);
+
+      assert.notEqual(initialTail, lowerCaseVaultAddress);
+      return assert.equal(currentTail, lowerCaseVaultAddress);
+    });
+  });
+
+  describe('Methods 🛑', function () {
+    it('should not add vault to Portfolio if not vault owner', function () {
+      return assert.isRejected(
+        this.portfolio.manageVault(this.vaultInstance.address, {
+          from: this.secondarySender
+        })
+      );
+    });
+  });
 });
