@@ -24,6 +24,5 @@ module.exports = async (deployer, network) => {
 
   await deployer.deploy(AddressLinkedList, { overwrite: deployAddressLinkedList });
   await deployer.link(AddressLinkedList, Archive);
-  await deployer.link(LinkedList, Vault);
   await deployer.link(AddressLinkedList, VoteManager);
 };
