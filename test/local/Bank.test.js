@@ -4,6 +4,11 @@ const { default: BigNumber } = require('bignumber.js');
 const { tokenName, tokenSymbol, tokenDecimal, seedCapacity, seedRatio, seedFreezeDuration } = require('../../config');
 
 describe('Bank', function () {
+  before(async function () {
+    this.accounts = (await this.kit._web3Contracts.getAccounts()).methods;
+    this.lockedGold = (await this.kit._web3Contracts.getLockedGold()).methods;
+  });
+
   after(async function () {
     // Always reset the seedFreezeDuration to the originally intended value
     await this.bank.setSeedFreezeDuration(new BigNumber(seedFreezeDuration).toString());
@@ -41,6 +46,10 @@ describe('Bank', function () {
     it('should have a valid seed freeze duration', async function () {
       return assert.isAbove((await this.bank.seedFreezeDuration()).toNumber(), 1);
     });
+
+    it('should be a registered CELO account', async function () {
+      return assert.isTrue(await (await this.accounts.isAccount(this.bank.address)).call());
+    });
   });
 
   describe('Methods ✅', function () {
@@ -52,7 +61,10 @@ describe('Bank', function () {
       return assert.equal(await this.bank.seedFreezeDuration(), updatedSeedFreezeDuration);
     });
 
-    it('should allow an owner of a vault to seed tokens and update the frozen balance', async function () {
+    it('should allow an owner of a vault to seed tokens, update its frozen balance, and update total CELO locked in Bank', async function () {
+      const preSeedLockedGold = new BigNumber(
+        (await await this.lockedGold.getAccountTotalLockedGold(this.bank.address)).call()
+      );
       const preSeedBalance = new BigNumber(await this.bank.balanceOf(this.vaultInstance.address));
       const preSeedFrozenBalance = new BigNumber(await this.bank.frozenBalanceOf(this.vaultInstance.address));
       const seedRatio = new BigNumber(await this.bank.seedRatio());
@@ -62,8 +74,14 @@ describe('Bank', function () {
         value: seedValue
       });
 
+      const postSeedLockedGold = new BigNumber(
+        (await await this.lockedGold.getAccountTotalLockedGold(this.bank.address)).call()
+      );
       const postSeedBalance = new BigNumber(await this.bank.balanceOf(this.vaultInstance.address));
       const postSeedFrozenBalance = new BigNumber(await this.bank.frozenBalanceOf(this.vaultInstance.address));
+      const convertedSeedValue = seedValue.multipliedBy(seedRatio);
+
+      assert.equal(preSeedLockedGold.plus(convertedSeedValue).toFixed(0), postSeedLockedGold.toFixed(0));
 
       assert.equal(
         preSeedFrozenBalance.plus(seedValue.multipliedBy(seedRatio)).toFixed(0),
