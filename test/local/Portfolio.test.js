@@ -2,9 +2,17 @@ const { newKit } = require('@celo/contractkit');
 const { assert } = require('./setup');
 const { localRpcAPI, groupMaximum } = require('../../config');
 
-describe('Portfolio', function () {
+describe.only('Portfolio', function () {
   before(async function () {
-    this.election = await newKit(localRpcAPI).contracts.getElection();
+    const kit = newKit(localRpcAPI);
+
+    this.election = await kit.contracts.getElection();
+
+    // Setting cycle parameters in `before` to test cycle-related state
+    this.genesisBlockNumber = (await kit.web3.eth.getBlockNumber()) + 1;
+    this.cycleBlockDuration = 17280 * 7; // 7 epochs
+
+    await this.portfolio.setCycleParameters(this.genesisBlockNumber, this.cycleBlockDuration);
   });
 
   describe('State', function () {
@@ -15,6 +23,14 @@ describe('Portfolio', function () {
     it('should have a manager only if voteAllocations is set', async function () {
       assert.equal(0, (await this.portfolio.voteAllocations).length);
       return assert.equal(this.zeroAddress, await this.portfolio.manager());
+    });
+
+    it('should have the correct genesisBlockNumber', async function () {
+      return assert.equal(this.genesisBlockNumber, await this.portfolio.genesisBlockNumber());
+    });
+
+    it('should have the correct blockDuration', async function () {
+      return assert.equal(this.cycleBlockDuration, await this.portfolio.blockDuration());
     });
   });
 
@@ -70,6 +86,30 @@ describe('Portfolio', function () {
       const groupAllocations = [100];
 
       return assert.isRejected(this.portfolio.setVoteAllocations(eligibleGroupIndexes, groupAllocations));
+    });
+
+    it('should not set cycle parameters if non-owner', function () {
+      return assert.isRejected(
+        this.portfolio.setCycleParameters(this.genesisBlockNumber, this.cycleBlockDuration, {
+          from: this.secondarySender
+        })
+      );
+    });
+
+    it('should not set cycle parameters if genesis block input is invalid', function () {
+      return assert.isRejected(
+        this.portfolio.setCycleParameters(0, this.cycleBlockDuration, {
+          from: this.secondarySender
+        })
+      );
+    });
+
+    it('should not set cycle parameters if block duration input is invalid', function () {
+      return assert.isRejected(
+        this.portfolio.setCycleParameters(this.genesisBlockNumber, 0, {
+          from: this.secondarySender
+        })
+      );
     });
   });
 });

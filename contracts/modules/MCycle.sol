@@ -22,8 +22,10 @@ contract MCycle {
         blockDuration = duration;
     }
 
+    // Gets the current cycle # by comparing the current block # with the parameters
+    // NOTE: The return value is rounded down
     function getCycle() public view returns (uint256) {
-        require(block.number > genesisBlockNumber, "Protocol has not started");
+        require(block.number < genesisBlockNumber, "Protocol has not started");
         require(
             genesisBlockNumber != 0 && blockDuration != 0,
             "Parameters not set"
@@ -31,7 +33,6 @@ contract MCycle {
 
         uint256 elapsedBlocks = block.number.sub(genesisBlockNumber);
 
-        // NOTE: `elapsedBlocks.div(blockDuration)`'s value is rounded down
         return elapsedBlocks.div(blockDuration);
     }
 }
