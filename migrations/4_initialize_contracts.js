@@ -35,7 +35,16 @@ module.exports = (deployer) =>
       },
       {
         contract: 'Bank',
-        fn: async () => await bank.initialize(tokenName, tokenSymbol, tokenDecimal, [], [], seedFreezeDuration)
+        fn: async () =>
+          await bank.initializeBank(
+            tokenName,
+            tokenSymbol,
+            tokenDecimal,
+            [],
+            [],
+            seedFreezeDuration,
+            registryContractAddress
+          )
       },
       {
         contract: 'Portfolio',

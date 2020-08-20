@@ -5,13 +5,14 @@ import "@openzeppelin/contracts-ethereum-package/contracts/ownership/Ownable.sol
 import "@openzeppelin/contracts-ethereum-package/contracts/math/SafeMath.sol";
 import "@openzeppelin/contracts-ethereum-package/contracts/token/ERC20/StandaloneERC20.sol";
 
+import "./celo/common/UsingRegistry.sol";
 import "./Vault.sol";
 
 /**
  * @title VM contract to manage token related functionalities
  *
  */
-contract Bank is Ownable, StandaloneERC20 {
+contract Bank is Ownable, StandaloneERC20, UsingRegistry {
     using SafeMath for uint256;
 
     // # of seed AV tokens per Vault
@@ -32,16 +33,24 @@ contract Bank is Ownable, StandaloneERC20 {
     mapping(address => uint256) internal totalSeeded;
     mapping(address => FrozenTokens[]) internal frozenTokens;
 
-    function initialize(
+    ILockedGold public lockedGold;
+
+    function initializeBank(
         string memory name_,
         string memory symbol_,
         uint8 decimals_,
         address[] memory minters,
         address[] memory pausers,
-        uint256 seedFreezeDuration_
+        uint256 seedFreezeDuration_,
+        address registry_
     ) public initializer {
         Ownable.initialize(msg.sender);
         StandaloneERC20.initialize(name_, symbol_, decimals_, minters, pausers);
+        UsingRegistry.initializeRegistry(msg.sender, registry_);
+
+        getAccounts().createAccount();
+        lockedGold = getLockedGold();
+
         seedFreezeDuration = seedFreezeDuration_;
     }
 
@@ -95,6 +104,9 @@ contract Bank is Ownable, StandaloneERC20 {
         frozenTokens[vaultAddress].push(
             FrozenTokens(mintAmount, now.add(seedFreezeDuration))
         );
+
+        // Proceed to lock the newly transferred CELO to be used for voting in CELO
+        lockedGold.lock.value(msg.value)();
     }
 
     /**
