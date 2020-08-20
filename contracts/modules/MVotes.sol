@@ -3,7 +3,7 @@ pragma solidity ^0.5.8;
 
 import "@openzeppelin/contracts-ethereum-package/contracts/math/SafeMath.sol";
 
-contract MVoting {
+contract MVotes {
     using SafeMath for uint256;
 
     struct Group {

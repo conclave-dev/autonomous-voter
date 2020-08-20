@@ -1,17 +1,18 @@
 // contracts/Voting.sol
 pragma solidity ^0.5.8;
 
-import "./modules/MVoting.sol";
+import "./modules/MCycle.sol";
+import "./modules/MVotes.sol";
 import "./celo/common/UsingRegistry.sol";
 import "./celo/common/libraries/AddressLinkedList.sol";
 import "./Vault.sol";
 
-contract Portfolio is MVoting, UsingRegistry {
+contract Portfolio is MCycle, MVotes, UsingRegistry {
     using AddressLinkedList for LinkedList.List;
 
     LinkedList.List public vaults;
 
-    function initialize(address registry_, uint256 max)
+    function initialize(address registry_, uint256 groupMaximum_)
         public
         payable
         initializer
@@ -20,7 +21,14 @@ contract Portfolio is MVoting, UsingRegistry {
         Ownable.initialize(msg.sender);
 
         // Set Voting module parameters
-        _setGroupMaximum(max);
+        _setGroupMaximum(groupMaximum_);
+    }
+
+    function setCycleParameters(uint256 genesis, uint256 duration)
+        external
+        onlyOwner
+    {
+        _setCycleParameters(genesis, duration);
     }
 
     function addVault(Vault vault) external {
