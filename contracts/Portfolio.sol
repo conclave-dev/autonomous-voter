@@ -36,17 +36,10 @@ contract Portfolio is MCycle, MVotes, UsingRegistry {
         vaults.push(address(vault));
     }
 
-    /**
-     * @notice Validates and sets vote allocations for multiple groups
-     * @param eligibleGroupIndexes List of eligible Celo election group indexes
-     * @param groupAllocations Percentage of total votes allocated for the groups
-     * @dev The allocation for a group is based on its index in eligibleGroupIndexes
-     * @dev E.g. The allocation for `eligibleGroupIndexes[0]` is `groupAllocations[0]`
-     */
-    function setVoteAllocations(
-        uint256[] calldata eligibleGroupIndexes,
-        uint256[] calldata groupAllocations
-    ) external onlyOwner {
+    function _validateGroupAllocations(
+        uint256[] memory eligibleGroupIndexes,
+        uint256[] memory groupAllocations
+    ) internal view {
         require(
             eligibleGroupIndexes.length <= groupMaximum,
             "Exceeds max groups allowed"
@@ -60,9 +53,6 @@ contract Portfolio is MCycle, MVotes, UsingRegistry {
         (address[] memory groups, ) = getElection()
             .getTotalVotesForEligibleValidatorGroups();
 
-        // Reset `voteAllocations` to an empty array
-        delete voteAllocations;
-
         uint256 newAllocationTotal;
 
         for (uint256 i = 0; i < eligibleGroupIndexes.length; i += 1) {
@@ -74,16 +64,34 @@ contract Portfolio is MCycle, MVotes, UsingRegistry {
                 "Eligible group does not exist at index"
             );
 
-            // Add group vote allocation
-            voteAllocations.push(
-                Group(eligibleGroupIndexes[i], groupAllocations[i], 0)
-            );
-
             // Track allocation total to validate amount is correct
             newAllocationTotal = newAllocationTotal.add(groupAllocations[i]);
         }
 
         // // Require newAllocationTotal fully allocates votes
         require(newAllocationTotal == 100, "Group allocations must be 100");
+    }
+
+    /**
+     * @notice Sets vote allocations based on the current cycle's winning proposal(s)
+     * @param eligibleGroupIndexes List of eligible Celo election group indexes
+     * @param groupAllocations Percentage of total votes allocated for the groups
+     * @dev The allocation for a group is based on its index in eligibleGroupIndexes
+     * @dev E.g. The allocation for `eligibleGroupIndexes[0]` is `groupAllocations[0]`
+     */
+    function setVoteAllocations(
+        uint256[] calldata eligibleGroupIndexes,
+        uint256[] calldata groupAllocations
+    ) external onlyOwner {
+        // Reset `voteAllocations` to an empty array
+        delete voteAllocations;
+
+        uint256 cycle = getCycle();
+
+        for (uint256 i = 0; i < eligibleGroupIndexes.length; i += 1) {
+            voteAllocations.push(
+                Group(eligibleGroupIndexes[i], groupAllocations[i], 0)
+            );
+        }
     }
 }
