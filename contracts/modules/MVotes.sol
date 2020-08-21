@@ -22,18 +22,7 @@ contract MVotes {
     }
 
     address public manager;
-
-    // Max number of groups for `groupMaximum`
-    uint256 public groupMaximum;
     Group[] public voteAllocations;
-
-    /**
-     * @notice Sets the max number of groups that can be allocated votes
-     * @param max Maximum number
-     */
-    function _setGroupMaximum(uint256 max) internal {
-        groupMaximum = max;
-    }
 
     /**
      * @notice Sets the voting manager
