@@ -37,7 +37,7 @@ contract Portfolio is MCycle, MProposals, MVotes, UsingRegistry {
     }
 
     function addVault(Vault vault) external {
-        require(msg.sender == vault.owner(), "Sender is not vault owner");
+        require(msg.sender == vault.owner(), "Account is not vault owner");
         vaults.push(address(vault));
     }
 
@@ -85,10 +85,12 @@ contract Portfolio is MCycle, MProposals, MVotes, UsingRegistry {
      * @dev E.g. The allocation for `eligibleGroupIndexes[0]` is `groupAllocations[0]`
      */
     function submitVoteAllocationProposal(
+        Vault vault,
         uint256[] memory eligibleGroupIndexes,
         uint256[] memory groupAllocations
     ) public {
+        require(msg.sender == vault.owner(), "Account is not vault owner");
         _validateVoteAllocationProposal(eligibleGroupIndexes, groupAllocations);
-        _submit(eligibleGroupIndexes, groupAllocations);
+        _submit(vault, eligibleGroupIndexes, groupAllocations);
     }
 }

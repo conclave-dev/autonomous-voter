@@ -2,7 +2,7 @@ const { newKit } = require('@celo/contractkit');
 const { assert } = require('./setup');
 const { localRpcAPI } = require('../../config');
 
-describe.only('Portfolio', function () {
+describe('Portfolio', function () {
   before(async function () {
     const kit = newKit(localRpcAPI);
 
@@ -82,14 +82,18 @@ describe.only('Portfolio', function () {
       const eligibleGroupIndexes = [0, 1, 2, 3];
       const groupAllocations = [25, 25, 25, 25];
 
-      return assert.isRejected(this.portfolio.submitVoteAllocationProposal(eligibleGroupIndexes, groupAllocations));
+      return assert.isRejected(
+        this.portfolio.submitVoteAllocationProposal(this.vaultInstance.address, eligibleGroupIndexes, groupAllocations)
+      );
     });
 
     it('should not submit vote allocation proposal if group indexes and allocations have mismatched lengths', function () {
       const eligibleGroupIndexes = [0, 1];
       const groupAllocations = [100];
 
-      return assert.isRejected(this.portfolio.submitVoteAllocationProposal(eligibleGroupIndexes, groupAllocations));
+      return assert.isRejected(
+        this.portfolio.submitVoteAllocationProposal(this.vaultInstance.address, eligibleGroupIndexes, groupAllocations)
+      );
     });
   });
 });

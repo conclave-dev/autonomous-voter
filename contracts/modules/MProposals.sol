@@ -1,6 +1,8 @@
 // contracts/Voting.sol
 pragma solidity ^0.5.8;
 
+import "../Vault.sol";
+
 contract MProposals {
     struct Proposal {
         // The account that submitted the proposal.
@@ -33,6 +35,7 @@ contract MProposals {
      * @dev The allocation for a group is based on its index in groupIndexes
      */
     function _submit(
+        Vault vault,
         uint256[] memory groupIndexes,
         uint256[] memory groupAllocations
     ) internal {
@@ -67,6 +70,7 @@ contract MProposals {
                 groupAllocations
             )
         );
+        supporter.vault = address(vault);
         supporter.proposalID = proposals.length - 1;
     }
 }
