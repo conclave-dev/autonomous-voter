@@ -6,29 +6,23 @@ import "@openzeppelin/contracts-ethereum-package/contracts/math/SafeMath.sol";
 contract MVotes {
     using SafeMath for uint256;
 
-    struct Group {
-        // Index of an eligible Celo election group
-        uint256 index;
-        // Percentage of the total votes
-        uint256 allocation;
-        // # of votes received
-        uint256 received;
-    }
-
+    // High-level details about the votes managed by the protocol
     struct Votes {
         uint256 total;
-        // # of votes placed
-        uint256 placed;
+        // Number of votes that have been placed overall
+        uint256 voted;
     }
 
-    address public manager;
-    Group[] public voteAllocations;
-
-    /**
-     * @notice Sets the voting manager
-     * @param manager_ Manager address
-     */
-    function _setManager(address manager_) internal {
-        manager = manager_;
+    // Details about a group that will receive votes
+    struct Group {
+        // Index of the eligible Celo election group
+        uint256 groupIndex;
+        // Percent of total votes allocated to the group
+        uint256 percentOfTotal;
+        // Number of votes that have been placed for the group
+        uint256 voted;
     }
+
+    Votes public votes;
+    mapping(uint256 => Group[]) groupsByCycle;
 }
