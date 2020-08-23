@@ -11,15 +11,15 @@ describe('Portfolio', function () {
     // Setting cycle parameters in `before` to test cycle-related state
     this.genesisBlockNumber = (await kit.web3.eth.getBlockNumber()) + 1;
     this.cycleBlockDuration = 17280 * 7; // 7 epochs
-    this.maximumVoteAllocationGroups = 3;
+    this.groupLimit = 3;
 
     await this.portfolio.setCycleParameters(this.genesisBlockNumber, this.cycleBlockDuration);
-    await this.portfolio.setMaximumVoteAllocationGroups(this.maximumVoteAllocationGroups);
+    await this.portfolio.setGroupLimit(this.groupLimit);
   });
 
   describe('State', function () {
-    it('should have the correct maximumVoteAllocationGroups set', async function () {
-      return assert.equal(this.maximumVoteAllocationGroups, await this.portfolio.maximumVoteAllocationGroups());
+    it('should have the correct groupLimit set', async function () {
+      return assert.equal(this.groupLimit, await this.portfolio.groupLimit());
     });
 
     it('should have the correct genesisBlockNumber set', async function () {
@@ -32,7 +32,7 @@ describe('Portfolio', function () {
   });
 
   describe('Methods ✅', function () {
-    it('should add vault to Portfolio if vault owner', async function () {
+    it('should add vault if vault owner', async function () {
       const lowerCaseVaultAddress = this.vaultInstance.address.toLowerCase();
       const initialTail = (await this.portfolio.vaults()).tail.substring(0, 42);
 
@@ -78,21 +78,21 @@ describe('Portfolio', function () {
       );
     });
 
-    it('should not submit vote allocation proposal if group indexes exceeds maximum', function () {
+    it('should not submit proposal if group indexes exceeds maximum', function () {
       const eligibleGroupIndexes = [0, 1, 2, 3];
       const groupAllocations = [25, 25, 25, 25];
 
       return assert.isRejected(
-        this.portfolio.submitVoteAllocationProposal(this.vaultInstance.address, eligibleGroupIndexes, groupAllocations)
+        this.portfolio.submitProposal(this.vaultInstance.address, eligibleGroupIndexes, groupAllocations)
       );
     });
 
-    it('should not submit vote allocation proposal if group indexes and allocations have mismatched lengths', function () {
+    it('should not submit proposal if group indexes and allocations have mismatched lengths', function () {
       const eligibleGroupIndexes = [0, 1];
       const groupAllocations = [100];
 
       return assert.isRejected(
-        this.portfolio.submitVoteAllocationProposal(this.vaultInstance.address, eligibleGroupIndexes, groupAllocations)
+        this.portfolio.submitProposal(this.vaultInstance.address, eligibleGroupIndexes, groupAllocations)
       );
     });
   });
