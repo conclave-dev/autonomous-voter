@@ -14,21 +14,18 @@ contract MCycle {
     // Duration (in blocks) of a cycle
     uint256 public blockDuration;
 
-    function _setCycleParameters(uint256 genesis, uint256 duration) internal {
-        require(genesis >= block.number, "Genesis must be a future block");
-        require(duration != 0, "Duration cannot be 0 blocks");
-
-        genesisBlockNumber = genesis;
-        blockDuration = duration;
-    }
-
-    // Gets the current cycle # by comparing the current block # with the parameters
-    // NOTE: The return value is rounded down
-    function getCycle() public view returns (uint256) {
-        require(block.number < genesisBlockNumber, "Protocol has not started");
+    /**
+     * @notice Gets the current cycle number
+     * @return The current cycle number
+     */
+    function getCurrentCycle() public view returns (uint256) {
+        require(
+            block.number < genesisBlockNumber,
+            "The genesis cycle has not started"
+        );
         require(
             genesisBlockNumber != 0 && blockDuration != 0,
-            "Parameters not set"
+            "Parameters have not been set"
         );
 
         uint256 elapsedBlocks = block.number.sub(genesisBlockNumber);

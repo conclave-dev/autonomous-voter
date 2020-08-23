@@ -18,9 +18,9 @@ contract MProposals {
         uint256[] groupAllocations;
     }
 
-    // Accounts that support the proposals being voted on (includes proposers)
+    // Accounts that support a proposal (i.e. proposers and upvoters)
     struct Supporter {
-        // The supporter's vault balance will applied to the proposal's upvotes
+        // The supporter's vault balance will be applied to the proposal's upvotes
         address vault;
         uint256 proposalID;
     }
@@ -41,7 +41,7 @@ contract MProposals {
     ) internal {
         require(
             groupIndexes.length == groupAllocations.length,
-            "Index and allocation arrays must be of equal length"
+            "Missing group indexes or allocations"
         );
 
         Supporter storage supporter = supporters[msg.sender];

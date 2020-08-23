@@ -13,45 +13,72 @@ contract Portfolio is MCycle, MProposals, MVotes, UsingRegistry {
 
     LinkedList.List public vaults;
 
-    // Maximum number of groups within a vote allocation
-    uint256 public maximumVoteAllocationGroups;
+    // The maximum number of unique groups that can receive votes
+    uint256 public groupLimit;
 
+    /**
+     * @notice Initializes the Celo Registry contract and sets the owner
+     * @param registry_ The address of the Celo Registry contract
+     */
     function initialize(address registry_) public initializer {
         UsingRegistry.initializeRegistry(msg.sender, registry_);
         Ownable.initialize(msg.sender);
     }
 
+    /**
+     * @notice Sets the parameters for the genesis cycle and cycle block duration
+     * @param genesis The first block for the genesis cycle
+     * @param duration The number of blocks within a cycle
+     */
     function setCycleParameters(uint256 genesis, uint256 duration)
         external
         onlyOwner
     {
-        _setCycleParameters(genesis, duration);
+        require(genesis >= block.number, "Genesis must be a future block");
+        require(duration != 0, "Cycle block duration cannot be zero");
+
+        genesisBlockNumber = genesis;
+        blockDuration = duration;
     }
 
     /**
-     * @notice Sets the max number of groups that can be allocated votes
-     * @param max Maximum number of groups within a vote allocation
+     * @notice Sets `groupLimit`
+     * @param limit Max number of groups that can be voted for
      */
-    function setMaximumVoteAllocationGroups(uint256 max) external onlyOwner {
-        maximumVoteAllocationGroups = max;
+    function setGroupLimit(uint256 limit) external onlyOwner {
+        require(limit > 0, "Group limit cannot be zero");
+        groupLimit = limit;
     }
 
+    /**
+     * @notice Adds a vault whose votes will be managed
+     * @param vault Vault contract instance
+     */
     function addVault(Vault vault) external {
         require(msg.sender == vault.owner(), "Account is not vault owner");
-        vaults.push(address(vault));
+
+        address vaultAddress = address(vault);
+
+        require(vaults.contains(vaultAddress) == false, "Vault already exists");
+        vaults.push(vaultAddress);
     }
 
-    function _validateVoteAllocationProposal(
+    /**
+     * @notice Validates a proposal prior to its submission
+     * @param vault Vault contract instance
+     * @param eligibleGroupIndexes Indexes of eligible Celo election groups
+     * @param groupAllocations Percentage of total votes allocated to each group
+     */
+    function submitProposal(
+        Vault vault,
         uint256[] memory eligibleGroupIndexes,
         uint256[] memory groupAllocations
-    ) internal view {
+    ) public {
+        require(msg.sender == vault.owner(), "Account is not vault owner");
+
         require(
-            eligibleGroupIndexes.length <= maximumVoteAllocationGroups,
+            eligibleGroupIndexes.length <= groupLimit,
             "Exceeds max groups allowed"
-        );
-        require(
-            eligibleGroupIndexes.length == groupAllocations.length,
-            "Mismatched indexes and groupAllocations"
         );
 
         // Fetch eligible Celo election groups for validation purposes
@@ -66,7 +93,7 @@ contract Portfolio is MCycle, MProposals, MVotes, UsingRegistry {
             // Then it is out of range
             require(
                 eligibleGroupIndexes[i] < groups.length,
-                "Eligible group does not exist at index"
+                "Eligible group does not exist"
             );
 
             // Track allocation total to validate amount is correct
@@ -74,23 +101,11 @@ contract Portfolio is MCycle, MProposals, MVotes, UsingRegistry {
         }
 
         // // Require newAllocationTotal fully allocates votes
-        require(newAllocationTotal == 100, "Group allocations must be 100");
-    }
+        require(
+            newAllocationTotal == 100,
+            "Group allocation total must be 100"
+        );
 
-    /**
-     * @notice Submits a vote allocation proposal
-     * @param eligibleGroupIndexes List of eligible Celo election group indexes
-     * @param groupAllocations Percentage of total votes allocated for the groups
-     * @dev The allocation for a group is based on its index in eligibleGroupIndexes
-     * @dev E.g. The allocation for `eligibleGroupIndexes[0]` is `groupAllocations[0]`
-     */
-    function submitVoteAllocationProposal(
-        Vault vault,
-        uint256[] memory eligibleGroupIndexes,
-        uint256[] memory groupAllocations
-    ) public {
-        require(msg.sender == vault.owner(), "Account is not vault owner");
-        _validateVoteAllocationProposal(eligibleGroupIndexes, groupAllocations);
         _submit(vault, eligibleGroupIndexes, groupAllocations);
     }
 }
