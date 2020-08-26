@@ -96,6 +96,40 @@ contract MProposals {
         );
     }
 
+    function getProposal(uint256 proposalID)
+        public
+        view
+        returns (
+            address[] memory,
+            uint256,
+            uint256[] memory,
+            uint256[] memory
+        )
+    {
+        require(proposalID < proposals.length, "Invalid proposal ID");
+        Proposal memory proposal = proposals[proposalID];
+        return (
+            proposal.upvoters,
+            proposal.upvotes,
+            proposal.groupIndexes,
+            proposal.groupAllocations
+        );
+    }
+
+    function getProposalByUpvoter(address upvoter)
+        public
+        view
+        returns (
+            address[] memory,
+            uint256,
+            uint256[] memory,
+            uint256[] memory
+        )
+    {
+        require(isUpvoter(upvoter), "Invalid upvoter");
+        return getProposal(upvoters[upvoter].proposalID);
+    }
+
     /**
      * @notice Submits a proposal
      * @param vault The caller's vault
@@ -114,7 +148,7 @@ contract MProposals {
         uint256 vaultBalance = bank.balanceOf(address(vault));
         require(
             vaultBalance >= proposerBalanceMinimum,
-            "Caller balance does not satisfy the minimum requirement"
+            "Balance does not satisfy the minimum requirement"
         );
 
         _validateProposalGroups(groupIndexes, groupAllocations);
@@ -129,5 +163,25 @@ contract MProposals {
             )
         );
         upvoters[msg.sender] = Upvoter(vaultBalance, proposals.length - 1);
+    }
+
+    /**
+     * @notice Upvotes a proposal
+     * @param vault The caller's vault
+     * @param proposalID Index of the proposal
+     */
+    function upvoteProposal(Vault vault, uint256 proposalID) external {
+        require(msg.sender == vault.owner(), "Caller must be vault owner");
+        require(isUpvoter(msg.sender) == false, "Caller is already an upvoter");
+
+        Proposal storage proposal = proposals[proposalID];
+        require(proposal.upvoters.length > 0, "Invalid proposal");
+
+        uint256 vaultBalance = bank.balanceOf(address(vault));
+        require(vaultBalance > 0, "Balance is zero");
+
+        upvoters[msg.sender] = Upvoter(vaultBalance, proposalID);
+        proposal.upvoters.push(msg.sender);
+        proposal.upvotes = proposal.upvotes.add(vaultBalance);
     }
 }
