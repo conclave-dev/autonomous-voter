@@ -38,8 +38,8 @@ contract MProposals {
     // Minimum proposer vault balance required in order to submit a proposal
     uint256 public proposerBalanceMinimum;
 
-    Proposal[] proposals;
-    mapping(address => Upvoter) upvoters;
+    Proposal[] public proposals;
+    mapping(address => Upvoter) public upvoters;
 
     // Checks whether an account is an upvoter
     function isUpvoter(address account) public view returns (bool) {
@@ -119,15 +119,15 @@ contract MProposals {
 
         _validateProposalGroups(groupIndexes, groupAllocations);
 
-        // address[] memory proposalUpvoters;
-        // proposals.push(
-        //     Proposal(
-        //         proposalUpvoters,
-        //         vaultBalance,
-        //         groupIndexes,
-        //         groupAllocations
-        //     )
-        // );
-        // upvoters[msg.sender] = Upvoter(vaultBalance, proposals.length - 1);
+        address[] memory proposalUpvoters;
+        proposals.push(
+            Proposal(
+                proposalUpvoters,
+                vaultBalance,
+                groupIndexes,
+                groupAllocations
+            )
+        );
+        upvoters[msg.sender] = Upvoter(vaultBalance, proposals.length - 1);
     }
 }
