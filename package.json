@@ -4,6 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
+    "analyze": "./scripts/analyze.sh",
     "dev": "node ./ganache.js",
     "dev:setup": "npm run build -- baklava && truffle migrate --network local",
     "build": "./scripts/setup.sh",
