@@ -108,3 +108,6 @@ build/contracts
 
 # Misc
 **/.DS_Store
+
+# Eth-sec files
+ethsec
