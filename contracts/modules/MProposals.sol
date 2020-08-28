@@ -11,7 +11,7 @@ contract MProposals {
     using SafeMath for uint256;
 
     struct Proposal {
-        // The accounts that support the proposal.
+        // The accounts that have upvoted the proposal
         address[] upvoters;
         // The cumulative vault balances of the proposal
         uint256 upvotes;
@@ -178,7 +178,6 @@ contract MProposals {
      */
     function upvoteProposal(Vault vault, uint256 proposalID) external {
         require(msg.sender == vault.owner(), "Caller must be vault owner");
-        require(isUpvoter(msg.sender) == false, "Caller is already an upvoter");
 
         Proposal storage proposal = proposals[proposalID];
         require(proposal.upvoters.length > 0, "Invalid proposal");
@@ -186,8 +185,20 @@ contract MProposals {
         uint256 vaultBalance = bank.balanceOf(address(vault));
         require(vaultBalance > 0, "Balance is zero");
 
-        upvoters[msg.sender] = Upvoter(vaultBalance, proposalID);
+        Upvoter storage upvoter = upvoters[msg.sender];
+
+        // Retrieve the upvoter's previous `upvotes` value to correctly update the proposal's upvotes
+        uint256 previousUpvotes = upvoter.upvotes;
+        // *Always* LTE to the current vault balance due to the upvoter vault transfer restriction
+        assert(previousUpvotes <= vaultBalance);
+
+        upvoter.upvotes = vaultBalance;
+        upvoter.proposalID = proposalID;
         proposal.upvoters.push(msg.sender);
-        proposal.upvotes = proposal.upvotes.add(vaultBalance);
+
+        // Add the difference between the vault's current balance and its previous balance (i.e. `previousUpvotes`)
+        proposal.upvotes = proposal.upvotes.add(
+            vaultBalance.sub(previousUpvotes)
+        );
     }
 }
