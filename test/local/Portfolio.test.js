@@ -1,5 +1,4 @@
 const { newKit } = require('@celo/contractkit');
-const BigNumber = require('bignumber.js');
 const { every } = require('lodash');
 const { assert } = require('./setup');
 const { localRpcAPI } = require('../../config');
@@ -65,7 +64,7 @@ describe('Portfolio', function () {
 
     it('should submit a proposal', async function () {
       await this.bank.seed(this.vaultInstance.address, {
-        value: new BigNumber(this.proposerMinimum)
+        value: this.proposerMinimum
       });
 
       await this.portfolio.submitProposal(
@@ -74,20 +73,40 @@ describe('Portfolio', function () {
         this.validProposalSubmission.allocations
       );
 
-      const {
-        0: upvoters,
-        1: upvotes,
-        2: groupIndexes,
-        3: groupAllocations
-      } = await this.portfolio.getProposalByUpvoter(this.primarySender);
+      const proposal = await this.portfolio.getProposalByUpvoter(this.primarySender);
       const vaultBalance = await this.bank.balanceOf(this.vaultInstance.address);
+      const { 0: id, 1: upvoters, 2: upvotes, 3: groupIndexes, 4: groupAllocations } = proposal;
 
+      this.submittedProposalID = id;
+
+      assert.deepStrictEqual(proposal, await this.portfolio.getProposal(id));
       assert.equal(this.primarySender, upvoters[0]);
       assert.equal(vaultBalance, upvotes.toNumber());
       assert.isTrue(every(this.validProposalSubmission.indexes, (val, i) => val === groupIndexes[i].toNumber()));
       return assert.isTrue(
         every(this.validProposalSubmission.allocations, (val, i) => val === groupAllocations[i].toNumber())
       );
+    });
+
+    it('should upvote a proposal', async function () {
+      await this.bank.seed(this.secondaryVaultInstance.address, {
+        value: this.proposerMinimum,
+        from: this.secondarySender
+      });
+
+      // Get proposal that the secondary sender is planning to upvote, for comparison
+      const { 2: oldUpvotes } = await this.portfolio.getProposalByUpvoter(this.primarySender);
+      const expectedNewUpvotes =
+        (await this.bank.balanceOf(this.secondaryVaultInstance.address)).toNumber() + oldUpvotes.toNumber();
+
+      await this.portfolio.upvoteProposal(this.secondaryVaultInstance.address, this.submittedProposalID, {
+        from: this.secondarySender
+      });
+
+      const { 1: newUpvoters, 2: newUpvotes } = await this.portfolio.getProposalByUpvoter(this.primarySender);
+
+      assert.equal(newUpvoters[newUpvoters.length - 1], this.secondarySender);
+      return assert.equal(expectedNewUpvotes, newUpvotes);
     });
   });
 
@@ -171,6 +190,30 @@ describe('Portfolio', function () {
 
       return assert.isRejected(
         this.portfolio.submitProposal(this.vaultInstance.address, groupIndexes, groupAllocations)
+      );
+    });
+
+    it('should not upvote proposal: already upvoter', function () {
+      return assert.isRejected(
+        this.portfolio.upvoteProposal(this.secondaryVaultInstance.address, this.submittedProposalID, {
+          from: this.secondarySender
+        })
+      );
+    });
+
+    it('should not upvote proposal: not vault owner', function () {
+      return assert.isRejected(
+        this.portfolio.upvoteProposal(this.secondaryVaultInstance.address, this.submittedProposalID, {
+          from: this.primarySender
+        })
+      );
+    });
+
+    it('should not upvote proposal: invalid proposal ID', function () {
+      return assert.isRejected(
+        this.portfolio.upvoteProposal(this.secondaryVaultInstance.address, this.submittedProposalID + 100, {
+          from: this.secondarySender
+        })
       );
     });
   });
