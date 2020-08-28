@@ -1,5 +1,6 @@
 const { newKit } = require('@celo/contractkit');
 const BigNumber = require('bignumber.js');
+const { every } = require('lodash');
 const { assert } = require('./setup');
 const { localRpcAPI } = require('../../config');
 
@@ -67,12 +68,25 @@ describe('Portfolio', function () {
         value: new BigNumber(this.proposerMinimum)
       });
 
-      return assert.isFulfilled(
-        this.portfolio.submitProposal(
-          this.vaultInstance.address,
-          this.validProposalSubmission.indexes,
-          this.validProposalSubmission.allocations
-        )
+      await this.portfolio.submitProposal(
+        this.vaultInstance.address,
+        this.validProposalSubmission.indexes,
+        this.validProposalSubmission.allocations
+      );
+
+      const {
+        0: upvoters,
+        1: upvotes,
+        2: groupIndexes,
+        3: groupAllocations
+      } = await this.portfolio.getProposalByUpvoter(this.primarySender);
+      const vaultBalance = await this.bank.balanceOf(this.vaultInstance.address);
+
+      assert.equal(this.primarySender, upvoters[0]);
+      assert.equal(vaultBalance, upvotes.toNumber());
+      assert.isTrue(every(this.validProposalSubmission.indexes, (val, i) => val === groupIndexes[i].toNumber()));
+      return assert.isTrue(
+        every(this.validProposalSubmission.allocations, (val, i) => val === groupAllocations[i].toNumber())
       );
     });
   });
@@ -107,6 +121,16 @@ describe('Portfolio', function () {
         this.portfolio.setCycleParameters(this.genesisBlockNumber, 0, {
           from: this.secondarySender
         })
+      );
+    });
+
+    it('should not submit proposal: already upvoter', function () {
+      return assert.isRejected(
+        this.portfolio.submitProposal(
+          this.vaultInstance.address,
+          this.validProposalSubmission.indexes,
+          this.validProposalSubmission.allocations
+        )
       );
     });
 

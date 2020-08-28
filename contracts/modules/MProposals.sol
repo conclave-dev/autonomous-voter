@@ -154,6 +154,8 @@ contract MProposals {
         _validateProposalGroups(groupIndexes, groupAllocations);
 
         address[] memory proposalUpvoters;
+        uint256 proposalID = proposals.length;
+
         proposals.push(
             Proposal(
                 proposalUpvoters,
@@ -162,7 +164,8 @@ contract MProposals {
                 groupAllocations
             )
         );
-        upvoters[msg.sender] = Upvoter(vaultBalance, proposals.length - 1);
+        proposals[proposalID].upvoters.push(msg.sender);
+        upvoters[msg.sender] = Upvoter(vaultBalance, proposalID);
     }
 
     /**
