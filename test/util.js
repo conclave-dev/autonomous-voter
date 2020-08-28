@@ -59,22 +59,28 @@ const setUpGlobalTestContracts = async ({
   archive,
   contracts,
   primarySender,
+  secondarySender,
   vaultFactory,
   managerFactory,
   managerCommission,
   minimumBalanceRequirement
 }) => {
-  const getVaults = () => archive.getVaultsByOwner(primarySender);
+  const getPrimaryVaults = () => archive.getVaultsByOwner(primarySender);
+  const getSecondaryVaults = () => archive.getVaultsByOwner(secondarySender);
   const getManagers = () => archive.getManagersByOwner(primarySender);
   const createVaultInstance = () =>
     vaultFactory.createInstance(packageName, 'Vault', registryContractAddress, {
       value: new BigNumber('1e17')
     });
+  const createSecondaryVaultInstance = () =>
+    vaultFactory.createInstance(packageName, 'Vault', registryContractAddress, {
+      value: new BigNumber('1e17'),
+      from: secondarySender
+    });
   const createManagerInstance = () =>
     managerFactory.createInstance(packageName, 'VoteManager', managerCommission, minimumBalanceRequirement);
 
-  // Conditionally create persistent test instances if they don't yet exist
-  if (!(await getVaults()).length) {
+  if (!(await getPrimaryVaults()).length) {
     await createVaultInstance();
   }
 
@@ -84,17 +90,21 @@ const setUpGlobalTestContracts = async ({
 
   // Create new instances
   await createVaultInstance();
+  await createSecondaryVaultInstance();
   await createManagerInstance();
 
-  const vaults = await getVaults();
+  const primaryVaults = await getPrimaryVaults();
+  const secondaryVaults = await getSecondaryVaults();
   const managers = await getManagers();
-  const vaultInstance = await contracts.Vault.at(vaults.pop());
+  const vaultInstance = await contracts.Vault.at(primaryVaults.pop());
+  const secondaryVaultInstance = await contracts.Vault.at(secondaryVaults.pop());
 
   // Maintain state and used for voting tests
   return {
-    persistentVaultInstance: await contracts.Vault.at(vaults[0]),
+    persistentVaultInstance: await contracts.Vault.at(primaryVaults[0]),
     persistentVoteManagerInstance: await contracts.VoteManager.at(managers[0]),
     vaultInstance,
+    secondaryVaultInstance,
     managerInstance: await contracts.VoteManager.at(managers.pop()),
     proxyAdmin: await contracts.ProxyAdmin.at(await vaultInstance.proxyAdmin())
   };

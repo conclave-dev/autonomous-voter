@@ -19,6 +19,7 @@ before(async function () {
       archive: this.archive,
       contracts: this.contracts,
       primarySender: this.primarySender,
+      secondarySender: this.secondarySender,
       vaultFactory: this.vaultFactory,
       managerFactory: this.managerFactory,
       bank: this.bank,
