@@ -100,6 +100,7 @@ contract MProposals {
         public
         view
         returns (
+            uint256,
             address[] memory,
             uint256,
             uint256[] memory,
@@ -109,6 +110,7 @@ contract MProposals {
         require(proposalID < proposals.length, "Invalid proposal ID");
         Proposal memory proposal = proposals[proposalID];
         return (
+            proposalID,
             proposal.upvoters,
             proposal.upvotes,
             proposal.groupIndexes,
@@ -120,6 +122,7 @@ contract MProposals {
         public
         view
         returns (
+            uint256,
             address[] memory,
             uint256,
             uint256[] memory,
