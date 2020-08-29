@@ -1,17 +1,12 @@
 const { assert } = require('./setup');
 const { time } = require('@openzeppelin/test-helpers');
 const { default: BigNumber } = require('bignumber.js');
-const { tokenName, tokenSymbol, tokenDecimal, seedCapacity, seedRatio, seedFreezeDuration } = require('../../config');
+const { tokenName, tokenSymbol, tokenDecimal, seedCapacity, seedRatio } = require('../../config');
 
 describe('Bank', function () {
   before(async function () {
     this.accounts = (await this.kit._web3Contracts.getAccounts()).methods;
     this.lockedGold = (await this.kit._web3Contracts.getLockedGold()).methods;
-  });
-
-  after(async function () {
-    // Always reset the seedFreezeDuration to the originally intended value
-    await this.bank.setSeedFreezeDuration(new BigNumber(seedFreezeDuration).toString());
   });
 
   describe('State', function () {

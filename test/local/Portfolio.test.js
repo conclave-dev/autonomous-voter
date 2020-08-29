@@ -1,51 +1,39 @@
-const { newKit } = require('@celo/contractkit');
 const { every } = require('lodash');
 const { assert } = require('./setup');
-const { localRpcAPI } = require('../../config');
+const { groupLimit, proposerMinimum, cycleBlockDuration } = require('../../config');
 
 describe('Portfolio', function () {
-  before(async function () {
-    const kit = newKit(localRpcAPI);
-
-    this.election = await kit.contracts.getElection();
-
-    // Setting cycle parameters in `before` to test cycle-related state
-    this.genesisBlockNumber = (await kit.web3.eth.getBlockNumber()) + 1;
-    this.cycleBlockDuration = 17280 * 7; // 7 epochs
-    this.groupLimit = 3;
-    this.proposerMinimum = 10;
+  before(function () {
     this.validProposalSubmission = {
       indexes: [0, 1, 2],
       allocations: [20, 20, 60]
     };
-
-    await this.portfolio.setCycleParameters(this.genesisBlockNumber, this.cycleBlockDuration);
-    await this.portfolio.setProposalsParameters(this.bank.address, this.groupLimit, this.proposerMinimum);
   });
 
   describe('State', function () {
-    it('should set genesisBlockNumber', async function () {
+    it('should have a genesisBlockNumber set', async function () {
       return assert.equal(this.genesisBlockNumber, await this.portfolio.genesisBlockNumber());
     });
 
-    it('should set blockDuration', async function () {
-      return assert.equal(this.cycleBlockDuration, await this.portfolio.blockDuration());
+    it('should have a blockDuration set', async function () {
+      return assert.equal(cycleBlockDuration, await this.portfolio.blockDuration());
     });
 
-    it('should set proposalGroupLimit', async function () {
-      return assert.equal(this.groupLimit, await this.portfolio.proposalGroupLimit());
+    it('should have a proposalGroupLimit set', async function () {
+      return assert.equal(groupLimit, await this.portfolio.proposalGroupLimit());
     });
 
-    it('should set proposerBalanceMinimum', async function () {
-      return assert.equal(this.proposerMinimum, await this.portfolio.proposerBalanceMinimum());
+    it('should have a proposerBalanceMinimum set', async function () {
+      return assert.equal(proposerMinimum, await this.portfolio.proposerBalanceMinimum());
     });
 
-    it('should set bank and election contracts', async function () {
-      const bank = await this.portfolio.bank();
-      const election = await this.portfolio.election();
+    it('should have Bank and Celo Election contracts set', async function () {
+      const portfolioBank = await this.portfolio.bank();
+      const portfolioElection = await this.portfolio.election();
+      const election = await this.kit.contracts.getElection();
 
-      assert.equal(bank, this.bank.address);
-      return assert.equal(election, this.election.address);
+      assert.equal(portfolioBank, this.bank.address);
+      return assert.equal(portfolioElection, election.address);
     });
   });
 
@@ -64,7 +52,7 @@ describe('Portfolio', function () {
 
     it('should submit a proposal', async function () {
       await this.bank.seed(this.vaultInstance.address, {
-        value: this.proposerMinimum
+        value: proposerMinimum
       });
 
       await this.portfolio.submitProposal(
@@ -90,7 +78,7 @@ describe('Portfolio', function () {
 
     it('should upvote a proposal', async function () {
       await this.bank.seed(this.secondaryVaultInstance.address, {
-        value: this.proposerMinimum,
+        value: proposerMinimum,
         from: this.secondarySender
       });
 
@@ -115,7 +103,7 @@ describe('Portfolio', function () {
 
       // Seed additional tokens for the upvoter
       await this.bank.seed(this.secondaryVaultInstance.address, {
-        value: this.proposerMinimum,
+        value: proposerMinimum,
         from: this.secondarySender
       });
       await this.portfolio.upvoteProposal(this.secondaryVaultInstance.address, this.submittedProposalID, {
@@ -226,6 +214,27 @@ describe('Portfolio', function () {
         this.portfolio.upvoteProposal(this.secondaryVaultInstance.address, this.submittedProposalID + 100, {
           from: this.secondarySender
         })
+      );
+    });
+
+    it('should co-function with Bank to prevent upvoter vault token transfers', async function () {
+      if (!(await this.portfolio.isUpvoter(this.primarySender))) {
+        await this.bank.seed(this.vaultInstance.address, {
+          value: proposerMinimum
+        });
+
+        await this.portfolio.submitProposal(
+          this.vaultInstance.address,
+          this.validProposalSubmission.indexes,
+          this.validProposalSubmission.allocations
+        );
+      }
+
+      const balance = (await this.bank.balanceOf(this.vaultInstance.address)).toNumber();
+
+      return assert.isRejected(
+        this.bank.transferFromVault(this.vaultInstance.address, this.primarySender, balance),
+        'Caller upvoted a proposal - cannot transfer tokens yet'
       );
     });
   });

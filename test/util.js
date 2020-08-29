@@ -1,7 +1,7 @@
 const { newKit } = require('@celo/contractkit');
 const contract = require('@truffle/contract');
 const BigNumber = require('bignumber.js');
-const { registryContractAddress, packageName, tokenDecimal } = require('../config');
+const { registryContractAddress, packageName, tokenDecimal, cycleBlockDuration } = require('../config');
 
 const contractBuildFiles = [
   require('../build/contracts/App.json'),
@@ -36,15 +36,17 @@ const getTruffleContracts = (rpcAPI, primaryAccount) =>
 
 const setUpGlobalTestVariables = async (rpcAPI, primaryAccount) => {
   const contracts = getTruffleContracts(rpcAPI, primaryAccount);
+  const kit = newKit(rpcAPI);
 
   return {
     contracts,
-    kit: newKit(rpcAPI),
+    kit,
     packageName,
     tokenAmountMultiplier: new BigNumber(10 ** tokenDecimal),
     managerCommission: new BigNumber('10'),
     minimumBalanceRequirement: new BigNumber('1e10'),
     zeroAddress: '0x0000000000000000000000000000000000000000',
+    genesisBlockNumber: (await kit.web3.eth.getBlockNumber()) + 1,
     app: await contracts.App.deployed(),
     archive: await contracts.Archive.deployed(),
     vault: await contracts.Vault.deployed(),
@@ -57,13 +59,15 @@ const setUpGlobalTestVariables = async (rpcAPI, primaryAccount) => {
 
 const setUpGlobalTestContracts = async ({
   archive,
+  portfolio,
   contracts,
   primarySender,
   secondarySender,
   vaultFactory,
   managerFactory,
   managerCommission,
-  minimumBalanceRequirement
+  minimumBalanceRequirement,
+  genesisBlockNumber
 }) => {
   const getPrimaryVaults = () => archive.getVaultsByOwner(primarySender);
   const getSecondaryVaults = () => archive.getVaultsByOwner(secondarySender);
@@ -98,6 +102,8 @@ const setUpGlobalTestContracts = async ({
   const managers = await getManagers();
   const vaultInstance = await contracts.Vault.at(primaryVaults.pop());
   const secondaryVaultInstance = await contracts.Vault.at(secondaryVaults.pop());
+
+  await portfolio.setCycleParameters(genesisBlockNumber, cycleBlockDuration);
 
   // Maintain state and used for voting tests
   return {
