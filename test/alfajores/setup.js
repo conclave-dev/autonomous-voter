@@ -19,20 +19,9 @@ before(async function () {
   });
 
   // Retrieve test contracts and add to test execution context
-  forEach(
-    await setUpGlobalTestContracts({
-      archive: this.archive,
-      contracts: this.contracts,
-      primarySender: this.primarySender,
-      vaultFactory: this.vaultFactory,
-      managerFactory: this.managerFactory,
-      managerCommission: this.managerCommission,
-      minimumBalanceRequirement: this.minimumBalanceRequirement
-    }),
-    (value, key) => {
-      this[key] = value;
-    }
-  );
+  forEach(await setUpGlobalTestContracts(this), (value, key) => {
+    this[key] = value;
+  });
 });
 
 module.exports = {

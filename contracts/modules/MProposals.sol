@@ -1,14 +1,20 @@
 // contracts/Voting.sol
 pragma solidity ^0.5.8;
 
+import "@openzeppelin/contracts-ethereum-package/contracts/math/SafeMath.sol";
+
+import "../Bank.sol";
+import "../celo/governance/interfaces/IElection.sol";
 import "../Vault.sol";
 
 contract MProposals {
+    using SafeMath for uint256;
+
     struct Proposal {
-        // The account that submitted the proposal.
-        address proposer;
-        // The accounts that support the proposal.
-        address[] supporters;
+        // The accounts that have upvoted the proposal
+        address[] upvoters;
+        // The cumulative vault balances of the proposal
+        uint256 upvotes;
         // Indexes which reference eligible Celo groups
         uint256[] groupIndexes;
         // Vote allocations for groups in `groupIndexes`
@@ -18,59 +24,181 @@ contract MProposals {
         uint256[] groupAllocations;
     }
 
-    // Accounts that support a proposal (i.e. proposers and upvoters)
-    struct Supporter {
-        // The supporter's vault balance will be applied to the proposal's upvotes
-        address vault;
+    // Accounts that have upvoted a proposal
+    struct Upvoter {
+        uint256 upvotes;
         uint256 proposalID;
     }
 
-    Proposal[] proposals;
-    mapping(address => Supporter) supporters;
+    Bank public bank;
+    IElection public election;
+
+    // The maximum number of unique groups that can receive votes
+    uint256 public proposalGroupLimit;
+    // Minimum proposer vault balance required in order to submit a proposal
+    uint256 public proposerBalanceMinimum;
+
+    Proposal[] public proposals;
+    mapping(address => Upvoter) public upvoters;
+
+    // Checks whether an account is an upvoter
+    function isUpvoter(address account) public view returns (bool) {
+        return upvoters[account].upvotes > 0;
+    }
 
     /**
-     * @notice Submits a proposal
-     * @param groupIndexes List of eligible Celo election group indexes
-     * @param groupAllocations Percentage of total votes allocated for the groups
-     * @dev The allocation for a group is based on its index in groupIndexes
+     * @notice Validates a proposal's group indexes and allocations
+     * @param groupIndexes Indexes referencing eligible Celo election groups
+     * @param groupAllocations Percentage of total votes allocated to each group
      */
-    function _submit(
-        Vault vault,
+    function _validateProposalGroups(
         uint256[] memory groupIndexes,
         uint256[] memory groupAllocations
-    ) internal {
+    ) internal view {
+        require(
+            groupIndexes.length <= proposalGroupLimit,
+            "Proposal group limit exceeded"
+        );
         require(
             groupIndexes.length == groupAllocations.length,
             "Missing group indexes or allocations"
         );
 
-        Supporter storage supporter = supporters[msg.sender];
+        // Fetch eligible Celo election groups to ensure group indexes are valid
+        (address[] memory celoGroupIndexes, ) = election
+            .getTotalVotesForEligibleValidatorGroups();
 
-        // Check whether `msg.sender` already supports a proposal
-        if (supporter.vault != address(0)) {
-            // Check whether the supporter is also the proposer
-            // NOTE: Supporters who are not proposers (i.e. "upvoters")
-            // Cannot submit proposals
+        // For validating that the group allocation total is 100
+        uint256 groupAllocationTotal;
+
+        for (uint256 i = 0; i < groupIndexes.length; i += 1) {
+            uint256 groupIndex = groupIndexes[i];
+            uint256 groupAllocation = groupAllocations[i];
+
+            // If not the first iteration, then validate that the current group
+            // index is larger than the previous group index.
             require(
-                proposals[supporter.proposalID].proposer == msg.sender,
-                "Upvoters cannot submit proposals"
+                i == 0 || groupIndex > groupIndexes[i - 1],
+                "Indexes must be in ascending order without duplicates"
             );
+            require(
+                groupIndex < celoGroupIndexes.length,
+                "Index must be that of an eligible Celo group"
+            );
+            require(groupAllocation > 0, "Allocation cannot be zero");
 
-            // Delete the proposer's existing proposal and submit new one
-            delete proposals[supporter.proposalID];
+            groupAllocationTotal = groupAllocationTotal.add(groupAllocation);
         }
 
-        address[] memory proposalSupporters;
+        require(
+            groupAllocationTotal == 100,
+            "Total group allocation must be 100"
+        );
+    }
+
+    function getProposal(uint256 proposalID)
+        public
+        view
+        returns (
+            uint256,
+            address[] memory,
+            uint256,
+            uint256[] memory,
+            uint256[] memory
+        )
+    {
+        require(proposalID < proposals.length, "Invalid proposal ID");
+        Proposal memory proposal = proposals[proposalID];
+        return (
+            proposalID,
+            proposal.upvoters,
+            proposal.upvotes,
+            proposal.groupIndexes,
+            proposal.groupAllocations
+        );
+    }
+
+    function getProposalByUpvoter(address upvoter)
+        public
+        view
+        returns (
+            uint256,
+            address[] memory,
+            uint256,
+            uint256[] memory,
+            uint256[] memory
+        )
+    {
+        require(isUpvoter(upvoter), "Invalid upvoter");
+        return getProposal(upvoters[upvoter].proposalID);
+    }
+
+    /**
+     * @notice Submits a proposal
+     * @param vault The caller's vault
+     * @param groupIndexes List of eligible Celo election group indexes
+     * @param groupAllocations Percentage of total votes allocated for the groups
+     * @dev The allocation for a group is based on its index in groupIndexes
+     */
+    function submitProposal(
+        Vault vault,
+        uint256[] calldata groupIndexes,
+        uint256[] calldata groupAllocations
+    ) external {
+        require(msg.sender == vault.owner(), "Caller must be vault owner");
+        require(isUpvoter(msg.sender) == false, "Caller is already an upvoter");
+
+        uint256 vaultBalance = bank.balanceOf(address(vault));
+        require(
+            vaultBalance >= proposerBalanceMinimum,
+            "Balance does not satisfy the minimum requirement"
+        );
+
+        _validateProposalGroups(groupIndexes, groupAllocations);
+
+        address[] memory proposalUpvoters;
+        uint256 proposalID = proposals.length;
 
         proposals.push(
             Proposal(
-                msg.sender,
-                proposalSupporters,
+                proposalUpvoters,
+                vaultBalance,
                 groupIndexes,
                 groupAllocations
             )
         );
-        supporter.vault = address(vault);
-        supporter.proposalID = proposals.length - 1;
+        proposals[proposalID].upvoters.push(msg.sender);
+        upvoters[msg.sender] = Upvoter(vaultBalance, proposalID);
+    }
+
+    /**
+     * @notice Upvotes a proposal
+     * @param vault The caller's vault
+     * @param proposalID Index of the proposal
+     */
+    function upvoteProposal(Vault vault, uint256 proposalID) external {
+        require(msg.sender == vault.owner(), "Caller must be vault owner");
+
+        Proposal storage proposal = proposals[proposalID];
+        require(proposal.upvoters.length > 0, "Invalid proposal");
+
+        uint256 vaultBalance = bank.balanceOf(address(vault));
+        require(vaultBalance > 0, "Balance is zero");
+
+        Upvoter storage upvoter = upvoters[msg.sender];
+
+        // Retrieve the upvoter's previous `upvotes` value to correctly update the proposal's upvotes
+        uint256 previousUpvotes = upvoter.upvotes;
+        // *Always* LTE to the current vault balance due to the upvoter vault transfer restriction
+        assert(previousUpvotes <= vaultBalance);
+
+        upvoter.upvotes = vaultBalance;
+        upvoter.proposalID = proposalID;
+        proposal.upvoters.push(msg.sender);
+
+        // Add the difference between the vault's current balance and its previous balance (i.e. `previousUpvotes`)
+        proposal.upvotes = proposal.upvotes.add(
+            vaultBalance.sub(previousUpvotes)
+        );
     }
 }
