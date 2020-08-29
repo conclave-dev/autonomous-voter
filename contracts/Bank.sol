@@ -7,6 +7,7 @@ import "@openzeppelin/contracts-ethereum-package/contracts/token/ERC20/Standalon
 
 import "./celo/common/UsingRegistry.sol";
 import "./Vault.sol";
+import "./Portfolio.sol";
 
 /**
  * @title VM contract to manage token related functionalities
@@ -34,6 +35,7 @@ contract Bank is Ownable, StandaloneERC20, UsingRegistry {
     mapping(address => FrozenTokens[]) internal frozenTokens;
 
     ILockedGold public lockedGold;
+    Portfolio public portfolio;
 
     function initializeBank(
         string memory name_,
@@ -75,6 +77,10 @@ contract Bank is Ownable, StandaloneERC20, UsingRegistry {
     function setSeedFreezeDuration(uint256 duration) external onlyOwner {
         require(duration > 0, "Invalid duration");
         seedFreezeDuration = duration;
+    }
+
+    function setPortfolio(Portfolio portfolio_) external onlyOwner {
+        portfolio = portfolio_;
     }
 
     /**
@@ -207,6 +213,11 @@ contract Bank is Ownable, StandaloneERC20, UsingRegistry {
         address recipient,
         uint256 amount
     ) external onlyVaultOwner(vault) {
+        // Prevent transfer if the vault's owner is an upvoter (preventing duplicate upvotes with the same tokens)
+        require(
+            portfolio.isUpvoter(msg.sender) == false,
+            "Caller upvoted a proposal - cannot transfer tokens yet"
+        );
         _checkAvailableTokens(address(vault), amount);
         _transfer(address(vault), recipient, amount);
     }

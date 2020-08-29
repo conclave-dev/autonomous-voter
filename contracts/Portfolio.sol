@@ -20,8 +20,8 @@ contract Portfolio is MCycle, MProposals, MVotes, UsingRegistry {
      * @param registry_ The address of the Celo Registry contract
      */
     function initialize(address registry_) public initializer {
-        UsingRegistry.initializeRegistry(msg.sender, registry_);
         Ownable.initialize(msg.sender);
+        UsingRegistry.initializeRegistry(msg.sender, registry_);
     }
 
     // Sets the parameters for the Cycle module
@@ -29,8 +29,8 @@ contract Portfolio is MCycle, MProposals, MVotes, UsingRegistry {
         external
         onlyOwner
     {
-        require(genesis >= block.number, "Genesis must be a future block");
-        require(duration != 0, "Cycle block duration cannot be zero");
+        require(genesis > 0, "Genesis block number must be greater than zero");
+        require(duration > 0, "Cycle block duration must be greater than zero");
 
         genesisBlockNumber = genesis;
         blockDuration = duration;
