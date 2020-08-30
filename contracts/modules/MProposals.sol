@@ -39,6 +39,7 @@ contract MProposals {
     uint256 public proposerBalanceMinimum;
 
     Proposal[] public proposals;
+    uint256 public leadingProposalID;
     mapping(address => Upvoter) public upvoters;
 
     // Checks whether a proposal exists for the ID
@@ -127,7 +128,7 @@ contract MProposals {
             uint256[] memory
         )
     {
-        require(proposalID < proposals.length, "Invalid proposal ID");
+        require(proposalID < proposals.length, "Invalid proposal");
         Proposal memory proposal = proposals[proposalID];
         return (
             proposalID,
@@ -151,6 +152,19 @@ contract MProposals {
     {
         require(isUpvoter(upvoter), "Invalid upvoter");
         return getProposal(upvoters[upvoter].proposalID);
+    }
+
+    /**
+     * @notice Sets a proposal as the leading proposal if it has the most upvotes
+     * @param proposalID Proposal index
+     */
+    function _updateLeadingProposal(uint256 proposalID) internal {
+        uint256 proposalUpvotes = proposals[proposalID].upvotes;
+        uint256 leadingProposalUpvotes = proposals[leadingProposalID].upvotes;
+
+        if (proposalUpvotes > leadingProposalUpvotes) {
+            leadingProposalID = proposalID;
+        }
     }
 
     /**
@@ -178,6 +192,8 @@ contract MProposals {
         );
         proposals[proposalID].upvoters.push(msg.sender);
         upvoters[msg.sender] = Upvoter(upvotes, proposalID);
+
+        _updateLeadingProposal(proposalID);
     }
 
     /**
@@ -195,6 +211,8 @@ contract MProposals {
         Proposal storage proposal = proposals[proposalID];
         proposal.upvoters.push(msg.sender);
         proposal.upvotes = proposal.upvotes.add(upvotes);
+
+        _updateLeadingProposal(proposalID);
     }
 
     /**
@@ -218,5 +236,7 @@ contract MProposals {
         Proposal storage proposal = proposals[upvoter.proposalID];
         proposal.upvotes = proposal.upvotes.add(upvoteDifference);
         upvoter.upvotes = newUpvotes;
+
+        _updateLeadingProposal(upvoter.proposalID);
     }
 }
