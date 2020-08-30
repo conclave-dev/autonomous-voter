@@ -63,29 +63,25 @@ const setUpGlobalTestContracts = async ({
   contracts,
   primarySender,
   secondarySender,
+  thirdSender,
   vaultFactory,
   managerFactory,
   managerCommission,
   minimumBalanceRequirement,
   genesisBlockNumber
 }) => {
-  const getPrimaryVaults = () => archive.getVaultsByOwner(primarySender);
-  const getSecondaryVaults = () => archive.getVaultsByOwner(secondarySender);
+  const getVaults = (account) => archive.getVaultsByOwner(account);
   const getManagers = () => archive.getManagersByOwner(primarySender);
-  const createVaultInstance = () =>
-    vaultFactory.createInstance(packageName, 'Vault', registryContractAddress, {
-      value: new BigNumber('1e17')
-    });
-  const createSecondaryVaultInstance = () =>
+  const createVaultInstance = (account) =>
     vaultFactory.createInstance(packageName, 'Vault', registryContractAddress, {
       value: new BigNumber('1e17'),
-      from: secondarySender
+      from: account
     });
   const createManagerInstance = () =>
     managerFactory.createInstance(packageName, 'VoteManager', managerCommission, minimumBalanceRequirement);
 
-  if (!(await getPrimaryVaults()).length) {
-    await createVaultInstance();
+  if (!(await getVaults(primarySender)).length) {
+    await createVaultInstance(primarySender);
   }
 
   if (!(await getManagers()).length) {
@@ -93,15 +89,18 @@ const setUpGlobalTestContracts = async ({
   }
 
   // Create new instances
-  await createVaultInstance();
-  await createSecondaryVaultInstance();
+  await createVaultInstance(primarySender);
+  await createVaultInstance(secondarySender);
+  await createVaultInstance(thirdSender);
   await createManagerInstance();
 
-  const primaryVaults = await getPrimaryVaults();
-  const secondaryVaults = await getSecondaryVaults();
+  const primaryVaults = await getVaults(primarySender);
+  const secondaryVaults = await getVaults(secondarySender);
+  const thirdVaults = await getVaults(thirdSender);
   const managers = await getManagers();
   const vaultInstance = await contracts.Vault.at(primaryVaults.pop());
   const secondaryVaultInstance = await contracts.Vault.at(secondaryVaults.pop());
+  const thirdVaultInstance = await contracts.Vault.at(thirdVaults.pop());
 
   await portfolio.setCycleParameters(genesisBlockNumber, cycleBlockDuration);
 
@@ -111,6 +110,7 @@ const setUpGlobalTestContracts = async ({
     persistentVoteManagerInstance: await contracts.VoteManager.at(managers[0]),
     vaultInstance,
     secondaryVaultInstance,
+    thirdVaultInstance,
     managerInstance: await contracts.VoteManager.at(managers.pop()),
     proxyAdmin: await contracts.ProxyAdmin.at(await vaultInstance.proxyAdmin())
   };

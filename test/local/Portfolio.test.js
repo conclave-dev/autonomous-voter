@@ -116,6 +116,32 @@ describe('Portfolio', function () {
 
       return assert.equal(currentProposalUpvotes + upvoteDifference, updatedProposalUpvotes);
     });
+
+    it('should update the leading proposal ID', async function () {
+      const leadingProposalID = (await this.portfolio.leadingProposalID()).toNumber();
+      const leadingProposalUpvotes = (await this.portfolio.getProposal(leadingProposalID))[2].toNumber();
+
+      await this.bank.seed(this.thirdVaultInstance.address, {
+        value: leadingProposalUpvotes * 2,
+        from: this.thirdSender
+      });
+
+      await this.portfolio.submitProposal(
+        this.thirdVaultInstance.address,
+        this.validProposalSubmission.indexes,
+        this.validProposalSubmission.allocations,
+        {
+          from: this.thirdSender
+        }
+      );
+
+      const { 0: proposalID, 2: proposalUpvotes } = await this.portfolio.getProposalByUpvoter(this.thirdSender);
+      const currentLeadingProposalID = (await this.portfolio.leadingProposalID()).toNumber();
+      const currentLeadingProposalUpvotes = (await this.portfolio.getProposal(currentLeadingProposalID))[2].toNumber();
+
+      assert.equal(proposalUpvotes.toNumber(), currentLeadingProposalUpvotes);
+      return assert.equal(proposalID.toNumber(), currentLeadingProposalID);
+    });
   });
 
   describe('Methods 🛑', function () {
