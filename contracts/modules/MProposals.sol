@@ -196,4 +196,27 @@ contract MProposals {
         proposal.upvoters.push(msg.sender);
         proposal.upvotes = proposal.upvotes.add(upvotes);
     }
+
+    /**
+     * @notice Updates the upvotes for an upvoter's proposal
+     * @param vault Vault
+     */
+    function updateProposalUpvotes(Vault vault) external {
+        require(isUpvoter(msg.sender), "Not an upvoter");
+
+        Upvoter storage upvoter = upvoters[msg.sender];
+
+        // Difference between the current and previous vault balances
+        uint256 newUpvotes = getUpvotesForVaultOwner(vault);
+        uint256 upvoteDifference = newUpvotes.sub(upvoter.upvotes);
+
+        if (upvoteDifference == 0) {
+            return;
+        }
+
+        // Add the difference to the proposal's upvotes and update the upvoter
+        Proposal storage proposal = proposals[upvoter.proposalID];
+        proposal.upvotes = proposal.upvotes.add(upvoteDifference);
+        upvoter.upvotes = newUpvotes;
+    }
 }

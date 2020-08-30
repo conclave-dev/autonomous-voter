@@ -96,6 +96,26 @@ describe('Portfolio', function () {
       assert.equal(newUpvoters[newUpvoters.length - 1], this.secondarySender);
       return assert.equal(expectedNewUpvotes, newUpvotes);
     });
+
+    it('should update upvotes for a proposal', async function () {
+      const currentUpvotes = (await this.portfolio.upvoters(this.secondarySender)).upvotes.toNumber();
+      const currentProposalUpvotes = (await this.portfolio.getProposalByUpvoter(this.primarySender))[2].toNumber();
+
+      // Seed additional tokens for the upvoter
+      await this.bank.seed(this.secondaryVaultInstance.address, {
+        value: proposerMinimum,
+        from: this.secondarySender
+      });
+      await this.portfolio.updateProposalUpvotes(this.secondaryVaultInstance.address, {
+        from: this.secondarySender
+      });
+
+      const updatedUpvotes = (await this.portfolio.upvoters(this.secondarySender)).upvotes.toNumber();
+      const updatedProposalUpvotes = (await this.portfolio.getProposalByUpvoter(this.primarySender))[2].toNumber();
+      const upvoteDifference = updatedUpvotes - currentUpvotes;
+
+      return assert.equal(currentProposalUpvotes + upvoteDifference, updatedProposalUpvotes);
+    });
   });
 
   describe('Methods 🛑', function () {
@@ -193,6 +213,14 @@ describe('Portfolio', function () {
       return assert.isRejected(
         this.portfolio.addProposalUpvotes(this.secondaryVaultInstance.address, this.submittedProposalID + 100, {
           from: this.secondarySender
+        })
+      );
+    });
+
+    it('should not update upvotes for a proposal: not vault owner', function () {
+      return assert.isRejected(
+        this.portfolio.updateProposalUpvotes(this.secondaryVaultInstance.address, {
+          from: this.primarySender
         })
       );
     });
