@@ -76,7 +76,7 @@ describe('Portfolio', function () {
       );
     });
 
-    it('should upvote a proposal', async function () {
+    it('should add upvotes to a proposal', async function () {
       await this.bank.seed(this.secondaryVaultInstance.address, {
         value: proposerMinimum,
         from: this.secondarySender
@@ -87,7 +87,7 @@ describe('Portfolio', function () {
       const expectedNewUpvotes =
         (await this.bank.balanceOf(this.secondaryVaultInstance.address)).toNumber() + oldUpvotes.toNumber();
 
-      await this.portfolio.upvoteProposal(this.secondaryVaultInstance.address, this.submittedProposalID, {
+      await this.portfolio.addProposalUpvotes(this.secondaryVaultInstance.address, this.submittedProposalID, {
         from: this.secondarySender
       });
 
@@ -95,26 +95,6 @@ describe('Portfolio', function () {
 
       assert.equal(newUpvoters[newUpvoters.length - 1], this.secondarySender);
       return assert.equal(expectedNewUpvotes, newUpvotes);
-    });
-
-    it('should update a proposal upvotes for an upvoter', async function () {
-      const currentUpvoterUpvoters = (await this.portfolio.upvoters(this.secondarySender)).upvotes.toNumber();
-      const currentProposalUpvotes = (await this.portfolio.getProposalByUpvoter(this.primarySender))[2].toNumber();
-
-      // Seed additional tokens for the upvoter
-      await this.bank.seed(this.secondaryVaultInstance.address, {
-        value: proposerMinimum,
-        from: this.secondarySender
-      });
-      await this.portfolio.upvoteProposal(this.secondaryVaultInstance.address, this.submittedProposalID, {
-        from: this.secondarySender
-      });
-
-      const updatedUpvoterUpvotes = (await this.portfolio.upvoters(this.secondarySender)).upvotes.toNumber();
-      const updatedProposalUpvotes = (await this.portfolio.getProposalByUpvoter(this.primarySender))[2].toNumber();
-      const upvotesDifference = updatedUpvoterUpvotes - currentUpvoterUpvoters;
-
-      return assert.equal(currentProposalUpvotes + upvotesDifference, updatedProposalUpvotes);
     });
   });
 
@@ -201,17 +181,17 @@ describe('Portfolio', function () {
       );
     });
 
-    it('should not upvote proposal: not vault owner', function () {
+    it('should not add upvotes to a proposal: not vault owner', function () {
       return assert.isRejected(
-        this.portfolio.upvoteProposal(this.secondaryVaultInstance.address, this.submittedProposalID, {
+        this.portfolio.addProposalUpvotes(this.secondaryVaultInstance.address, this.submittedProposalID, {
           from: this.primarySender
         })
       );
     });
 
-    it('should not upvote proposal: invalid proposal ID', function () {
+    it('should not add upvotes to a proposal: invalid proposal ID', function () {
       return assert.isRejected(
-        this.portfolio.upvoteProposal(this.secondaryVaultInstance.address, this.submittedProposalID + 100, {
+        this.portfolio.addProposalUpvotes(this.secondaryVaultInstance.address, this.submittedProposalID + 100, {
           from: this.secondarySender
         })
       );
