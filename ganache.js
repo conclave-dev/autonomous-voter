@@ -10,7 +10,7 @@ const ganacheServer = ganacheCore.server({
   network_id: networkId,
   fork,
   hardfork: 'istanbul',
-  total_accounts: 2,
+  total_accounts: 3,
   gasLimit: 20000000,
   gasPrice: 100000000000,
   default_balance_ether: 200000000,

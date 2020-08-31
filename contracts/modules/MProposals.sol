@@ -35,15 +35,36 @@ contract MProposals {
 
     // The maximum number of unique groups that can receive votes
     uint256 public proposalGroupLimit;
-    // Minimum proposer vault balance required in order to submit a proposal
+    // Minimum vault balance required to submit a proposal
     uint256 public proposerBalanceMinimum;
 
     Proposal[] public proposals;
+    uint256 public leadingProposalID;
     mapping(address => Upvoter) public upvoters;
+
+    // Checks whether a proposal exists for the ID
+    function isProposal(uint256 proposalID) public view returns (bool) {
+        return proposals[proposalID].upvotes > 0;
+    }
 
     // Checks whether an account is an upvoter
     function isUpvoter(address account) public view returns (bool) {
         return upvoters[account].upvotes > 0;
+    }
+
+    /**
+     * @notice Gets the upvotes of a vault owner
+     * @param vault Vault
+     */
+    function getUpvotesForVaultOwner(Vault vault)
+        internal
+        view
+        returns (uint256)
+    {
+        uint256 upvotes = bank.balanceOf(address(vault));
+        require(msg.sender == vault.owner(), "Not vault owner");
+        require(upvotes > 0, "Vault has a balance of zero");
+        return upvotes;
     }
 
     /**
@@ -107,7 +128,7 @@ contract MProposals {
             uint256[] memory
         )
     {
-        require(proposalID < proposals.length, "Invalid proposal ID");
+        require(proposalID < proposals.length, "Invalid proposal");
         Proposal memory proposal = proposals[proposalID];
         return (
             proposalID,
@@ -134,8 +155,21 @@ contract MProposals {
     }
 
     /**
+     * @notice Sets a proposal as the leading proposal if it has the most upvotes
+     * @param proposalID Proposal index
+     */
+    function _updateLeadingProposal(uint256 proposalID) internal {
+        uint256 proposalUpvotes = proposals[proposalID].upvotes;
+        uint256 leadingProposalUpvotes = proposals[leadingProposalID].upvotes;
+
+        if (proposalUpvotes > leadingProposalUpvotes) {
+            leadingProposalID = proposalID;
+        }
+    }
+
+    /**
      * @notice Submits a proposal
-     * @param vault The caller's vault
+     * @param vault Vault
      * @param groupIndexes List of eligible Celo election group indexes
      * @param groupAllocations Percentage of total votes allocated for the groups
      * @dev The allocation for a group is based on its index in groupIndexes
@@ -145,60 +179,64 @@ contract MProposals {
         uint256[] calldata groupIndexes,
         uint256[] calldata groupAllocations
     ) external {
-        require(msg.sender == vault.owner(), "Caller must be vault owner");
-        require(isUpvoter(msg.sender) == false, "Caller is already an upvoter");
-
-        uint256 vaultBalance = bank.balanceOf(address(vault));
-        require(
-            vaultBalance >= proposerBalanceMinimum,
-            "Balance does not satisfy the minimum requirement"
-        );
+        uint256 upvotes = getUpvotesForVaultOwner(vault);
+        require(upvotes >= proposerBalanceMinimum, "Insufficient upvotes");
+        require(isUpvoter(msg.sender) == false, "Already an upvoter");
 
         _validateProposalGroups(groupIndexes, groupAllocations);
 
         address[] memory proposalUpvoters;
         uint256 proposalID = proposals.length;
-
         proposals.push(
-            Proposal(
-                proposalUpvoters,
-                vaultBalance,
-                groupIndexes,
-                groupAllocations
-            )
+            Proposal(proposalUpvoters, upvotes, groupIndexes, groupAllocations)
         );
         proposals[proposalID].upvoters.push(msg.sender);
-        upvoters[msg.sender] = Upvoter(vaultBalance, proposalID);
+        upvoters[msg.sender] = Upvoter(upvotes, proposalID);
+
+        _updateLeadingProposal(proposalID);
     }
 
     /**
-     * @notice Upvotes a proposal
-     * @param vault The caller's vault
-     * @param proposalID Index of the proposal
+     * @notice Adds upvotes to a proposal
+     * @param vault Vault
+     * @param proposalID Proposal index
      */
-    function upvoteProposal(Vault vault, uint256 proposalID) external {
-        require(msg.sender == vault.owner(), "Caller must be vault owner");
+    function addProposalUpvotes(Vault vault, uint256 proposalID) external {
+        require(isProposal(proposalID), "Invalid proposal");
+        require(isUpvoter(msg.sender) == false, "Already an upvoter");
 
+        // Create a new upvoter and update the proposal
+        uint256 upvotes = getUpvotesForVaultOwner(vault);
+        upvoters[msg.sender] = Upvoter(upvotes, proposalID);
         Proposal storage proposal = proposals[proposalID];
-        require(proposal.upvoters.length > 0, "Invalid proposal");
+        proposal.upvoters.push(msg.sender);
+        proposal.upvotes = proposal.upvotes.add(upvotes);
 
-        uint256 vaultBalance = bank.balanceOf(address(vault));
-        require(vaultBalance > 0, "Balance is zero");
+        _updateLeadingProposal(proposalID);
+    }
+
+    /**
+     * @notice Updates the upvotes for an upvoter's proposal
+     * @param vault Vault
+     */
+    function updateProposalUpvotes(Vault vault) external {
+        require(isUpvoter(msg.sender), "Not an upvoter");
 
         Upvoter storage upvoter = upvoters[msg.sender];
 
-        // Retrieve the upvoter's previous `upvotes` value to correctly update the proposal's upvotes
-        uint256 previousUpvotes = upvoter.upvotes;
-        // *Always* LTE to the current vault balance due to the upvoter vault transfer restriction
-        assert(previousUpvotes <= vaultBalance);
+        // Difference between the current and previous vault balances
+        uint256 newUpvotes = getUpvotesForVaultOwner(vault);
+        uint256 upvoteDifference = newUpvotes.sub(upvoter.upvotes);
 
-        upvoter.upvotes = vaultBalance;
-        upvoter.proposalID = proposalID;
-        proposal.upvoters.push(msg.sender);
+        if (upvoteDifference == 0) {
+            return;
+        }
 
-        // Add the difference between the vault's current balance and its previous balance (i.e. `previousUpvotes`)
-        proposal.upvotes = proposal.upvotes.add(
-            vaultBalance.sub(previousUpvotes)
-        );
+        // Add the difference to the proposal's upvotes and update the upvoter
+        Proposal storage proposal = proposals[upvoter.proposalID];
+        proposal.upvotes = proposal.upvotes.add(upvoteDifference);
+        upvoter.upvotes = newUpvotes;
+
+        _updateLeadingProposal(upvoter.proposalID);
     }
 }
