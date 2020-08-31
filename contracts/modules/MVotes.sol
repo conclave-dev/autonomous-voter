@@ -1,10 +1,10 @@
 // contracts/Voting.sol
 pragma solidity ^0.5.8;
 
-import "@openzeppelin/contracts-ethereum-package/contracts/math/SafeMath.sol";
+import "../celo/common/libraries/AddressLinkedList.sol";
 
 contract MVotes {
-    using SafeMath for uint256;
+    using AddressLinkedList for LinkedList.List;
 
     // High-level details about the votes managed by the protocol
     struct Votes {
@@ -23,6 +23,7 @@ contract MVotes {
         uint256 voted;
     }
 
+    LinkedList.List public managedAccounts;
     Votes public votes;
-    mapping(uint256 => Group[]) groupsByCycle;
+    mapping(uint256 => Group[]) allocations;
 }

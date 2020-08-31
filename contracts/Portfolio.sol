@@ -5,16 +5,11 @@ import "./modules/MCycle.sol";
 import "./modules/MProposals.sol";
 import "./modules/MVotes.sol";
 import "./celo/common/UsingRegistry.sol";
-import "./celo/common/libraries/AddressLinkedList.sol";
 import "./celo/governance/interfaces/IElection.sol";
 import "./Vault.sol";
 import "./Bank.sol";
 
 contract Portfolio is MCycle, MProposals, MVotes, UsingRegistry {
-    using AddressLinkedList for LinkedList.List;
-
-    LinkedList.List public vaults;
-
     /**
      * @notice Initializes the Celo Registry contract and sets the owner
      * @param registry_ The address of the Celo Registry contract
