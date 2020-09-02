@@ -7,7 +7,7 @@ import "../Bank.sol";
 import "../celo/governance/interfaces/IElection.sol";
 import "../Vault.sol";
 
-contract MProposals {
+contract Proposals {
     using SafeMath for uint256;
 
     struct Proposal {

@@ -3,7 +3,7 @@ pragma solidity ^0.5.8;
 
 import "@openzeppelin/contracts-ethereum-package/contracts/math/SafeMath.sol";
 
-contract MCycle {
+contract Protocol {
     using SafeMath for uint256;
 
     // Block number which protocol will be enabled

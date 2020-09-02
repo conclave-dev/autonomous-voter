@@ -3,7 +3,7 @@ pragma solidity ^0.5.8;
 
 import "../celo/common/libraries/AddressLinkedList.sol";
 
-contract MVotes {
+contract ElectionManager {
     using AddressLinkedList for LinkedList.List;
 
     // High-level details about the votes managed by the protocol
@@ -26,4 +26,15 @@ contract MVotes {
     LinkedList.List public managedAccounts;
     Votes public votes;
     mapping(uint256 => Group[]) allocations;
+
+    /**
+     * @notice Adds msg.sender as a managed account
+     */
+    function addManagedAccount() external {
+        require(
+            managedAccounts.contains(msg.sender) == false,
+            "Account exists"
+        );
+        managedAccounts.push(msg.sender);
+    }
 }

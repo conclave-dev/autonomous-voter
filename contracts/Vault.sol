@@ -4,8 +4,9 @@ pragma solidity ^0.5.8;
 import "@openzeppelin/contracts-ethereum-package/contracts/math/SafeMath.sol";
 import "./celo/common/UsingRegistry.sol";
 import "./celo/common/libraries/LinkedList.sol";
+import "./modules/ElectionVoter.sol";
 
-contract Vault is UsingRegistry {
+contract Vault is ElectionVoter, UsingRegistry {
     using SafeMath for uint256;
     using LinkedList for LinkedList.List;
 
@@ -60,5 +61,12 @@ contract Vault is UsingRegistry {
 
         // Immediately lock the deposit
         lockedGold.lock.value(msg.value)();
+    }
+
+    /**
+     * @notice Sets the Portfolio contract as the vault's election vote manager
+     */
+    function setElectionManager() external onlyOwner {
+        _setElectionManager(address(portfolio));
     }
 }
