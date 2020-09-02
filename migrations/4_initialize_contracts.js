@@ -4,7 +4,6 @@ const { registryContractAddress, tokenName, tokenSymbol, tokenDecimal, seedFreez
 const App = artifacts.require('App');
 const Archive = artifacts.require('Archive');
 const VaultFactory = artifacts.require('VaultFactory');
-const ManagerFactory = artifacts.require('ManagerFactory');
 const Bank = artifacts.require('Bank');
 const Portfolio = artifacts.require('Portfolio');
 
@@ -13,7 +12,6 @@ module.exports = (deployer) =>
     const app = await App.deployed();
     const archive = await Archive.deployed();
     const vaultFactory = await VaultFactory.deployed();
-    const managerFactory = await ManagerFactory.deployed();
     const bank = await Bank.deployed();
     const portfolio = await Portfolio.deployed();
     const contractInitializers = [
@@ -21,10 +19,6 @@ module.exports = (deployer) =>
       {
         contract: 'VaultFactory',
         fn: async () => await vaultFactory.initialize(app.address, archive.address)
-      },
-      {
-        contract: 'ManagerFactory',
-        fn: async () => await managerFactory.initialize(app.address, archive.address)
       },
       {
         contract: 'Bank',

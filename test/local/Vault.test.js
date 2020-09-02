@@ -13,14 +13,6 @@ describe('Vault', function () {
 
       return assert.equal(lockedGold, celoLockedGold);
     });
-
-    it('should have a pending withdrawals linked list', async function () {
-      const pendingWithdrawals = await this.vaultInstance.pendingWithdrawals();
-
-      assert.property(pendingWithdrawals, 'head');
-      assert.property(pendingWithdrawals, 'tail');
-      return assert.property(pendingWithdrawals, 'numElements');
-    });
   });
 
   describe('Methods ✅', function () {
@@ -29,7 +21,7 @@ describe('Vault', function () {
     });
 
     it('should return the vault nonvoting and voting balances', async function () {
-      const balances = await this.vaultInstance.getBalances();
+      const balances = await this.vaultInstance.getBalance();
       const votingBalance = balances[0];
       const nonvotingBalance = balances[1];
 
@@ -38,11 +30,11 @@ describe('Vault', function () {
     });
 
     it('should allow token deposits', async function () {
-      const nonvotingBalanceBefore = new BigNumber((await this.vaultInstance.getBalances())[1]);
+      const nonvotingBalanceBefore = new BigNumber((await this.vaultInstance.getBalance())[1]);
 
       await this.vaultInstance.deposit({ value: 1 });
 
-      const nonvotingBalanceAfter = new BigNumber((await this.vaultInstance.getBalances())[1]);
+      const nonvotingBalanceAfter = new BigNumber((await this.vaultInstance.getBalance())[1]);
 
       return assert.isTrue(nonvotingBalanceBefore.plus(1).isEqualTo(nonvotingBalanceAfter));
     });

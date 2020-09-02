@@ -38,18 +38,6 @@ describe('Portfolio', function () {
   });
 
   describe('Methods ✅', function () {
-    it('should add vault if vault owner', async function () {
-      const lowerCaseVaultAddress = this.vaultInstance.address.toLowerCase();
-      const initialTail = (await this.portfolio.vaults()).tail.substring(0, 42);
-
-      await this.portfolio.addVault(this.vaultInstance.address);
-
-      const currentTail = (await this.portfolio.vaults()).tail.substring(0, 42);
-
-      assert.notEqual(initialTail, lowerCaseVaultAddress);
-      return assert.equal(currentTail, lowerCaseVaultAddress);
-    });
-
     it('should submit a proposal', async function () {
       await this.bank.seed(this.vaultInstance.address, {
         value: proposerMinimum
@@ -153,25 +141,25 @@ describe('Portfolio', function () {
       );
     });
 
-    it('should not set cycle params: non-owner', function () {
+    it('should not set protocol params: non-owner', function () {
       return assert.isRejected(
-        this.portfolio.setCycleParameters(this.genesisBlockNumber, this.cycleBlockDuration, {
+        this.portfolio.setProtocolParameters(this.genesisBlockNumber, this.cycleBlockDuration, {
           from: this.secondarySender
         })
       );
     });
 
-    it('should not set cycle params: invalid genesis', function () {
+    it('should not set protocol params: invalid genesis', function () {
       return assert.isRejected(
-        this.portfolio.setCycleParameters(0, this.cycleBlockDuration, {
+        this.portfolio.setProtocolParameters(0, this.cycleBlockDuration, {
           from: this.secondarySender
         })
       );
     });
 
-    it('should not set cycle params: invalid duration', function () {
+    it('should not set protocol params: invalid duration', function () {
       return assert.isRejected(
-        this.portfolio.setCycleParameters(this.genesisBlockNumber, 0, {
+        this.portfolio.setProtocolParameters(this.genesisBlockNumber, 0, {
           from: this.secondarySender
         })
       );
