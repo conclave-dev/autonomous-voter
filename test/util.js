@@ -5,7 +5,6 @@ const { registryContractAddress, packageName, tokenDecimal, cycleBlockDuration }
 
 const contractBuildFiles = [
   require('../build/contracts/App.json'),
-  require('../build/contracts/Archive.json'),
   require('../build/contracts/Vault.json'),
   require('../build/contracts/VaultFactory.json'),
   require('../build/contracts/ProxyAdmin.json'),
@@ -45,7 +44,6 @@ const setUpGlobalTestVariables = async (rpcAPI, primaryAccount) => {
     zeroAddress: '0x0000000000000000000000000000000000000000',
     genesisBlockNumber: (await kit.web3.eth.getBlockNumber()) + 1,
     app: await contracts.App.deployed(),
-    archive: await contracts.Archive.deployed(),
     vault: await contracts.Vault.deployed(),
     vaultFactory: await contracts.VaultFactory.deployed(),
     bank: await contracts.Bank.deployed(),
@@ -54,7 +52,6 @@ const setUpGlobalTestVariables = async (rpcAPI, primaryAccount) => {
 };
 
 const setUpGlobalTestContracts = async ({
-  archive,
   portfolio,
   contracts,
   primarySender,
@@ -63,7 +60,7 @@ const setUpGlobalTestContracts = async ({
   vaultFactory,
   genesisBlockNumber
 }) => {
-  const getVaults = (account) => archive.getVaultsByOwner(account);
+  const getVaults = (account) => portfolio.getVaultsByOwner(account);
   const createVaultInstance = (account) =>
     vaultFactory.createInstance(packageName, 'Vault', registryContractAddress, {
       value: new BigNumber('1e17'),
@@ -90,10 +87,10 @@ const setUpGlobalTestContracts = async ({
 
   // Maintain state and used for voting tests
   return {
-    persistentVaultInstance: await contracts.Vault.at(primaryVaults[0]),
     vaultInstance,
     secondaryVaultInstance,
     thirdVaultInstance,
+    persistentVaultInstance: await contracts.Vault.at(primaryVaults[0]),
     proxyAdmin: await contracts.ProxyAdmin.at(await vaultInstance.proxyAdmin())
   };
 };

@@ -9,7 +9,7 @@ describe('ProxyAdmin', function () {
     });
 
     this.testVaultInstance = await this.contracts.Vault.at(
-      (await this.archive.getVaultsByOwner(this.primarySender)).pop()
+      (await this.portfolio.getVaultsByOwner(this.primarySender)).pop()
     );
     this.testProxyAdmin = await this.contracts.ProxyAdmin.at(await this.testVaultInstance.proxyAdmin());
   });

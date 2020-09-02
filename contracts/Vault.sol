@@ -9,6 +9,7 @@ contract Vault is UsingRegistry {
     using SafeMath for uint256;
     using LinkedList for LinkedList.List;
 
+    address public portfolio;
     address public proxyAdmin;
     ILockedGold public lockedGold;
 
@@ -17,13 +18,14 @@ contract Vault is UsingRegistry {
 
     function initialize(
         address registry_,
-        address archive_,
+        address portfolio_,
         address owner_,
         address proxyAdmin_
     ) public payable initializer {
         UsingRegistry.initializeRegistry(msg.sender, registry_);
         Ownable.initialize(owner_);
 
+        portfolio = portfolio_;
         lockedGold = getLockedGold();
 
         _setProxyAdmin(proxyAdmin_);

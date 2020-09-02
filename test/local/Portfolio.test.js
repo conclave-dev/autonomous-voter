@@ -35,9 +35,34 @@ describe('Portfolio', function () {
       assert.equal(portfolioBank, this.bank.address);
       return assert.equal(portfolioElection, election.address);
     });
+
+    it('should have a vault factory', async function () {
+      return assert.equal(await this.portfolio.vaultFactory(), this.vaultFactory.address);
+    });
+
+    it(`should have a mapping to track user's vault instances`, async function () {
+      const primarySenderVaults = await this.portfolio.getVaultsByOwner(this.primarySender);
+      return assert.isTrue(primarySenderVaults.length > 0);
+    });
   });
 
   describe('Methods ✅', function () {
+    it('should initialize with an owner', async function () {
+      return assert.equal(await this.portfolio.owner(), this.primarySender);
+    });
+
+    it('should initialize with the Celo Registry contract', async function () {
+      return assert.equal(await this.portfolio.registry(), this.registryContractAddress);
+    });
+
+    it('should allow the owner to set the vault factory', function () {
+      return assert.isFulfilled(this.portfolio.setVaultFactory(this.vaultFactory.address));
+    });
+
+    it('should check valid ownership of a vault', async function () {
+      return assert.isTrue(await this.portfolio.hasVault(this.primarySender, this.vaultInstance.address));
+    });
+
     it('should submit a proposal', async function () {
       await this.bank.seed(this.vaultInstance.address, {
         value: proposerMinimum
@@ -133,12 +158,14 @@ describe('Portfolio', function () {
   });
 
   describe('Methods 🛑', function () {
-    it('should not add vault if not vault owner', function () {
+    it('should disallow non-owners from setting the vault factory', function () {
       return assert.isRejected(
-        this.portfolio.addVault(this.vaultInstance.address, {
-          from: this.secondarySender
-        })
+        this.portfolio.setVaultFactory(this.vaultFactory.address, { from: this.secondarySender })
       );
+    });
+
+    it('should check invalid ownership of a vault', async function () {
+      return assert.isFalse(await this.portfolio.hasVault(this.secondarySender, this.vaultInstance.address));
     });
 
     it('should not set protocol params: non-owner', function () {

@@ -2,7 +2,6 @@ const Promise = require('bluebird');
 const { registryContractAddress, tokenName, tokenSymbol, tokenDecimal, seedFreezeDuration } = require('../config');
 
 const App = artifacts.require('App');
-const Archive = artifacts.require('Archive');
 const VaultFactory = artifacts.require('VaultFactory');
 const Bank = artifacts.require('Bank');
 const Portfolio = artifacts.require('Portfolio');
@@ -10,16 +9,10 @@ const Portfolio = artifacts.require('Portfolio');
 module.exports = (deployer) =>
   deployer.then(async () => {
     const app = await App.deployed();
-    const archive = await Archive.deployed();
-    const vaultFactory = await VaultFactory.deployed();
     const bank = await Bank.deployed();
     const portfolio = await Portfolio.deployed();
+    const vaultFactory = await VaultFactory.deployed();
     const contractInitializers = [
-      { contract: 'Archive', fn: async () => await archive.initialize(registryContractAddress) },
-      {
-        contract: 'VaultFactory',
-        fn: async () => await vaultFactory.initialize(app.address, archive.address)
-      },
       {
         contract: 'Bank',
         fn: async () =>
@@ -36,6 +29,10 @@ module.exports = (deployer) =>
       {
         contract: 'Portfolio',
         fn: async () => await portfolio.initialize(registryContractAddress)
+      },
+      {
+        contract: 'VaultFactory',
+        fn: async () => await vaultFactory.initialize(app.address, portfolio.address)
       }
     ];
 

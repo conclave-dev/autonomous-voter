@@ -18,7 +18,7 @@ const contractHasUpdates = async (deployer, network, contract) => {
 
   try {
     // Update contracts if the deployed contract runtime bytecodes differ from Truffle's
-    // NOTE: A few contracts (such as Archive) will always update. Need to come up with better solution
+    // NOTE: A few contracts (such as Portfolio) will always update. Need to come up with better solution
     const { address } = await contract.deployed();
     return !(await compareDeployedBytecodes(deployer, address, contract.deployedBytecode));
   } catch (err) {

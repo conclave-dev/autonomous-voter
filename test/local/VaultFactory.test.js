@@ -11,8 +11,8 @@ describe('VaultFactory', function () {
       return assert.equal(await this.vaultFactory.app(), this.app.address);
     });
 
-    it('should have archive set', async function () {
-      return assert.equal(await this.vaultFactory.archive(), this.archive.address);
+    it('should have portfolio set', async function () {
+      return assert.equal(await this.vaultFactory.portfolio(), this.portfolio.address);
     });
   });
 
