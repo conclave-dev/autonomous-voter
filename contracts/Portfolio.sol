@@ -18,6 +18,9 @@ contract Portfolio is Protocol, Proposals, ElectionManager, UsingRegistry {
     // Vaults mapped by their owner's address
     mapping(address => LinkedList.List) public vaults;
 
+    // The maximum number of unique Celo election groups will be voted for
+    uint256 public electionGroupLimit;
+
     modifier onlyVaultFactory() {
         require(msg.sender == vaultFactory, "Sender is not the vault factory");
         _;
@@ -82,20 +85,137 @@ contract Portfolio is Protocol, Proposals, ElectionManager, UsingRegistry {
     }
 
     // Sets the parameters for the Proposals module
-    function setProposalsParameters(
-        Bank bank_,
-        uint256 groupLimit,
-        uint256 proposerMinimum
-    ) external onlyOwner {
-        require(groupLimit > 0, "Group limit must be above zero");
+    function setProposalsParameters(Bank bank_, uint256 proposerMinimum)
+        external
+        onlyOwner
+    {
         require(
             proposerMinimum > 0,
             "Proposer balance minimum must be above zero"
         );
 
         bank = bank_;
-        election = getElection();
-        proposalGroupLimit = groupLimit;
         proposerBalanceMinimum = proposerMinimum;
+    }
+
+    function setElectionGroupLimit(uint256 limit) external onlyOwner {
+        require(limit > 0, "Limit must be greater than zero");
+        electionGroupLimit = limit;
+    }
+
+    /**
+     * @notice Validates election group index and allocation parameters
+     * @param groupIndexes Indexes referencing eligible Celo election groups
+     * @param groupAllocations Percentage of total votes allocated to each group
+     */
+    function _validateElectionGroups(
+        uint256[] memory groupIndexes,
+        uint256[] memory groupAllocations
+    ) internal view {
+        require(
+            groupIndexes.length <= electionGroupLimit,
+            "Proposal group limit exceeded"
+        );
+        require(
+            groupIndexes.length == groupAllocations.length,
+            "Missing group indexes or allocations"
+        );
+
+        // Fetch eligible Celo election groups to ensure group indexes are valid
+        (address[] memory celoGroupIndexes, ) = getElection()
+            .getTotalVotesForEligibleValidatorGroups();
+
+        // For validating that the group allocation total is 100
+        uint256 groupAllocationTotal;
+
+        for (uint256 i = 0; i < groupIndexes.length; i += 1) {
+            uint256 groupIndex = groupIndexes[i];
+            uint256 groupAllocation = groupAllocations[i];
+
+            // If not the first iteration, then validate that the current group
+            // index is larger than the previous group index.
+            require(
+                i == 0 || groupIndex > groupIndexes[i - 1],
+                "Indexes must be in ascending order without duplicates"
+            );
+            require(
+                groupIndex < celoGroupIndexes.length,
+                "Index must be that of an eligible Celo group"
+            );
+            require(groupAllocation > 0, "Allocation cannot be zero");
+
+            groupAllocationTotal = groupAllocationTotal.add(groupAllocation);
+        }
+
+        require(
+            groupAllocationTotal == 100,
+            "Total group allocation must be 100"
+        );
+    }
+
+    function _performStateMaintenance() internal {
+        uint256 currentCycle = getCurrentCycle();
+
+        // If the current cycle is more recent than the proposal cycle,
+        // update election groups using the leading proposal and reset state
+        if (currentProposalCycle < currentCycle) {
+            Proposal memory leadingProposal = proposals[leadingProposalID];
+            require(
+                leadingProposal.groupIndexes.length > 0 &&
+                    leadingProposal.groupAllocations.length > 0,
+                "No new groups proposed"
+            );
+
+            setElectionGroups(
+                leadingProposal.groupIndexes,
+                leadingProposal.groupAllocations
+            );
+
+            // Reset proposal data
+            delete proposals;
+            delete leadingProposalID;
+
+            currentProposalCycle = currentCycle;
+        }
+    }
+
+    function isUpvoterInCurrentCycle(address account)
+        external
+        view
+        returns (bool)
+    {
+        return _isUpvoterInCurrentCycle(account, getCurrentCycle());
+    }
+
+    function submitProposal(
+        Vault vault,
+        uint256[] calldata groupIndexes,
+        uint256[] calldata groupAllocations
+    ) external {
+        _performStateMaintenance();
+        _validateElectionGroups(groupIndexes, groupAllocations);
+        _submitProposal(
+            vault,
+            groupIndexes,
+            groupAllocations,
+            getCurrentCycle()
+        );
+    }
+
+    function addProposalUpvotes(Vault vault, uint256 proposalID) external {
+        _performStateMaintenance();
+        _addProposalUpvotes(vault, proposalID, getCurrentCycle());
+    }
+
+    function updateProposalUpvotes(Vault vault) external {
+        _performStateMaintenance();
+        _updateProposalUpvotes(vault, getCurrentCycle());
+    }
+
+    function setElectionGroups(
+        uint256[] memory groupIndexes,
+        uint256[] memory groupAllocations
+    ) internal {
+        _setGroups(groupIndexes, groupAllocations, getCurrentCycle());
     }
 }
