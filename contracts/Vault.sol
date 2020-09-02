@@ -1,16 +1,19 @@
 // contracts/Vault.sol
 pragma solidity ^0.5.8;
 
-import "./vault-modules/VoteManagement.sol";
+import "@openzeppelin/contracts-ethereum-package/contracts/math/SafeMath.sol";
 import "./celo/common/UsingRegistry.sol";
 import "./celo/common/libraries/LinkedList.sol";
 
-contract Vault is UsingRegistry, VoteManagement {
+contract Vault is UsingRegistry {
+    using SafeMath for uint256;
     using LinkedList for LinkedList.List;
 
     address public proxyAdmin;
     ILockedGold public lockedGold;
-    LinkedList.List public pendingWithdrawals;
+
+    // Fallback function so the vault can accept incoming withdrawal/reward transfers
+    function() external payable {}
 
     function initialize(
         address registry_,
@@ -19,7 +22,6 @@ contract Vault is UsingRegistry, VoteManagement {
         address proxyAdmin_
     ) public payable initializer {
         UsingRegistry.initializeRegistry(msg.sender, registry_);
-        VoteManagement.initialize(archive_, getElection());
         Ownable.initialize(owner_);
 
         lockedGold = getLockedGold();
@@ -38,109 +40,23 @@ contract Vault is UsingRegistry, VoteManagement {
         proxyAdmin = admin;
     }
 
-    function getBalances() public view returns (uint256, uint256) {
-        uint256 nonvoting = lockedGold.getAccountNonvotingLockedGold(
-            address(this)
+    function getBalance()
+        public
+        view
+        returns (uint256 voting, uint256 nonvoting)
+    {
+        voting = lockedGold.getAccountTotalLockedGold(address(this)).sub(
+            nonvoting
         );
-        uint256 voting = lockedGold
-            .getAccountTotalLockedGold(address(this))
-            .sub(nonvoting);
+        nonvoting = lockedGold.getAccountNonvotingLockedGold(address(this));
 
         return (voting, nonvoting);
     }
-
-    // Fallback function so the vault can accept incoming withdrawal/reward transfers
-    function() external payable {}
 
     function deposit() public payable {
         require(msg.value > 0, "Deposit must be greater than zero");
 
         // Immediately lock the deposit
         lockedGold.lock.value(msg.value)();
-    }
-
-    /**
-     * @notice Initiate funds withdrawal
-     * @param amount The amount of funds to be withdrawn
-     */
-    function initiateWithdrawal(uint256 amount) external onlyOwner {
-        (uint256 votingBalance, uint256 nonVotingBalance) = getBalances();
-        uint256 totalBalance = votingBalance.add(nonVotingBalance);
-
-        require(
-            amount > 0 && amount <= totalBalance,
-            "Invalid withdrawal amount"
-        );
-
-        if (manager != address(0)) {
-            _updateManagerRewardsForAllGroups();
-
-            // Check if the withdrawal amount specified is within the limit
-            // (after considering manager rewards and minimum required funds)
-            require(
-                amount <=
-                    totalBalance.sub(managerRewards).sub(
-                        managerMinimumBalanceRequirement
-                    ),
-                "Specified withdrawal amount exceeds the withdrawable limit"
-            );
-        } else if (amount == totalBalance) {
-            // Revoke all group votes to perform full balance withdrawal
-            if (votingBalance > 0) {
-                _revokeVotesEntirelyForGroups();
-            }
-
-            return _initiateWithdrawal(amount, true);
-        }
-
-        // If the nonVoting balance is sufficient, we can directly unlock the specified amount
-        if (nonVotingBalance >= amount) {
-            return _initiateWithdrawal(amount, true);
-        }
-
-        // Proceed with revoking votes across the groups to satisfy the specified withdrawal amount
-        uint256 revokeAmount = amount.sub(nonVotingBalance);
-        uint256 revokeDiff = revokeAmount.sub(
-            _revokeVotesProportionatelyForGroups(revokeAmount)
-        );
-
-        _initiateWithdrawal(amount.sub(revokeDiff), true);
-    }
-
-    /**
-     * @notice Creates a pending withdrawal and generates a hash for verification
-     */
-    function _initiateWithdrawal(uint256 amount, bool forOwner) internal {
-        // @TODO: Consider creating 2 separate "initiate withdrawal" methods in order to
-        // thoroughly validate based on whether it's the owner or manager
-
-        // Only the owner or vote manager can call this method
-        require(
-            msg.sender == owner() || msg.sender == manager,
-            "Not authorized"
-        );
-
-        lockedGold.unlock(amount);
-
-        // Fetch pending withdrawals (last element should be the pending withdrawal
-        // for the amount that was unlocked above)
-        (uint256[] memory amounts, uint256[] memory timestamps) = lockedGold
-            .getPendingWithdrawals(address(this));
-
-        address withdrawalRecipient = forOwner ? owner() : manager;
-
-        // Generate a hash for withdrawal-time verification
-        pendingWithdrawals.push(
-            keccak256(
-                abi.encodePacked(
-                    // Account that should be receiving the withdrawal funds
-                    withdrawalRecipient,
-                    // Pending withdrawal amount
-                    amounts[amounts.length - 1],
-                    // Pending withdrawal timestamp
-                    timestamps[timestamps.length - 1]
-                )
-            )
-        );
     }
 }
