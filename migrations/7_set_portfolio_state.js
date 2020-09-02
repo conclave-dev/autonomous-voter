@@ -1,7 +1,7 @@
 const Portfolio = artifacts.require('Portfolio');
 const Bank = artifacts.require('Bank');
 const VaultFactory = artifacts.require('VaultFactory');
-const { groupLimit, proposerMinimum } = require('../config');
+const { proposerMinimum } = require('../config');
 
 module.exports = (deployer) =>
   deployer.then(async () => {
@@ -12,5 +12,5 @@ module.exports = (deployer) =>
     await portfolio.setVaultFactory(vaultFactoryAddress);
 
     // NOTE: Must set the Cycle module parameters separately
-    await portfolio.setProposalsParameters(bankAddress, groupLimit, proposerMinimum);
+    await portfolio.setProposalsParameters(bankAddress, proposerMinimum);
   });

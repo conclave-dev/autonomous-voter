@@ -215,7 +215,7 @@ contract Bank is Ownable, StandaloneERC20, UsingRegistry {
     ) external onlyVaultOwner(vault) {
         // Prevent transfer if the vault's owner is an upvoter (preventing duplicate upvotes with the same tokens)
         require(
-            portfolio.isUpvoter(msg.sender) == false,
+            portfolio.isUpvoterInCurrentCycle(msg.sender) == false,
             "Caller upvoted a proposal - cannot transfer tokens yet"
         );
         _checkAvailableTokens(address(vault), amount);
