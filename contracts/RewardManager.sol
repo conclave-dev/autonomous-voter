@@ -29,13 +29,13 @@ contract RewardManager is Ownable, UsingPrecompiles {
     }
 
     // Tracks the amount of lockedGold owned by the Bank for each epoch
-    mapping(uint256 => uint256) historicalLockedGoldBalances;
+    mapping(uint256 => uint256) lockedGoldBalances;
     // Tracks the amount of reward acquired by the Bank for each epoch
-    mapping(uint256 => uint256) historicalRewardBalances;
+    mapping(uint256 => uint256) rewardBalances;
     // Tracks the amount of deposit and withdrawal of all accounts for each epoch
-    mapping(uint256 => BalanceMutation) historicalBalanceMutations;
+    mapping(uint256 => BalanceMutation) balanceMutations;
     // Tracks the total supply of tokens for each epoch
-    mapping(uint256 => uint256) historicalTokenSupplies;
+    mapping(uint256 => uint256) tokenSupplies;
     // Tracks the epoch number where users last claimed their rewards
     mapping(address => uint256) lastClaimedEpochs;
 
@@ -72,24 +72,23 @@ contract RewardManager is Ownable, UsingPrecompiles {
         uint256 previousEpoch = currentEpoch - 1;
 
         require(
-            historicalRewardBalances[currentEpoch] == 0,
+            rewardBalances[currentEpoch] == 0,
             "Reward balance has already been updated"
         );
 
         uint256 currentBalance = bank.totalLockedGold();
-        uint256 previousBalance = historicalLockedGoldBalances[previousEpoch];
-        historicalRewardBalances[currentEpoch] = previousBalance.sub(
-            currentBalance
+        uint256 previousBalance = lockedGoldBalances[previousEpoch];
+        rewardBalances[currentEpoch] = previousBalance.sub(currentBalance);
+
+        bank.mintEpochRewards(rewardBalances[currentEpoch]);
+
+        tokenSupplies[previousEpoch] = tokenSupplies[previousEpoch]
+            .add(balanceMutations[previousEpoch].totalDeposit)
+            .sub(balanceMutations[previousEpoch].totalWithdrawal);
+
+        tokenSupplies[currentEpoch] = tokenSupplies[previousEpoch].add(
+            rewardBalances[currentEpoch]
         );
-
-        bank.mintEpochRewards(historicalRewardBalances[currentEpoch]);
-
-        historicalTokenSupplies[previousEpoch] = historicalTokenSupplies[previousEpoch]
-            .add(historicalBalanceMutations[previousEpoch].totalDeposit)
-            .sub(historicalBalanceMutations[previousEpoch].totalWithdrawal);
-
-        historicalTokenSupplies[currentEpoch] = historicalTokenSupplies[previousEpoch]
-            .add(historicalRewardBalances[currentEpoch]);
     }
 
     function claimReward(Vault vault) public onlyVaultOwner(vault) {
@@ -102,7 +101,7 @@ contract RewardManager is Ownable, UsingPrecompiles {
             "All available rewards have been claimed"
         );
 
-        if (historicalRewardBalances[currentEpoch] == 0) {
+        if (rewardBalances[currentEpoch] == 0) {
             updateRewardBalance();
         }
 
@@ -115,9 +114,8 @@ contract RewardManager is Ownable, UsingPrecompiles {
         uint256 totalOwedRewards = 0;
 
         for (uint256 i = currentEpoch; i >= startingEpoch; i -= 1) {
-
-                AccountBalanceMutation memory mutation
-             = historicalBalanceMutations[i].accountMutations[vaultAddress];
+            AccountBalanceMutation memory mutation = balanceMutations[i]
+                .accountMutations[vaultAddress];
             vaultBalance = vaultBalance.sub(mutation.deposit).add(
                 mutation.withdrawal
             );
@@ -125,19 +123,20 @@ contract RewardManager is Ownable, UsingPrecompiles {
 
         for (uint256 i = startingEpoch; i < currentEpoch; i += 1) {
             uint256 ownershipPercentage = vaultBalance.mul(100).div(
-                historicalTokenSupplies[i]
+                tokenSupplies[i]
             );
-            uint256 reward = ownershipPercentage
-                .mul(historicalRewardBalances[i])
-                .div(100);
+            uint256 reward = ownershipPercentage.mul(rewardBalances[i]).div(
+                100
+            );
 
-
-                AccountBalanceMutation memory mutation
-             = historicalBalanceMutations[i].accountMutations[vaultAddress];
+            AccountBalanceMutation memory mutation = balanceMutations[i]
+                .accountMutations[vaultAddress];
             vaultBalance = vaultBalance.add(reward).add(mutation.deposit).sub(
                 mutation.withdrawal
             );
             totalOwedRewards = totalOwedRewards.add(reward);
+
+            lastClaimedEpochs[vaultAddress] = currentEpoch - 1;
         }
 
         bank.claimRewardForVault(vault, totalOwedRewards);
