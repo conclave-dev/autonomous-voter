@@ -8,6 +8,7 @@ import "@openzeppelin/contracts-ethereum-package/contracts/token/ERC20/Standalon
 import "./celo/common/UsingRegistry.sol";
 import "./Vault.sol";
 import "./Portfolio.sol";
+import "./RewardManager.sol";
 
 /**
  * @title VM contract to manage token related functionalities
@@ -36,6 +37,7 @@ contract Bank is Ownable, StandaloneERC20, UsingRegistry {
 
     ILockedGold public lockedGold;
     Portfolio public portfolio;
+    RewardManager public rewardManager;
 
     function initializeBank(
         string memory name_,
@@ -62,6 +64,15 @@ contract Bank is Ownable, StandaloneERC20, UsingRegistry {
         _;
     }
 
+    // Requires that the msg.sender be the currently appointed reward manager
+    modifier onlyRewardManager() {
+        require(
+            msg.sender == address(rewardManager),
+            "Only available for Reward Manager"
+        );
+        _;
+    }
+
     /**
      * @notice Fetch the total amount of frozen balance of the specified account
      * @param account Address of the account to be queried
@@ -81,6 +92,10 @@ contract Bank is Ownable, StandaloneERC20, UsingRegistry {
 
     function setPortfolio(Portfolio portfolio_) external onlyOwner {
         portfolio = portfolio_;
+    }
+
+    function setRewardManager(RewardManager rewardManager_) external onlyOwner {
+        rewardManager = rewardManager_;
     }
 
     /**
@@ -220,5 +235,20 @@ contract Bank is Ownable, StandaloneERC20, UsingRegistry {
         );
         _checkAvailableTokens(address(vault), amount);
         _transfer(address(vault), recipient, amount);
+    }
+
+    function totalLockedGold() external view returns (uint256) {
+        return lockedGold.getAccountTotalLockedGold(address(this));
+    }
+
+    function mintEpochRewards(uint256 amount) external onlyRewardManager {
+        _mint(address(this), amount);
+    }
+
+    function claimRewardForVault(Vault vault, uint256 amount)
+        external
+        onlyRewardManager
+    {
+        _transfer(msg.sender, address(vault), amount);
     }
 }
