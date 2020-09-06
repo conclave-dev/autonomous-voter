@@ -7,6 +7,7 @@ module.exports = {
   seedCapacity: 1000,
   seedRatio: 1,
   seedFreezeDuration: 31536000,
+  rewardExpiration: 7,
   groupLimit: 3,
   proposerMinimum: 100,
   cycleBlockDuration: 120960,

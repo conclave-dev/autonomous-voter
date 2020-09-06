@@ -5,9 +5,8 @@ import "@openzeppelin/contracts-ethereum-package/contracts/ownership/Ownable.sol
 import "@openzeppelin/contracts-ethereum-package/contracts/math/SafeMath.sol";
 import "@openzeppelin/contracts-ethereum-package/contracts/token/ERC20/StandaloneERC20.sol";
 
-import "./celo/common/libraries/UsingPrecompiles.sol";
 import "./celo/common/UsingRegistry.sol";
-import "./modules/RewardManager.sol";
+import "./RewardManager.sol";
 import "./Vault.sol";
 import "./Portfolio.sol";
 
@@ -15,13 +14,7 @@ import "./Portfolio.sol";
  * @title VM contract to manage token related functionalities
  *
  */
-contract Bank is
-    Ownable,
-    StandaloneERC20,
-    UsingRegistry,
-    UsingPrecompiles,
-    RewardManager
-{
+contract Bank is Ownable, StandaloneERC20, UsingRegistry {
     using SafeMath for uint256;
 
     // # of seed AV tokens per Vault
@@ -43,7 +36,8 @@ contract Bank is
     mapping(address => FrozenTokens[]) internal frozenTokens;
 
     ILockedGold public lockedGold;
-    Portfolio public portfolio;
+    Portfolio internal portfolio;
+    RewardManager internal rewardManager;
 
     function initializeBank(
         string memory name_,
@@ -70,6 +64,15 @@ contract Bank is
         _;
     }
 
+    // Requires that the msg.sender be the currently set RewardManager
+    modifier onlyRewardManager() {
+        require(
+            msg.sender == address(rewardManager),
+            "Only available to Reward Manager"
+        );
+        _;
+    }
+
     /**
      * @notice Fetch the total amount of frozen balance of the specified account
      * @param account Address of the account to be queried
@@ -91,39 +94,8 @@ contract Bank is
         portfolio = portfolio_;
     }
 
-    function setRewardExpiration(uint256 rewardExpiration_) external onlyOwner {
-        rewardExpiration = rewardExpiration_;
-    }
-
-    function _addDepositMutation(address account, uint256 amount) internal {
-        uint256 currentEpoch = getEpochNumber();
-
-        BalanceMutation storage mutation = balanceMutations[currentEpoch];
-        mutation.totalDeposit = mutation.totalDeposit.add(amount);
-        mutation.accountMutations[account].deposit = mutation
-            .accountMutations[account]
-            .deposit
-            .add(amount);
-    }
-
-    function _addWithdrawalMutation(address account, uint256 amount) internal {
-        uint256 currentEpoch = getEpochNumber();
-
-        BalanceMutation storage mutation = balanceMutations[currentEpoch];
-        mutation.totalWithdrawal = mutation.totalWithdrawal.add(amount);
-        mutation.accountMutations[account].withdrawal = mutation
-            .accountMutations[account]
-            .withdrawal
-            .add(amount);
-    }
-
-    function _addTransferMutations(
-        address from,
-        address to,
-        uint256 amount
-    ) internal {
-        _addDepositMutation(to, amount);
-        _addWithdrawalMutation(from, amount);
+    function setRewardManager(RewardManager rewardManager_) external onlyOwner {
+        rewardManager = rewardManager_;
     }
 
     /**
@@ -144,7 +116,7 @@ contract Bank is
 
         // Mint tokens proportionally based on the currently set ratio and the specified amount
         _mint(vaultAddress, mintAmount);
-        _addDepositMutation(vaultAddress, mintAmount);
+        rewardManager.addDepositMutation(vaultAddress, mintAmount);
 
         totalSeeded[msg.sender] = totalSeeded[msg.sender].add(mintAmount);
         _frozenBalance[vaultAddress] = _frozenBalance[vaultAddress].add(
@@ -238,7 +210,7 @@ contract Bank is
         _checkAvailableTokens(msg.sender, amount);
         // Call internal `_transfer` since we can't pass identical `msg.sender` into ERC20's `transfer` method
         _transfer(msg.sender, recipient, amount);
-        _addTransferMutations(msg.sender, recipient, amount);
+        rewardManager.addTransferMutations(msg.sender, recipient, amount);
         return true;
     }
 
@@ -250,7 +222,7 @@ contract Bank is
     ) public returns (bool) {
         _checkAvailableTokens(sender, amount);
         ERC20.transferFrom(sender, recipient, amount);
-        _addTransferMutations(sender, recipient, amount);
+        rewardManager.addTransferMutations(sender, recipient, amount);
         return true;
     }
 
@@ -267,84 +239,21 @@ contract Bank is
         );
         _checkAvailableTokens(address(vault), amount);
         _transfer(address(vault), recipient, amount);
-        _addTransferMutations(address(vault), recipient, amount);
+        rewardManager.addTransferMutations(address(vault), recipient, amount);
     }
 
-    function updateRewardBalance() public {
-        uint256 currentEpoch = getEpochNumber();
-        uint256 previousEpoch = currentEpoch - 1;
-
-        require(
-            rewardBalances[currentEpoch] == 0,
-            "Reward balance has already been updated"
-        );
-
-        uint256 currentBalance = lockedGold.getAccountTotalLockedGold(
-            address(this)
-        );
-        uint256 previousBalance = lockedGoldBalances[previousEpoch];
-        rewardBalances[currentEpoch] = previousBalance.sub(currentBalance);
-        lockedGoldBalances[currentEpoch] = currentBalance;
-
-        _mint(address(this), rewardBalances[currentEpoch]);
-
-        tokenSupplies[previousEpoch] = tokenSupplies[previousEpoch]
-            .add(balanceMutations[previousEpoch].totalDeposit)
-            .sub(balanceMutations[previousEpoch].totalWithdrawal);
-
-        tokenSupplies[currentEpoch] = tokenSupplies[previousEpoch].add(
-            rewardBalances[currentEpoch]
-        );
+    function totalLockedGold() external view returns (uint256) {
+        return lockedGold.getAccountTotalLockedGold(address(this));
     }
 
-    function claimReward(Vault vault) public onlyVaultOwner(vault) {
-        address vaultAddress = address(vault);
-        uint256 currentEpoch = getEpochNumber();
-        uint256 lastClaimed = lastClaimedEpochs[vaultAddress];
+    function mintEpochRewards(uint256 amount) external onlyRewardManager {
+        _mint(address(this), amount);
+    }
 
-        require(
-            lastClaimed < currentEpoch - 1,
-            "All available rewards have been claimed"
-        );
-
-        if (rewardBalances[currentEpoch] == 0) {
-            updateRewardBalance();
-        }
-
-        uint256 startingEpoch = (
-            currentEpoch - rewardExpiration > lastClaimed + 1
-                ? currentEpoch - rewardExpiration
-                : lastClaimed + 1
-        );
-        uint256 vaultBalance = balanceOf(vaultAddress);
-        uint256 totalOwedRewards = 0;
-
-        for (uint256 i = currentEpoch; i >= startingEpoch; i -= 1) {
-            AccountBalanceMutation memory mutation = balanceMutations[i]
-                .accountMutations[vaultAddress];
-            vaultBalance = vaultBalance.sub(mutation.deposit).add(
-                mutation.withdrawal
-            );
-        }
-
-        for (uint256 i = startingEpoch; i < currentEpoch; i += 1) {
-            uint256 ownershipPercentage = vaultBalance.mul(100).div(
-                tokenSupplies[i]
-            );
-            uint256 reward = ownershipPercentage.mul(rewardBalances[i]).div(
-                100
-            );
-
-            AccountBalanceMutation memory mutation = balanceMutations[i]
-                .accountMutations[vaultAddress];
-            vaultBalance = vaultBalance.add(reward).add(mutation.deposit).sub(
-                mutation.withdrawal
-            );
-            totalOwedRewards = totalOwedRewards.add(reward);
-
-            lastClaimedEpochs[vaultAddress] = currentEpoch - 1;
-        }
-
-        _transfer(address(this), vaultAddress, totalOwedRewards);
+    function transferEpochRewards(Vault vault, uint256 amount)
+        external
+        onlyRewardManager
+    {
+        _transfer(address(this), address(vault), amount);
     }
 }
