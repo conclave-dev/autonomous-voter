@@ -116,7 +116,6 @@ contract Bank is Ownable, StandaloneERC20, UsingRegistry {
 
         // Mint tokens proportionally based on the currently set ratio and the specified amount
         _mint(vaultAddress, mintAmount);
-        rewardManager.addDepositMutation(vaultAddress, mintAmount);
 
         totalSeeded[msg.sender] = totalSeeded[msg.sender].add(mintAmount);
         _frozenBalance[vaultAddress] = _frozenBalance[vaultAddress].add(
@@ -127,6 +126,9 @@ contract Bank is Ownable, StandaloneERC20, UsingRegistry {
         frozenTokens[vaultAddress].push(
             FrozenTokens(mintAmount, now.add(seedFreezeDuration))
         );
+
+        // Notify the rewardManager for the deposit, must be called before locking the new gold
+        rewardManager.addDepositMutation(vaultAddress, mintAmount);
 
         // Proceed to lock the newly transferred CELO to be used for voting in CELO
         lockedGold.lock.value(msg.value)();

@@ -41,6 +41,8 @@ contract RewardManager is Ownable, UsingPrecompiles {
 
     // Stores the duration in which rewards would no longer be available to claim
     uint256 public rewardExpiration;
+    // Stores the percentage of reward from the epoch rewards to be distributed to token holders
+    uint256 public holderRewardPercentage;
 
     Bank public bank;
 
@@ -56,18 +58,31 @@ contract RewardManager is Ownable, UsingPrecompiles {
         _;
     }
 
-    function initialize(Bank bank_, uint256 rewardExpiration_)
-        public
-        initializer
-    {
+    function initialize(
+        Bank bank_,
+        uint256 rewardExpiration_,
+        uint256 holderRewardPercentage_
+    ) public initializer {
         Ownable.initialize(msg.sender);
 
         bank = bank_;
         rewardExpiration = rewardExpiration_;
+        holderRewardPercentage = holderRewardPercentage_;
+    }
+
+    function setBank(Bank bank_) external onlyOwner {
+        bank = bank_;
     }
 
     function setRewardExpiration(uint256 rewardExpiration_) external onlyOwner {
         rewardExpiration = rewardExpiration_;
+    }
+
+    function setHolderRewardPercentage(uint256 holderRewardPercentage_)
+        external
+        onlyOwner
+    {
+        holderRewardPercentage = holderRewardPercentage_;
     }
 
     function addDepositMutation(address account, uint256 amount)
@@ -75,6 +90,10 @@ contract RewardManager is Ownable, UsingPrecompiles {
         onlyBank
     {
         uint256 currentEpoch = getEpochNumber();
+
+        if (rewardBalances[currentEpoch] == 0) {
+            updateRewardBalance();
+        }
 
         BalanceMutation storage mutation = balanceMutations[currentEpoch];
         mutation.totalDeposit = mutation.totalDeposit.add(amount);
@@ -89,6 +108,10 @@ contract RewardManager is Ownable, UsingPrecompiles {
         onlyBank
     {
         uint256 currentEpoch = getEpochNumber();
+
+        if (rewardBalances[currentEpoch] == 0) {
+            updateRewardBalance();
+        }
 
         BalanceMutation storage mutation = balanceMutations[currentEpoch];
         mutation.totalWithdrawal = mutation.totalWithdrawal.add(amount);
@@ -116,17 +139,32 @@ contract RewardManager is Ownable, UsingPrecompiles {
             "Reward balance has already been updated"
         );
 
-        uint256 currentBalance = bank.totalLockedGold();
+        // Calculate current lockedGold in Bank
+        // by also considering deposits/withdrawals in between the 2 epochs
+        uint256 currentBalance = bank
+            .totalLockedGold()
+            .sub(balanceMutations[previousEpoch].totalDeposit)
+            .add(balanceMutations[previousEpoch].totalWithdrawal);
+
+        // Calculate the actual reward acquired by Bank
+        // by comparing it with the previous epoch's total lockedGold
+        // and then get the actual amount allocated to holders
         uint256 previousBalance = lockedGoldBalances[previousEpoch];
-        rewardBalances[currentEpoch] = previousBalance.sub(currentBalance);
+        uint256 reward = currentBalance.sub(previousBalance);
+        rewardBalances[currentEpoch] = reward.mul(holderRewardPercentage).div(
+            100
+        );
+
+        // Save the calculated lockedGold balance for current epoch
         lockedGoldBalances[currentEpoch] = currentBalance;
 
+        // Immediately mint AV tokens according to the amount of epoch rewards allocated to holders
         bank.mintEpochRewards(rewardBalances[currentEpoch]);
 
+        // Update the token supply for both epochs
         tokenSupplies[previousEpoch] = tokenSupplies[previousEpoch]
             .add(balanceMutations[previousEpoch].totalDeposit)
             .sub(balanceMutations[previousEpoch].totalWithdrawal);
-
         tokenSupplies[currentEpoch] = tokenSupplies[previousEpoch].add(
             rewardBalances[currentEpoch]
         );

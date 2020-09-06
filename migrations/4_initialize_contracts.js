@@ -16,6 +16,8 @@ const Bank = artifacts.require('Bank');
 const Portfolio = artifacts.require('Portfolio');
 const RewardManager = artifacts.require('RewardManager');
 
+const MockBank = artifacts.require('Bank');
+
 module.exports = (deployer) =>
   deployer.then(async () => {
     const app = await App.deployed();
@@ -25,6 +27,7 @@ module.exports = (deployer) =>
     const bank = await Bank.deployed();
     const portfolio = await Portfolio.deployed();
     const rewardManager = await RewardManager.deployed();
+    const mockBank = await MockBank.deployed();
     const contractInitializers = [
       { contract: 'Archive', fn: async () => await archive.initialize(registryContractAddress) },
       {
@@ -55,6 +58,19 @@ module.exports = (deployer) =>
       {
         contract: 'RewardManager',
         fn: async () => await rewardManager.initialize(bank.address, rewardExpiration)
+      },
+      {
+        contract: 'MockBank',
+        fn: async () =>
+          await mockBank.initializeBank(
+            tokenName,
+            tokenSymbol,
+            tokenDecimal,
+            [],
+            [],
+            seedFreezeDuration,
+            registryContractAddress
+          )
       }
     ];
 
