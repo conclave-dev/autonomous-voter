@@ -1,24 +1,25 @@
 pragma solidity ^0.5.8;
 
+import "@openzeppelin/contracts-ethereum-package/contracts/math/SafeMath.sol";
 import "./celo/common/UsingRegistry.sol";
-import "./celo/governance/interfaces/IElection.sol";
-import "./modules/ElectionManager.sol";
-import "./Vault.sol";
 import "./Bank.sol";
 import "./VaultFactory.sol";
+import "./Vault.sol";
 
-contract Portfolio is ElectionManager, UsingRegistry {
+contract Portfolio is UsingRegistry {
     using SafeMath for uint256;
 
     Bank public bank;
     // Enables the Portfolio to only add vaults created by a known factory
     VaultFactory public vaultFactory;
-    // Number of proposals that can exist at one time
-    uint256 public proposalLimit;
+    // Minimum balance required to submit or upvote a proposal
+    uint256 public minimumUpvoterBalance;
     // Maximum number of groups that can be proposed
     uint256 public maximumProposalGroups;
 
     struct Proposal {
+        // The account that submitted the proposal
+        address proposer;
         // The accounts that have upvoted the proposal
         address[] upvoters;
         // The cumulative vault balances of the proposal
@@ -38,11 +39,10 @@ contract Portfolio is ElectionManager, UsingRegistry {
         uint256 proposalID;
     }
 
-    Proposal[] public proposals;
-    mapping(address => Upvoter) public upvoters;
-    uint256 public leadingProposalID;
-
     mapping(address => address) public vaultsByOwner;
+    Proposal[] public proposals;
+    uint256 public leadingProposalID;
+    mapping(address => Upvoter) public upvoters;
 
     /**
      * @notice Initializes Portfolio contract
@@ -62,11 +62,28 @@ contract Portfolio is ElectionManager, UsingRegistry {
     }
 
     function setProtocolParameters(
-        uint256 proposalLimit_,
+        uint256 minimumUpvoterBalance_,
         uint256 maximumProposalGroups_
     ) external onlyOwner {
-        proposalLimit = proposalLimit_;
+        minimumUpvoterBalance = minimumUpvoterBalance_;
         maximumProposalGroups = maximumProposalGroups_;
+    }
+
+    // Sets the vault
+    function setVaultByOwner(address owner_, address vault) external {
+        require(
+            msg.sender == address(vaultFactory),
+            "Caller is not the VaultFactory contract"
+        );
+        require(
+            getVaultByOwner(owner_) == address(0),
+            "Vault for owner has already been set"
+        );
+        vaultsByOwner[owner_] = vault;
+    }
+
+    function getVaultByOwner(address owner_) public view returns (address) {
+        return vaultsByOwner[owner_];
     }
 
     /**
@@ -119,6 +136,19 @@ contract Portfolio is ElectionManager, UsingRegistry {
         );
     }
 
+    /**
+     * @notice Sets a proposal as the leading proposal if it has the most upvotes
+     * @param proposalID Proposal index
+     */
+    function _updateLeadingProposal(uint256 proposalID) internal {
+        uint256 proposalUpvotes = proposals[proposalID].upvotes;
+        uint256 leadingProposalUpvotes = proposals[leadingProposalID].upvotes;
+
+        if (proposalUpvotes > leadingProposalUpvotes) {
+            leadingProposalID = proposalID;
+        }
+    }
+
     // Checks whether a proposal exists for the ID
     function isProposal(uint256 proposalID) public view returns (bool) {
         return proposals[proposalID].upvotes > 0;
@@ -140,7 +170,7 @@ contract Portfolio is ElectionManager, UsingRegistry {
     {
         uint256 upvotes = bank.balanceOf(address(vault));
         require(msg.sender == vault.owner(), "Not vault owner");
-        require(upvotes > 0, "Vault has a balance of zero");
+        require(upvotes > minimumUpvoterBalance, "Insufficient balance");
         return upvotes;
     }
 
@@ -194,19 +224,6 @@ contract Portfolio is ElectionManager, UsingRegistry {
     }
 
     /**
-     * @notice Sets a proposal as the leading proposal if it has the most upvotes
-     * @param proposalID Proposal index
-     */
-    function _updateLeadingProposal(uint256 proposalID) internal {
-        uint256 proposalUpvotes = proposals[proposalID].upvotes;
-        uint256 leadingProposalUpvotes = proposals[leadingProposalID].upvotes;
-
-        if (proposalUpvotes > leadingProposalUpvotes) {
-            leadingProposalID = proposalID;
-        }
-    }
-
-    /**
      * @notice Submits a proposal
      * @param vault Vault
      * @param groupIndexes List of eligible Celo election group indexes
@@ -218,13 +235,20 @@ contract Portfolio is ElectionManager, UsingRegistry {
         uint256[] calldata groupIndexes,
         uint256[] calldata groupAllocations
     ) external {
-        uint256 upvotes = getUpvotesForVaultOwner(vault);
         require(isUpvoter(msg.sender) == false, "Already an upvoter");
 
-        address[] memory proposalUpvoters;
+        // Compare caller's upvotes with that of the smallest proposal's upvotes
+        uint256 upvotes = getUpvotesForVaultOwner(vault);
         uint256 proposalID = proposals.length;
+        address[] memory proposalUpvoters;
         proposals.push(
-            Proposal(proposalUpvoters, upvotes, groupIndexes, groupAllocations)
+            Proposal(
+                msg.sender,
+                proposalUpvoters,
+                upvotes,
+                groupIndexes,
+                groupAllocations
+            )
         );
         proposals[proposalID].upvoters.push(msg.sender);
         upvoters[msg.sender] = Upvoter(upvotes, proposalID);
@@ -274,21 +298,5 @@ contract Portfolio is ElectionManager, UsingRegistry {
         upvoter.upvotes = newUpvotes;
 
         _updateLeadingProposal(upvoter.proposalID);
-    }
-
-    function setVaultByOwner(address owner_, address vault) external {
-        require(
-            msg.sender == address(vaultFactory),
-            "Caller is not the VaultFactory contract"
-        );
-        require(
-            getVaultByOwner(owner_) == address(0),
-            "Vault for owner has already been set"
-        );
-        vaultsByOwner[owner_] = vault;
-    }
-
-    function getVaultByOwner(address owner_) public view returns (address) {
-        return vaultsByOwner[owner_];
     }
 }

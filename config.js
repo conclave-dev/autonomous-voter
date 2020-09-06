@@ -7,7 +7,7 @@ module.exports = {
   seedCapacity: 1000,
   seedRatio: 1,
   seedFreezeDuration: 31536000,
-  proposalLimit: 10,
+  minimumUpvoterBalance: 10,
   maximumProposalGroups: 10,
   alfajoresRpcAPI: 'http://3.82.157.109:8545',
   alfajoresPrimaryAccount: '0x742e41440C70dFf2C78388B4a2C432A7A6cA08cf',

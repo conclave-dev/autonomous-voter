@@ -1,5 +1,5 @@
 const { assert } = require('./setup');
-const { proposalLimit, maximumProposalGroups } = require('../../config');
+const { minimumUpvoterBalance, maximumProposalGroups } = require('../../config');
 
 describe('Portfolio', function () {
   before(function () {
@@ -29,7 +29,7 @@ describe('Portfolio', function () {
     });
 
     it('should have correct protocol parameters set', async function () {
-      assert.equal(await this.portfolio.proposalLimit(), proposalLimit);
+      assert.equal(await this.portfolio.minimumUpvoterBalance(), minimumUpvoterBalance);
       return assert.equal(await this.portfolio.maximumProposalGroups(), maximumProposalGroups);
     });
 
@@ -49,12 +49,13 @@ describe('Portfolio', function () {
       );
 
       const { 0: proposalID, 1: upvoters, 2: upvotes } = await this.portfolio.getProposalByUpvoter(this.primarySender);
+      const vaultBalance = await this.bank.balanceOf(this.vaultInstance.address);
 
       this.submittedProposalID = proposalID;
 
       assert.equal(upvoters.length, 1);
       assert.equal(upvoters[0], this.primarySender);
-      return assert.equal(upvotes, 10);
+      return assert.equal(upvotes.toNumber(), vaultBalance.toNumber());
     });
 
     it('should add upvotes to a proposal', async function () {
