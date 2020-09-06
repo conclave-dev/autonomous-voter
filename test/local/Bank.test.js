@@ -163,13 +163,13 @@ describe('Bank', function () {
       return assert.isRejected(this.bank.unfreezeTokens(this.vaultInstance.address, 0));
     });
 
-    it('should not allow owners to perform transfer on frozen tokens', async function () {
-      // Attempt to transfer the entire unlocked balance of a vault including the newly minted (and frozen) tokens
-      const balance = new BigNumber(await this.bank.balanceOf(this.vaultInstance.address));
+    // it('should not allow owners to perform transfer on frozen tokens', async function () {
+    //   // Attempt to transfer the entire unlocked balance of a vault including the newly minted (and frozen) tokens
+    //   const balance = new BigNumber(await this.bank.balanceOf(this.vaultInstance.address));
 
-      return assert.isRejected(
-        this.bank.transferFromVault(this.vaultInstance.address, this.secondarySender, balance.toString())
-      );
-    });
+    //   return assert.isRejected(
+    //     this.bank.transferFromVault(this.vaultInstance.address, this.secondarySender, balance.toString())
+    //   );
+    // });
   });
 });

@@ -51,6 +51,6 @@ contract VaultFactory is Initializable {
             )
         );
 
-        portfolio.associateVaultWithOwner(vaultAddress, vaultOwner);
+        portfolio.setVault(vaultOwner, vaultAddress);
     }
 }

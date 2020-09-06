@@ -1,37 +1,52 @@
 pragma solidity ^0.5.8;
 
 import "./celo/common/UsingRegistry.sol";
-import "./celo/common/libraries/AddressLinkedList.sol";
 import "./celo/governance/interfaces/IElection.sol";
 import "./modules/Protocol.sol";
-import "./modules/Proposals.sol";
 import "./modules/ElectionManager.sol";
 import "./Vault.sol";
 import "./Bank.sol";
 
-contract Portfolio is Protocol, Proposals, ElectionManager, UsingRegistry {
-    using AddressLinkedList for LinkedList.List;
+contract Portfolio is Protocol, ElectionManager, UsingRegistry {
+    using SafeMath for uint256;
+
+    struct Proposal {
+        // The accounts that have upvoted the proposal
+        address[] upvoters;
+        // The cumulative vault balances of the proposal
+        uint256 upvotes;
+        // Indexes which reference eligible Celo groups
+        uint256[] groupIndexes;
+        // Vote allocations for groups in `groupIndexes`
+        // Group-allocation associations are index-based
+        // E.g. groupAllocations[0] for groupIndexes[0],
+        // groupAllocations[1] for groupIndexes[1], etc.
+        uint256[] groupAllocations;
+    }
+
+    // Accounts that have upvoted a proposal
+    struct Upvoter {
+        uint256 upvotes;
+        uint256 proposalID;
+    }
+
+    Bank public bank;
+    Proposal[] public proposals;
+    mapping(address => Upvoter) public upvoters;
+    // Maximum number of groups that can be proposed
+    uint256 public proposalGroupLimit;
+    // Minimum vault balance required to submit a proposal
+    uint256 public proposerBalanceMinimum;
+    uint256 public leadingProposalID;
 
     // Factory contracts that are able to modify the lists below
     address public vaultFactory;
 
-    // Vaults mapped by their owner's address
-    mapping(address => LinkedList.List) public vaults;
-
-    // The maximum number of unique Celo election groups will be voted for
-    uint256 public electionGroupLimit;
+    // A Celo account mapped to its vault contract
+    mapping(address => address) public vaults;
 
     modifier onlyVaultFactory() {
         require(msg.sender == vaultFactory, "Sender is not the vault factory");
-        _;
-    }
-
-    modifier onlyVault() {
-        // Confirm that the calling Vault was created by the VaultFactory
-        require(
-            vaults[Vault(msg.sender).owner()].contains(msg.sender),
-            "Invalid vault"
-        );
         _;
     }
 
@@ -44,76 +59,17 @@ contract Portfolio is Protocol, Proposals, ElectionManager, UsingRegistry {
         UsingRegistry.initializeRegistry(msg.sender, registry_);
     }
 
-    function setVaultFactory(address vaultFactory_) external onlyOwner {
-        vaultFactory = vaultFactory_;
-    }
-
-    function getVaultsByOwner(address owner_)
-        external
-        view
-        returns (address[] memory)
-    {
-        return vaults[owner_].getKeys();
-    }
-
-    function hasVault(address owner_, address vault)
-        external
-        view
-        returns (bool)
-    {
-        return vaults[owner_].contains(vault);
-    }
-
-    function associateVaultWithOwner(address vault, address owner_)
-        external
-        onlyVaultFactory
-    {
-        require(!vaults[owner_].contains(vault), "Vault has already been set");
-        vaults[owner_].push(vault);
-    }
-
-    // Sets the parameters for the Protocol module
-    function setProtocolParameters(uint256 genesis, uint256 duration)
-        external
-        onlyOwner
-    {
-        require(genesis > 0, "Genesis block number must be greater than zero");
-        require(duration > 0, "Cycle block duration must be greater than zero");
-
-        genesisBlockNumber = genesis;
-        blockDuration = duration;
-    }
-
-    // Sets the parameters for the Proposals module
-    function setProposalsParameters(Bank bank_, uint256 proposerMinimum)
-        external
-        onlyOwner
-    {
-        require(
-            proposerMinimum > 0,
-            "Proposer balance minimum must be above zero"
-        );
-
-        bank = bank_;
-        proposerBalanceMinimum = proposerMinimum;
-    }
-
-    function setElectionGroupLimit(uint256 limit) external onlyOwner {
-        require(limit > 0, "Limit must be greater than zero");
-        electionGroupLimit = limit;
-    }
-
     /**
      * @notice Validates election group index and allocation parameters
      * @param groupIndexes Indexes referencing eligible Celo election groups
      * @param groupAllocations Percentage of total votes allocated to each group
      */
-    function _validateElectionGroups(
+    function _validateProposalGroups(
         uint256[] memory groupIndexes,
         uint256[] memory groupAllocations
     ) internal view {
         require(
-            groupIndexes.length <= electionGroupLimit,
+            groupIndexes.length <= proposalGroupLimit,
             "Proposal group limit exceeded"
         );
         require(
@@ -153,69 +109,196 @@ contract Portfolio is Protocol, Proposals, ElectionManager, UsingRegistry {
         );
     }
 
-    function _performStateMaintenance() internal {
-        uint256 currentCycle = getCurrentCycle();
+    // Checks whether a proposal exists for the ID
+    function isProposal(uint256 proposalID) public view returns (bool) {
+        return proposals[proposalID].upvotes > 0;
+    }
 
-        // If the current cycle is more recent than the proposal cycle,
-        // update election groups using the leading proposal and reset state
-        if (currentProposalCycle < currentCycle) {
-            Proposal memory leadingProposal = proposals[leadingProposalID];
-            require(
-                leadingProposal.groupIndexes.length > 0 &&
-                    leadingProposal.groupAllocations.length > 0,
-                "No new groups proposed"
-            );
+    // Checks whether an account is an upvoter
+    function isUpvoter(address account) public view returns (bool) {
+        return upvoters[account].upvotes > 0;
+    }
 
-            setElectionGroups(
-                leadingProposal.groupIndexes,
-                leadingProposal.groupAllocations
-            );
+    /**
+     * @notice Gets the upvotes of a vault owner
+     * @param vault Vault
+     */
+    function getUpvotesForVaultOwner(Vault vault)
+        internal
+        view
+        returns (uint256)
+    {
+        uint256 upvotes = bank.balanceOf(address(vault));
+        require(msg.sender == vault.owner(), "Not vault owner");
+        require(upvotes > 0, "Vault has a balance of zero");
+        return upvotes;
+    }
 
-            // Reset proposal data
-            delete proposals;
-            delete leadingProposalID;
+    function getProposal(uint256 proposalID)
+        public
+        view
+        returns (
+            uint256,
+            address[] memory,
+            uint256,
+            uint256[] memory,
+            uint256[] memory
+        )
+    {
+        require(proposalID < proposals.length, "Invalid proposal");
+        Proposal memory proposal = proposals[proposalID];
+        return (
+            proposalID,
+            proposal.upvoters,
+            proposal.upvotes,
+            proposal.groupIndexes,
+            proposal.groupAllocations
+        );
+    }
 
-            currentProposalCycle = currentCycle;
+    function getProposalByUpvoter(address upvoter)
+        public
+        view
+        returns (
+            uint256,
+            address[] memory,
+            uint256,
+            uint256[] memory,
+            uint256[] memory
+        )
+    {
+        return getProposal(upvoters[upvoter].proposalID);
+    }
+
+    /**
+     * @notice Sets a proposal as the leading proposal if it has the most upvotes
+     * @param proposalID Proposal index
+     */
+    function _updateLeadingProposal(uint256 proposalID) internal {
+        uint256 proposalUpvotes = proposals[proposalID].upvotes;
+        uint256 leadingProposalUpvotes = proposals[leadingProposalID].upvotes;
+
+        if (proposalUpvotes > leadingProposalUpvotes) {
+            leadingProposalID = proposalID;
         }
     }
 
-    function isUpvoterInCurrentCycle(address account)
-        external
-        view
-        returns (bool)
-    {
-        return _isUpvoterInCurrentCycle(account, getCurrentCycle());
-    }
-
+    /**
+     * @notice Submits a proposal
+     * @param vault Vault
+     * @param groupIndexes List of eligible Celo election group indexes
+     * @param groupAllocations Percentage of total votes allocated for the groups
+     * @dev The allocation for a group is based on its index in groupIndexes
+     */
     function submitProposal(
         Vault vault,
         uint256[] calldata groupIndexes,
         uint256[] calldata groupAllocations
     ) external {
-        _performStateMaintenance();
-        _validateElectionGroups(groupIndexes, groupAllocations);
-        _submitProposal(
-            vault,
-            groupIndexes,
-            groupAllocations,
-            getCurrentCycle()
+        uint256 upvotes = getUpvotesForVaultOwner(vault);
+        require(upvotes >= proposerBalanceMinimum, "Insufficient upvotes");
+        require(isUpvoter(msg.sender) == false, "Already an upvoter");
+
+        address[] memory proposalUpvoters;
+        uint256 proposalID = proposals.length;
+        proposals.push(
+            Proposal(proposalUpvoters, upvotes, groupIndexes, groupAllocations)
         );
+        proposals[proposalID].upvoters.push(msg.sender);
+        upvoters[msg.sender] = Upvoter(upvotes, proposalID);
+
+        _updateLeadingProposal(proposalID);
     }
 
+    /**
+     * @notice Adds upvotes to a proposal
+     * @param vault Vault
+     * @param proposalID Proposal index
+     */
     function addProposalUpvotes(Vault vault, uint256 proposalID) external {
-        _performStateMaintenance();
-        _addProposalUpvotes(vault, proposalID, getCurrentCycle());
+        require(isProposal(proposalID), "Invalid proposal");
+        require(isUpvoter(msg.sender) == false, "Already an upvoter");
+
+        // Create a new upvoter and update the proposal
+        uint256 upvotes = getUpvotesForVaultOwner(vault);
+        upvoters[msg.sender] = Upvoter(upvotes, proposalID);
+        Proposal storage proposal = proposals[proposalID];
+        proposal.upvoters.push(msg.sender);
+        proposal.upvotes = proposal.upvotes.add(upvotes);
+
+        _updateLeadingProposal(proposalID);
     }
 
+    /**
+     * @notice Updates the upvotes for an upvoter's proposal
+     * @param vault Vault
+     */
     function updateProposalUpvotes(Vault vault) external {
-        _performStateMaintenance();
-        _updateProposalUpvotes(vault, getCurrentCycle());
+        require(isUpvoter(msg.sender), "Not an upvoter");
+
+        Upvoter storage upvoter = upvoters[msg.sender];
+
+        // Difference between the current and previous vault balances
+        uint256 newUpvotes = getUpvotesForVaultOwner(vault);
+        uint256 upvoteDifference = newUpvotes.sub(upvoter.upvotes);
+
+        if (upvoteDifference == 0) {
+            return;
+        }
+
+        // Add the difference to the proposal's upvotes and update the upvoter
+        Proposal storage proposal = proposals[upvoter.proposalID];
+        proposal.upvotes = proposal.upvotes.add(upvoteDifference);
+        upvoter.upvotes = newUpvotes;
+
+        _updateLeadingProposal(upvoter.proposalID);
     }
 
-    function setElectionGroups(
-        uint256[] memory groupIndexes,
-        uint256[] memory groupAllocations
-    ) internal {
-        _setGroups(groupIndexes, groupAllocations, getCurrentCycle());
+    function setVaultFactory(address vaultFactory_) external onlyOwner {
+        vaultFactory = vaultFactory_;
+    }
+
+    function getVaultByOwner(address owner_) public view returns (address) {
+        return vaults[owner_];
+    }
+
+    function setVault(address owner_, address vault) external onlyVaultFactory {
+        require(
+            getVaultByOwner(owner_) == address(0),
+            "Vault has already been set"
+        );
+        vaults[owner_] = vault;
+    }
+
+    // Sets the parameters for the Protocol module
+    function setProtocolParameters(uint256 genesis, uint256 duration)
+        external
+        onlyOwner
+    {
+        require(genesis > 0, "Genesis block number must be greater than zero");
+        require(duration > 0, "Cycle block duration must be greater than zero");
+
+        genesisBlockNumber = genesis;
+        blockDuration = duration;
+    }
+
+    // Sets the parameters for the Proposals module
+    function setProposalsParameters(
+        Bank bank_,
+        uint256 proposalGroupLimit_,
+        uint256 proposerBalanceMinimum_
+    ) external onlyOwner {
+        require(
+            proposalGroupLimit_ > 0,
+            "Proposal group limit must be greater than zero"
+        );
+        require(
+            proposerBalanceMinimum_ > 0,
+            "Proposer balance minimum must be greater than zero"
+        );
+
+        bank = bank_;
+        proposalGroupLimit = proposalGroupLimit_;
+        proposerBalanceMinimum = proposerBalanceMinimum_;
     }
 }

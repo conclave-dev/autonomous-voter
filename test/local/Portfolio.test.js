@@ -1,6 +1,6 @@
 const { every } = require('lodash');
 const { assert } = require('./setup');
-const { groupLimit, proposerMinimum, cycleBlockDuration } = require('../../config');
+const { proposalGroupLimit, proposerBalanceMinimum, cycleBlockDuration } = require('../../config');
 
 describe('Portfolio', function () {
   before(function () {
@@ -20,20 +20,11 @@ describe('Portfolio', function () {
     });
 
     it('should have a proposalGroupLimit set', async function () {
-      return assert.equal(groupLimit, await this.portfolio.proposalGroupLimit());
+      return assert.equal(proposalGroupLimit, await this.portfolio.proposalGroupLimit());
     });
 
     it('should have a proposerBalanceMinimum set', async function () {
-      return assert.equal(proposerMinimum, await this.portfolio.proposerBalanceMinimum());
-    });
-
-    it('should have Bank and Celo Election contracts set', async function () {
-      const portfolioBank = await this.portfolio.bank();
-      const portfolioElection = await this.portfolio.election();
-      const election = await this.kit.contracts.getElection();
-
-      assert.equal(portfolioBank, this.bank.address);
-      return assert.equal(portfolioElection, election.address);
+      return assert.equal(proposerBalanceMinimum, await this.portfolio.proposerBalanceMinimum());
     });
 
     it('should have a vault factory', async function () {
@@ -41,7 +32,7 @@ describe('Portfolio', function () {
     });
 
     it(`should have a mapping to track user's vault instances`, async function () {
-      const primarySenderVaults = await this.portfolio.getVaultsByOwner(this.primarySender);
+      const primarySenderVaults = await this.portfolio.getVaultByOwner(this.primarySender);
       return assert.isTrue(primarySenderVaults.length > 0);
     });
   });
@@ -60,12 +51,12 @@ describe('Portfolio', function () {
     });
 
     it('should check valid ownership of a vault', async function () {
-      return assert.isTrue(await this.portfolio.hasVault(this.primarySender, this.vaultInstance.address));
+      return assert.equal(await this.portfolio.getVaultByOwner(this.primarySender), this.vaultInstance.address);
     });
 
     it('should submit a proposal', async function () {
       await this.bank.seed(this.vaultInstance.address, {
-        value: proposerMinimum
+        value: proposerBalanceMinimum
       });
 
       await this.portfolio.submitProposal(
@@ -91,7 +82,7 @@ describe('Portfolio', function () {
 
     it('should add upvotes to a proposal', async function () {
       await this.bank.seed(this.secondaryVaultInstance.address, {
-        value: proposerMinimum,
+        value: proposerBalanceMinimum,
         from: this.secondarySender
       });
 
@@ -116,7 +107,7 @@ describe('Portfolio', function () {
 
       // Seed additional tokens for the upvoter
       await this.bank.seed(this.secondaryVaultInstance.address, {
-        value: proposerMinimum,
+        value: proposerBalanceMinimum,
         from: this.secondarySender
       });
       await this.portfolio.updateProposalUpvotes(this.secondaryVaultInstance.address, {
@@ -162,10 +153,6 @@ describe('Portfolio', function () {
       return assert.isRejected(
         this.portfolio.setVaultFactory(this.vaultFactory.address, { from: this.secondarySender })
       );
-    });
-
-    it('should check invalid ownership of a vault', async function () {
-      return assert.isFalse(await this.portfolio.hasVault(this.secondarySender, this.vaultInstance.address));
     });
 
     it('should not set protocol params: non-owner', function () {
@@ -263,27 +250,6 @@ describe('Portfolio', function () {
         this.portfolio.updateProposalUpvotes(this.secondaryVaultInstance.address, {
           from: this.primarySender
         })
-      );
-    });
-
-    it('should co-function with Bank to prevent upvoter vault token transfers', async function () {
-      if (!(await this.portfolio.isUpvoter(this.primarySender))) {
-        await this.bank.seed(this.vaultInstance.address, {
-          value: proposerMinimum
-        });
-
-        await this.portfolio.submitProposal(
-          this.vaultInstance.address,
-          this.validProposalSubmission.indexes,
-          this.validProposalSubmission.allocations
-        );
-      }
-
-      const balance = (await this.bank.balanceOf(this.vaultInstance.address)).toNumber();
-
-      return assert.isRejected(
-        this.bank.transferFromVault(this.vaultInstance.address, this.primarySender, balance),
-        'Caller upvoted a proposal - cannot transfer tokens yet'
       );
     });
   });

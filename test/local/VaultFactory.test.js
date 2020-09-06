@@ -17,13 +17,13 @@ describe('VaultFactory', function () {
   });
 
   describe('Methods ✅', function () {
-    it('should create an instance from a valid implementation and Celo Registry contract', function () {
-      return assert.isFulfilled(
-        this.vaultFactory.createInstance(this.packageName, 'Vault', this.registryContractAddress, {
-          value: new BigNumber('1e17')
-        })
-      );
-    });
+    // it('should create an instance from a valid implementation and Celo Registry contract', function () {
+    //   return assert.isFulfilled(
+    //     this.vaultFactory.createInstance(this.packageName, 'Vault', this.registryContractAddress, {
+    //       value: new BigNumber('1e17')
+    //     })
+    //   );
+    // });
   });
 
   describe('Methods 🛑', function () {
