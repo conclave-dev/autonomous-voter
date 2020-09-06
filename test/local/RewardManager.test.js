@@ -13,11 +13,11 @@ describe.only('RewardManager', function () {
 
   describe('State', function () {
     it('should have the correct reward expiration', async function () {
-      return assert.equal(await this.bank.rewardExpiration(), rewardExpiration);
+      return assert.equal(await this.rewardManager.rewardExpiration(), rewardExpiration);
     });
 
     it('should have the correct holder reward percentage', async function () {
-      return assert.equal(await this.bank.holderRewardPercentage(), holderRewardPercentage);
+      return assert.equal(await this.rewardManager.holderRewardPercentage(), holderRewardPercentage);
     });
   });
 });
