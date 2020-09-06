@@ -1,9 +1,9 @@
-const { every } = require('lodash');
 const { assert } = require('./setup');
-const { proposalGroupLimit, proposerBalanceMinimum, cycleBlockDuration } = require('../../config');
+const { proposalLimit, maximumProposalGroups } = require('../../config');
 
 describe('Portfolio', function () {
   before(function () {
+    this.vaultSeedAmount = 10;
     this.validProposalSubmission = {
       indexes: [0, 1, 2],
       allocations: [20, 20, 60]
@@ -11,26 +11,6 @@ describe('Portfolio', function () {
   });
 
   describe('State', function () {
-    it('should have a genesisBlockNumber set', async function () {
-      return assert.equal(this.genesisBlockNumber, await this.portfolio.genesisBlockNumber());
-    });
-
-    it('should have a blockDuration set', async function () {
-      return assert.equal(cycleBlockDuration, await this.portfolio.blockDuration());
-    });
-
-    it('should have a proposalGroupLimit set', async function () {
-      return assert.equal(proposalGroupLimit, await this.portfolio.proposalGroupLimit());
-    });
-
-    it('should have a proposerBalanceMinimum set', async function () {
-      return assert.equal(proposerBalanceMinimum, await this.portfolio.proposerBalanceMinimum());
-    });
-
-    it('should have a vault factory', async function () {
-      return assert.equal(await this.portfolio.vaultFactory(), this.vaultFactory.address);
-    });
-
     it(`should have a mapping to track user's vault instances`, async function () {
       const primarySenderVaults = await this.portfolio.getVaultByOwner(this.primarySender);
       return assert.isTrue(primarySenderVaults.length > 0);
@@ -42,21 +22,24 @@ describe('Portfolio', function () {
       return assert.equal(await this.portfolio.owner(), this.primarySender);
     });
 
-    it('should initialize with the Celo Registry contract', async function () {
-      return assert.equal(await this.portfolio.registry(), this.registryContractAddress);
+    it('should have correct protocol contracts set', async function () {
+      assert.equal(await this.portfolio.registry(), this.registryContractAddress);
+      assert.equal(await this.portfolio.bank(), this.bank.address);
+      return assert.equal(await this.portfolio.vaultFactory(), this.vaultFactory.address);
     });
 
-    it('should allow the owner to set the vault factory', function () {
-      return assert.isFulfilled(this.portfolio.setVaultFactory(this.vaultFactory.address));
+    it('should have correct protocol parameters set', async function () {
+      assert.equal(await this.portfolio.proposalLimit(), proposalLimit);
+      return assert.equal(await this.portfolio.maximumProposalGroups(), maximumProposalGroups);
     });
 
-    it('should check valid ownership of a vault', async function () {
+    it('should get a vault by owner', async function () {
       return assert.equal(await this.portfolio.getVaultByOwner(this.primarySender), this.vaultInstance.address);
     });
 
     it('should submit a proposal', async function () {
       await this.bank.seed(this.vaultInstance.address, {
-        value: proposerBalanceMinimum
+        value: this.vaultSeedAmount
       });
 
       await this.portfolio.submitProposal(
@@ -65,24 +48,18 @@ describe('Portfolio', function () {
         this.validProposalSubmission.allocations
       );
 
-      const proposal = await this.portfolio.getProposalByUpvoter(this.primarySender);
-      const vaultBalance = await this.bank.balanceOf(this.vaultInstance.address);
-      const { 0: id, 1: upvoters, 2: upvotes, 3: groupIndexes, 4: groupAllocations } = proposal;
+      const { 0: proposalID, 1: upvoters, 2: upvotes } = await this.portfolio.getProposalByUpvoter(this.primarySender);
 
-      this.submittedProposalID = id;
+      this.submittedProposalID = proposalID;
 
-      assert.deepStrictEqual(proposal, await this.portfolio.getProposal(id));
-      assert.equal(this.primarySender, upvoters[0]);
-      assert.equal(vaultBalance, upvotes.toNumber());
-      assert.isTrue(every(this.validProposalSubmission.indexes, (val, i) => val === groupIndexes[i].toNumber()));
-      return assert.isTrue(
-        every(this.validProposalSubmission.allocations, (val, i) => val === groupAllocations[i].toNumber())
-      );
+      assert.equal(upvoters.length, 1);
+      assert.equal(upvoters[0], this.primarySender);
+      return assert.equal(upvotes, 10);
     });
 
     it('should add upvotes to a proposal', async function () {
       await this.bank.seed(this.secondaryVaultInstance.address, {
-        value: proposerBalanceMinimum,
+        value: this.vaultSeedAmount,
         from: this.secondarySender
       });
 
@@ -107,7 +84,7 @@ describe('Portfolio', function () {
 
       // Seed additional tokens for the upvoter
       await this.bank.seed(this.secondaryVaultInstance.address, {
-        value: proposerBalanceMinimum,
+        value: this.vaultSeedAmount,
         from: this.secondarySender
       });
       await this.portfolio.updateProposalUpvotes(this.secondaryVaultInstance.address, {
@@ -123,7 +100,7 @@ describe('Portfolio', function () {
 
     it('should update the leading proposal ID', async function () {
       const leadingProposalID = (await this.portfolio.leadingProposalID()).toNumber();
-      const leadingProposalUpvotes = (await this.portfolio.getProposal(leadingProposalID))[2].toNumber();
+      const leadingProposalUpvotes = (await this.portfolio.getProposal(leadingProposalID))[1].toNumber();
 
       await this.bank.seed(this.thirdVaultInstance.address, {
         value: leadingProposalUpvotes * 2,
@@ -141,7 +118,7 @@ describe('Portfolio', function () {
 
       const { 0: proposalID, 2: proposalUpvotes } = await this.portfolio.getProposalByUpvoter(this.thirdSender);
       const currentLeadingProposalID = (await this.portfolio.leadingProposalID()).toNumber();
-      const currentLeadingProposalUpvotes = (await this.portfolio.getProposal(currentLeadingProposalID))[2].toNumber();
+      const currentLeadingProposalUpvotes = (await this.portfolio.getProposal(currentLeadingProposalID))[1].toNumber();
 
       assert.equal(proposalUpvotes.toNumber(), currentLeadingProposalUpvotes);
       return assert.equal(proposalID.toNumber(), currentLeadingProposalID);
@@ -149,36 +126,6 @@ describe('Portfolio', function () {
   });
 
   describe('Methods 🛑', function () {
-    it('should disallow non-owners from setting the vault factory', function () {
-      return assert.isRejected(
-        this.portfolio.setVaultFactory(this.vaultFactory.address, { from: this.secondarySender })
-      );
-    });
-
-    it('should not set protocol params: non-owner', function () {
-      return assert.isRejected(
-        this.portfolio.setProtocolParameters(this.genesisBlockNumber, this.cycleBlockDuration, {
-          from: this.secondarySender
-        })
-      );
-    });
-
-    it('should not set protocol params: invalid genesis', function () {
-      return assert.isRejected(
-        this.portfolio.setProtocolParameters(0, this.cycleBlockDuration, {
-          from: this.secondarySender
-        })
-      );
-    });
-
-    it('should not set protocol params: invalid duration', function () {
-      return assert.isRejected(
-        this.portfolio.setProtocolParameters(this.genesisBlockNumber, 0, {
-          from: this.secondarySender
-        })
-      );
-    });
-
     it('should not submit proposal: already upvoter', function () {
       return assert.isRejected(
         this.portfolio.submitProposal(

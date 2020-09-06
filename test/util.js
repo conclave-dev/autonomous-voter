@@ -1,7 +1,7 @@
 const { newKit } = require('@celo/contractkit');
 const contract = require('@truffle/contract');
 const BigNumber = require('bignumber.js');
-const { registryContractAddress, packageName, tokenDecimal, cycleBlockDuration } = require('../config');
+const { registryContractAddress, packageName, tokenDecimal } = require('../config');
 
 const contractBuildFiles = [
   require('../build/contracts/App.json'),
@@ -42,7 +42,6 @@ const setUpGlobalTestVariables = async (rpcAPI, primaryAccount) => {
     managerCommission: new BigNumber('10'),
     minimumBalanceRequirement: new BigNumber('1e10'),
     zeroAddress: '0x0000000000000000000000000000000000000000',
-    genesisBlockNumber: (await kit.web3.eth.getBlockNumber()) + 1,
     app: await contracts.App.deployed(),
     vault: await contracts.Vault.deployed(),
     vaultFactory: await contracts.VaultFactory.deployed(),
@@ -57,8 +56,7 @@ const setUpGlobalTestContracts = async ({
   primarySender,
   secondarySender,
   thirdSender,
-  vaultFactory,
-  genesisBlockNumber
+  vaultFactory
 }) => {
   const getVaultByOwner = (account) => portfolio.getVaultByOwner(account);
   const createVaultInstance = (account) =>
@@ -78,8 +76,6 @@ const setUpGlobalTestContracts = async ({
   const vaultInstance = await contracts.Vault.at(primaryVault);
   const secondaryVaultInstance = await contracts.Vault.at(secondaryVault);
   const thirdVaultInstance = await contracts.Vault.at(thirdVault);
-
-  await portfolio.setProtocolParameters(genesisBlockNumber, cycleBlockDuration);
 
   // Maintain state and used for voting tests
   return {

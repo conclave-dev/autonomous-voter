@@ -2,13 +2,21 @@ pragma solidity ^0.5.8;
 
 import "./celo/common/UsingRegistry.sol";
 import "./celo/governance/interfaces/IElection.sol";
-import "./modules/Protocol.sol";
 import "./modules/ElectionManager.sol";
 import "./Vault.sol";
 import "./Bank.sol";
+import "./VaultFactory.sol";
 
-contract Portfolio is Protocol, ElectionManager, UsingRegistry {
+contract Portfolio is ElectionManager, UsingRegistry {
     using SafeMath for uint256;
+
+    Bank public bank;
+    // Enables the Portfolio to only add vaults created by a known factory
+    VaultFactory public vaultFactory;
+    // Number of proposals that can exist at one time
+    uint256 public proposalLimit;
+    // Maximum number of groups that can be proposed
+    uint256 public maximumProposalGroups;
 
     struct Proposal {
         // The accounts that have upvoted the proposal
@@ -30,33 +38,35 @@ contract Portfolio is Protocol, ElectionManager, UsingRegistry {
         uint256 proposalID;
     }
 
-    Bank public bank;
     Proposal[] public proposals;
     mapping(address => Upvoter) public upvoters;
-    // Maximum number of groups that can be proposed
-    uint256 public proposalGroupLimit;
-    // Minimum vault balance required to submit a proposal
-    uint256 public proposerBalanceMinimum;
     uint256 public leadingProposalID;
 
-    // Factory contracts that are able to modify the lists below
-    address public vaultFactory;
-
-    // A Celo account mapped to its vault contract
-    mapping(address => address) public vaults;
-
-    modifier onlyVaultFactory() {
-        require(msg.sender == vaultFactory, "Sender is not the vault factory");
-        _;
-    }
+    mapping(address => address) public vaultsByOwner;
 
     /**
-     * @notice Initializes the Celo Registry contract and sets the owner
-     * @param registry_ The address of the Celo Registry contract
+     * @notice Initializes Portfolio contract
+     * @param registry_ Celo Registry contract
      */
     function initialize(address registry_) public initializer {
         Ownable.initialize(msg.sender);
         UsingRegistry.initializeRegistry(msg.sender, registry_);
+    }
+
+    function setProtocolContracts(Bank bank_, VaultFactory vaultFactory_)
+        external
+        onlyOwner
+    {
+        bank = bank_;
+        vaultFactory = vaultFactory_;
+    }
+
+    function setProtocolParameters(
+        uint256 proposalLimit_,
+        uint256 maximumProposalGroups_
+    ) external onlyOwner {
+        proposalLimit = proposalLimit_;
+        maximumProposalGroups = maximumProposalGroups_;
     }
 
     /**
@@ -69,7 +79,7 @@ contract Portfolio is Protocol, ElectionManager, UsingRegistry {
         uint256[] memory groupAllocations
     ) internal view {
         require(
-            groupIndexes.length <= proposalGroupLimit,
+            groupIndexes.length <= maximumProposalGroups,
             "Proposal group limit exceeded"
         );
         require(
@@ -134,11 +144,11 @@ contract Portfolio is Protocol, ElectionManager, UsingRegistry {
         return upvotes;
     }
 
+    // Retrieves a proposal by ID and return its field values
     function getProposal(uint256 proposalID)
         public
         view
         returns (
-            uint256,
             address[] memory,
             uint256,
             uint256[] memory,
@@ -148,7 +158,6 @@ contract Portfolio is Protocol, ElectionManager, UsingRegistry {
         require(proposalID < proposals.length, "Invalid proposal");
         Proposal memory proposal = proposals[proposalID];
         return (
-            proposalID,
             proposal.upvoters,
             proposal.upvotes,
             proposal.groupIndexes,
@@ -156,18 +165,32 @@ contract Portfolio is Protocol, ElectionManager, UsingRegistry {
         );
     }
 
+    // Retrieves a proposal by an upvoter's proposal ID and return its values
     function getProposalByUpvoter(address upvoter)
         public
         view
         returns (
-            uint256,
-            address[] memory,
-            uint256,
-            uint256[] memory,
-            uint256[] memory
+            uint256 upvoterProposalID,
+            address[] memory proposalUpvoters,
+            uint256 upvotes,
+            uint256[] memory groupIndexes,
+            uint256[] memory groupAllocations
         )
     {
-        return getProposal(upvoters[upvoter].proposalID);
+        upvoterProposalID = upvoters[upvoter].proposalID;
+        (
+            proposalUpvoters,
+            upvotes,
+            groupIndexes,
+            groupAllocations
+        ) = getProposal(upvoterProposalID);
+        return (
+            upvoterProposalID,
+            proposalUpvoters,
+            upvotes,
+            groupIndexes,
+            groupAllocations
+        );
     }
 
     /**
@@ -196,7 +219,6 @@ contract Portfolio is Protocol, ElectionManager, UsingRegistry {
         uint256[] calldata groupAllocations
     ) external {
         uint256 upvotes = getUpvotesForVaultOwner(vault);
-        require(upvotes >= proposerBalanceMinimum, "Insufficient upvotes");
         require(isUpvoter(msg.sender) == false, "Already an upvoter");
 
         address[] memory proposalUpvoters;
@@ -254,51 +276,19 @@ contract Portfolio is Protocol, ElectionManager, UsingRegistry {
         _updateLeadingProposal(upvoter.proposalID);
     }
 
-    function setVaultFactory(address vaultFactory_) external onlyOwner {
-        vaultFactory = vaultFactory_;
+    function setVaultByOwner(address owner_, address vault) external {
+        require(
+            msg.sender == address(vaultFactory),
+            "Caller is not the VaultFactory contract"
+        );
+        require(
+            getVaultByOwner(owner_) == address(0),
+            "Vault for owner has already been set"
+        );
+        vaultsByOwner[owner_] = vault;
     }
 
     function getVaultByOwner(address owner_) public view returns (address) {
-        return vaults[owner_];
-    }
-
-    function setVault(address owner_, address vault) external onlyVaultFactory {
-        require(
-            getVaultByOwner(owner_) == address(0),
-            "Vault has already been set"
-        );
-        vaults[owner_] = vault;
-    }
-
-    // Sets the parameters for the Protocol module
-    function setProtocolParameters(uint256 genesis, uint256 duration)
-        external
-        onlyOwner
-    {
-        require(genesis > 0, "Genesis block number must be greater than zero");
-        require(duration > 0, "Cycle block duration must be greater than zero");
-
-        genesisBlockNumber = genesis;
-        blockDuration = duration;
-    }
-
-    // Sets the parameters for the Proposals module
-    function setProposalsParameters(
-        Bank bank_,
-        uint256 proposalGroupLimit_,
-        uint256 proposerBalanceMinimum_
-    ) external onlyOwner {
-        require(
-            proposalGroupLimit_ > 0,
-            "Proposal group limit must be greater than zero"
-        );
-        require(
-            proposerBalanceMinimum_ > 0,
-            "Proposer balance minimum must be greater than zero"
-        );
-
-        bank = bank_;
-        proposalGroupLimit = proposalGroupLimit_;
-        proposerBalanceMinimum = proposerBalanceMinimum_;
+        return vaultsByOwner[owner_];
     }
 }
