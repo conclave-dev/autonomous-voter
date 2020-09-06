@@ -3,12 +3,10 @@ pragma solidity ^0.5.8;
 
 import "@openzeppelin/contracts-ethereum-package/contracts/math/SafeMath.sol";
 import "./celo/common/UsingRegistry.sol";
-import "./celo/common/libraries/LinkedList.sol";
 import "./modules/ElectionVoter.sol";
 
 contract Vault is ElectionVoter, UsingRegistry {
     using SafeMath for uint256;
-    using LinkedList for LinkedList.List;
 
     address public portfolio;
     address public proxyAdmin;
@@ -31,7 +29,6 @@ contract Vault is ElectionVoter, UsingRegistry {
 
         _setProxyAdmin(proxyAdmin_);
         getAccounts().createAccount();
-        deposit();
     }
 
     function setProxyAdmin(address admin) external onlyOwner {

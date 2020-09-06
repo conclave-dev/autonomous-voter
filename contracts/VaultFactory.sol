@@ -8,8 +8,6 @@ import "./Portfolio.sol";
 import "./ProxyAdmin.sol";
 
 contract VaultFactory is Initializable {
-    uint256 public constant MINIMUM_DEPOSIT = 100000000000000000;
-
     App public app;
     Portfolio public portfolio;
 
@@ -23,11 +21,6 @@ contract VaultFactory is Initializable {
         string calldata contractName,
         address registry
     ) external payable {
-        require(
-            msg.value >= MINIMUM_DEPOSIT,
-            "Insufficient funds for initial deposit"
-        );
-
         address vaultOwner = msg.sender;
 
         // Create a vault admin for managing the user's vault upgradeability
@@ -37,7 +30,7 @@ contract VaultFactory is Initializable {
 
         // Create the actual vault instance
         address vaultAddress = address(
-            app.create.value(msg.value)(
+            app.create(
                 packageName,
                 contractName,
                 adminAddress,

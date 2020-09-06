@@ -61,7 +61,6 @@ const setUpGlobalTestContracts = async ({
   const getVaultByOwner = (account) => portfolio.getVaultByOwner(account);
   const createVaultInstance = (account) =>
     vaultFactory.createInstance(packageName, 'Vault', registryContractAddress, {
-      value: new BigNumber('1e17'),
       from: account
     });
 
