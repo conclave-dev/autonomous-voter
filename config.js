@@ -8,6 +8,7 @@ module.exports = {
   seedRatio: 1,
   seedFreezeDuration: 31536000,
   rewardExpiration: 7,
+  holderRewardPercentage: 80,
   groupLimit: 3,
   proposerMinimum: 100,
   cycleBlockDuration: 120960,

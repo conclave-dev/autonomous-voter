@@ -5,7 +5,8 @@ const {
   tokenSymbol,
   tokenDecimal,
   seedFreezeDuration,
-  rewardExpiration
+  rewardExpiration,
+  holderRewardPercentage
 } = require('../config');
 
 const App = artifacts.require('App');
@@ -16,7 +17,7 @@ const Bank = artifacts.require('Bank');
 const Portfolio = artifacts.require('Portfolio');
 const RewardManager = artifacts.require('RewardManager');
 
-const MockBank = artifacts.require('Bank');
+const MockBank = artifacts.require('MockBank');
 
 module.exports = (deployer) =>
   deployer.then(async () => {
@@ -57,7 +58,7 @@ module.exports = (deployer) =>
       },
       {
         contract: 'RewardManager',
-        fn: async () => await rewardManager.initialize(bank.address, rewardExpiration)
+        fn: async () => await rewardManager.initialize(bank.address, rewardExpiration, holderRewardPercentage)
       },
       {
         contract: 'MockBank',
