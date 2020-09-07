@@ -2,6 +2,7 @@ pragma solidity ^0.5.8;
 
 import "@openzeppelin/contracts-ethereum-package/contracts/math/SafeMath.sol";
 import "./celo/common/UsingRegistry.sol";
+import "./celo/common/libraries/AddressLinkedList.sol";
 import "./celo/common/libraries/IntegerSortedLinkedList.sol";
 import "./Bank.sol";
 import "./VaultFactory.sol";
@@ -9,6 +10,7 @@ import "./Vault.sol";
 
 contract Portfolio is UsingRegistry {
     using SafeMath for uint256;
+    using AddressLinkedList for LinkedList.List;
     using IntegerSortedLinkedList for SortedLinkedList.List;
 
     Bank public bank;
@@ -23,7 +25,7 @@ contract Portfolio is UsingRegistry {
         // The account that submitted the proposal
         address proposer;
         // The accounts that have upvoted the proposal
-        address[] upvoters;
+        LinkedList.List upvoters;
         // The cumulative vault balances of the proposal
         uint256 upvotes;
         // Indexes which reference eligible Celo groups
@@ -42,9 +44,8 @@ contract Portfolio is UsingRegistry {
     }
 
     mapping(address => address) public vaultsByOwner;
-    mapping(uint256 => Proposal) public proposals;
+    mapping(uint256 => Proposal) proposals;
     SortedLinkedList.List proposalUpvotesByID;
-    uint256 public leadingProposalID;
     mapping(address => Upvoter) public upvoters;
 
     /**
@@ -139,55 +140,12 @@ contract Portfolio is UsingRegistry {
         );
     }
 
-    /**
-     * @notice Sets a proposal as the leading proposal if it has the most upvotes
-     * @param proposalID Proposal index
-     */
-    function _updateLeadingProposal(uint256 proposalID) internal {
-        uint256 proposalUpvotes = proposals[proposalID].upvotes;
-        uint256 leadingProposalUpvotes = proposals[leadingProposalID].upvotes;
-
-        if (proposalUpvotes > leadingProposalUpvotes) {
-            leadingProposalID = proposalID;
-        }
-    }
-
-    /**
-     * @notice Adds a proposal's ID and upvotes in between a proposal with lesser upvotes
-     * @notice and a proposal with greater upvotes.
-     * @param newProposalUpvotes New proposal's upvotes
-     * @param lesserProposalID Proposal with lesser upvotes
-     * @param greaterProposalID Proposal with greater upvotes
-     */
-    function _insertProposalByUpvotes(
-        uint256 newProposalUpvotes,
-        uint256 lesserProposalID,
-        uint256 greaterProposalID
-    ) internal returns (uint256 newProposalID) {
-        (uint256[] memory proposalIDs, ) = proposalUpvotesByID.getElements();
-        newProposalID = proposalIDs.length + 1;
-
-        proposalUpvotesByID.insert(
-            newProposalID,
-            newProposalUpvotes,
-            lesserProposalID,
-            greaterProposalID
-        );
-
-        return newProposalID;
-    }
-
     function getProposalIDsByUpvotes()
         public
         view
         returns (uint256[] memory proposalIDs, uint256[] memory proposalUpvotes)
     {
         return proposalUpvotesByID.getElements();
-    }
-
-    // Checks whether a proposal exists for the ID
-    function isProposal(uint256 proposalID) public view returns (bool) {
-        return proposals[proposalID].upvotes > 0;
     }
 
     // Checks whether an account is an upvoter
@@ -215,7 +173,6 @@ contract Portfolio is UsingRegistry {
         public
         view
         returns (
-            address[] memory,
             uint256,
             uint256[] memory,
             uint256[] memory
@@ -223,7 +180,6 @@ contract Portfolio is UsingRegistry {
     {
         Proposal memory proposal = proposals[proposalID];
         return (
-            proposal.upvoters,
             proposal.upvotes,
             proposal.groupIndexes,
             proposal.groupAllocations
@@ -236,26 +192,16 @@ contract Portfolio is UsingRegistry {
         view
         returns (
             uint256 upvoterProposalID,
-            address[] memory proposalUpvoters,
             uint256 upvotes,
             uint256[] memory groupIndexes,
             uint256[] memory groupAllocations
         )
     {
         upvoterProposalID = upvoters[upvoter].proposalID;
-        (
-            proposalUpvoters,
-            upvotes,
-            groupIndexes,
-            groupAllocations
-        ) = getProposal(upvoterProposalID);
-        return (
-            upvoterProposalID,
-            proposalUpvoters,
-            upvotes,
-            groupIndexes,
-            groupAllocations
+        (upvotes, groupIndexes, groupAllocations) = getProposal(
+            upvoterProposalID
         );
+        return (upvoterProposalID, upvotes, groupIndexes, groupAllocations);
     }
 
     /**
@@ -263,11 +209,12 @@ contract Portfolio is UsingRegistry {
      * @param vault Vault
      * @param groupIndexes List of eligible Celo election group indexes
      * @param groupAllocations Percentage of total votes allocated for the groups
-     * @param lesserProposalID Proposal ID with lesser upvotes
-     * @param greaterProposalID Proposal ID with greater upvotes
-     * @dev The allocation for a group is based on its index in groupIndexes
+     * @param lesserProposalID Proposal with lesser upvotes after upvotes are set
+     * @param greaterProposalID Proposal with greater upvotes after upvotes are set
+     * @dev Group indexes and allocations have the same indexes for their arrays
+     * @dev Set lesser or greater proposal ID to zero if they do not exist
      */
-    function submitProposal(
+    function addProposal(
         Vault vault,
         uint256[] calldata groupIndexes,
         uint256[] calldata groupAllocations,
@@ -277,15 +224,19 @@ contract Portfolio is UsingRegistry {
         address proposer = msg.sender;
         require(isUpvoter(proposer) == false, "Already an upvoter");
 
+        (uint256[] memory proposalIDs, ) = proposalUpvotesByID.getElements();
         uint256 newProposalUpvotes = verifyVaultOwnershipAndGetUpvotes(vault);
-        uint256 newProposalID = _insertProposalByUpvotes(
+        uint256 newProposalID = proposalIDs.length + 1;
+
+        proposalUpvotesByID.insert(
+            newProposalID,
             newProposalUpvotes,
             lesserProposalID,
             greaterProposalID
         );
 
         // Create a new proposal and upvoter for proposer
-        address[] memory proposalUpvoters;
+        LinkedList.List memory proposalUpvoters;
         proposals[newProposalID] = Proposal(
             proposer,
             proposalUpvoters,
@@ -298,46 +249,81 @@ contract Portfolio is UsingRegistry {
     }
 
     /**
-     * @notice Adds upvotes to a proposal
-     * @param vault Vault
-     * @param proposalID Proposal index
+     * @notice Removes a proposal if caller is the proposer
+     * @param proposalID Proposal ID
      */
-    function addProposalUpvotes(Vault vault, uint256 proposalID) external {
-        require(isProposal(proposalID), "Invalid proposal");
-        require(isUpvoter(msg.sender) == false, "Already an upvoter");
-
-        // Create a new upvoter and update the proposal
-        uint256 upvotes = verifyVaultOwnershipAndGetUpvotes(vault);
-        upvoters[msg.sender] = Upvoter(upvotes, proposalID);
-        Proposal storage proposal = proposals[proposalID];
-        proposal.upvoters.push(msg.sender);
-        proposal.upvotes = proposal.upvotes.add(upvotes);
-
-        _updateLeadingProposal(proposalID);
+    function removeProposal(uint256 proposalID) external {
+        require(
+            proposals[proposalID].proposer == msg.sender,
+            "Caller is not the proposer"
+        );
+        delete proposals[proposalID];
+        delete upvoters[msg.sender];
+        proposalUpvotesByID.remove(proposalID);
     }
 
     /**
-     * @notice Updates the upvotes for an upvoter's proposal
+     * @notice Adds upvotes to a proposal
      * @param vault Vault
+     * @param proposalID Proposal index
+     * @param lesserProposalID Proposal with lesser upvotes after upvotes are added
+     * @param greaterProposalID Proposal with greater upvotes after upvotes are added
+     * @dev Set lesser or greater proposal ID to zero if they do not exist
      */
-    function updateProposalUpvotes(Vault vault) external {
-        require(isUpvoter(msg.sender), "Not an upvoter");
-
+    function addProposalUpvotes(
+        Vault vault,
+        uint256 proposalID,
+        uint256 lesserProposalID,
+        uint256 greaterProposalID
+    ) external {
+        Proposal storage proposal = proposals[proposalID];
         Upvoter storage upvoter = upvoters[msg.sender];
+        require(proposal.upvotes > 0, "Invalid proposal");
+        require(upvoter.upvotes == 0, "Already an upvoter");
 
-        // Difference between the current and previous vault balances
-        uint256 newUpvotes = verifyVaultOwnershipAndGetUpvotes(vault);
-        uint256 upvoteDifference = newUpvotes.sub(upvoter.upvotes);
+        uint256 upvotes = verifyVaultOwnershipAndGetUpvotes(vault);
+        upvoter.upvotes = upvotes;
+        upvoter.proposalID = proposalID;
+        proposal.upvoters.push(msg.sender);
+        proposal.upvotes = proposal.upvotes.add(upvoter.upvotes);
 
-        if (upvoteDifference == 0) {
-            return;
-        }
+        proposalUpvotesByID.update(
+            proposalID,
+            proposal.upvotes,
+            lesserProposalID,
+            greaterProposalID
+        );
+    }
 
-        // Add the difference to the proposal's upvotes and update the upvoter
-        Proposal storage proposal = proposals[upvoter.proposalID];
-        proposal.upvotes = proposal.upvotes.add(upvoteDifference);
-        upvoter.upvotes = newUpvotes;
+    /**
+     * @notice Removes upvotes from a proposal and deletes the upvoter
+     * @param proposalID Proposal index
+     * @param lesserProposalID Proposal with lesser upvotes after upvotes are removed
+     * @param greaterProposalID Proposal with greater upvotes after upvotes are removed
+     * @dev Set lesser or greater proposal ID to zero if they do not exist
+     */
+    function removeProposalUpvotes(
+        uint256 proposalID,
+        uint256 lesserProposalID,
+        uint256 greaterProposalID
+    ) external {
+        Proposal storage proposal = proposals[proposalID];
+        Upvoter memory upvoter = upvoters[msg.sender];
+        require(proposal.upvotes > 0, "Invalid proposal");
+        require(
+            proposal.upvoters.contains(msg.sender),
+            "Not an upvoter for proposal"
+        );
 
-        _updateLeadingProposal(upvoter.proposalID);
+        proposal.upvoters.remove(msg.sender);
+        proposal.upvotes = proposal.upvotes.sub(upvoter.upvotes);
+        delete upvoters[msg.sender];
+
+        proposalUpvotesByID.update(
+            proposalID,
+            proposal.upvotes,
+            lesserProposalID,
+            greaterProposalID
+        );
     }
 }
