@@ -2,12 +2,14 @@ pragma solidity ^0.5.8;
 
 import "@openzeppelin/contracts-ethereum-package/contracts/math/SafeMath.sol";
 import "./celo/common/UsingRegistry.sol";
+import "./celo/common/libraries/IntegerSortedLinkedList.sol";
 import "./Bank.sol";
 import "./VaultFactory.sol";
 import "./Vault.sol";
 
 contract Portfolio is UsingRegistry {
     using SafeMath for uint256;
+    using IntegerSortedLinkedList for SortedLinkedList.List;
 
     Bank public bank;
     // Enables the Portfolio to only add vaults created by a known factory
@@ -40,7 +42,8 @@ contract Portfolio is UsingRegistry {
     }
 
     mapping(address => address) public vaultsByOwner;
-    Proposal[] public proposals;
+    mapping(uint256 => Proposal) public proposals;
+    SortedLinkedList.List proposalUpvotesByID;
     uint256 public leadingProposalID;
     mapping(address => Upvoter) public upvoters;
 
@@ -149,6 +152,39 @@ contract Portfolio is UsingRegistry {
         }
     }
 
+    /**
+     * @notice Adds a proposal's ID and upvotes in between a proposal with lesser upvotes
+     * @notice and a proposal with greater upvotes.
+     * @param newProposalUpvotes New proposal's upvotes
+     * @param lesserProposalID Proposal with lesser upvotes
+     * @param greaterProposalID Proposal with greater upvotes
+     */
+    function _insertProposalByUpvotes(
+        uint256 newProposalUpvotes,
+        uint256 lesserProposalID,
+        uint256 greaterProposalID
+    ) internal returns (uint256 newProposalID) {
+        (uint256[] memory proposalIDs, ) = proposalUpvotesByID.getElements();
+        newProposalID = proposalIDs.length + 1;
+
+        proposalUpvotesByID.insert(
+            newProposalID,
+            newProposalUpvotes,
+            lesserProposalID,
+            greaterProposalID
+        );
+
+        return newProposalID;
+    }
+
+    function getProposalIDsByUpvotes()
+        public
+        view
+        returns (uint256[] memory proposalIDs, uint256[] memory proposalUpvotes)
+    {
+        return proposalUpvotesByID.getElements();
+    }
+
     // Checks whether a proposal exists for the ID
     function isProposal(uint256 proposalID) public view returns (bool) {
         return proposals[proposalID].upvotes > 0;
@@ -163,14 +199,14 @@ contract Portfolio is UsingRegistry {
      * @notice Gets the upvotes of a vault owner
      * @param vault Vault
      */
-    function getUpvotesForVaultOwner(Vault vault)
+    function verifyVaultOwnershipAndGetUpvotes(Vault vault)
         internal
         view
         returns (uint256)
     {
         uint256 upvotes = bank.balanceOf(address(vault));
         require(msg.sender == vault.owner(), "Not vault owner");
-        require(upvotes > minimumUpvoterBalance, "Insufficient balance");
+        require(upvotes >= minimumUpvoterBalance, "Insufficient balance");
         return upvotes;
     }
 
@@ -185,7 +221,6 @@ contract Portfolio is UsingRegistry {
             uint256[] memory
         )
     {
-        require(proposalID < proposals.length, "Invalid proposal");
         Proposal memory proposal = proposals[proposalID];
         return (
             proposal.upvoters,
@@ -228,32 +263,38 @@ contract Portfolio is UsingRegistry {
      * @param vault Vault
      * @param groupIndexes List of eligible Celo election group indexes
      * @param groupAllocations Percentage of total votes allocated for the groups
+     * @param lesserProposalID Proposal ID with lesser upvotes
+     * @param greaterProposalID Proposal ID with greater upvotes
      * @dev The allocation for a group is based on its index in groupIndexes
      */
     function submitProposal(
         Vault vault,
         uint256[] calldata groupIndexes,
-        uint256[] calldata groupAllocations
+        uint256[] calldata groupAllocations,
+        uint256 lesserProposalID,
+        uint256 greaterProposalID
     ) external {
-        require(isUpvoter(msg.sender) == false, "Already an upvoter");
+        address proposer = msg.sender;
+        require(isUpvoter(proposer) == false, "Already an upvoter");
 
-        // Compare caller's upvotes with that of the smallest proposal's upvotes
-        uint256 upvotes = getUpvotesForVaultOwner(vault);
-        uint256 proposalID = proposals.length;
-        address[] memory proposalUpvoters;
-        proposals.push(
-            Proposal(
-                msg.sender,
-                proposalUpvoters,
-                upvotes,
-                groupIndexes,
-                groupAllocations
-            )
+        uint256 newProposalUpvotes = verifyVaultOwnershipAndGetUpvotes(vault);
+        uint256 newProposalID = _insertProposalByUpvotes(
+            newProposalUpvotes,
+            lesserProposalID,
+            greaterProposalID
         );
-        proposals[proposalID].upvoters.push(msg.sender);
-        upvoters[msg.sender] = Upvoter(upvotes, proposalID);
 
-        _updateLeadingProposal(proposalID);
+        // Create a new proposal and upvoter for proposer
+        address[] memory proposalUpvoters;
+        proposals[newProposalID] = Proposal(
+            proposer,
+            proposalUpvoters,
+            newProposalUpvotes,
+            groupIndexes,
+            groupAllocations
+        );
+        proposals[newProposalID].upvoters.push(proposer);
+        upvoters[proposer] = Upvoter(newProposalUpvotes, newProposalID);
     }
 
     /**
@@ -266,7 +307,7 @@ contract Portfolio is UsingRegistry {
         require(isUpvoter(msg.sender) == false, "Already an upvoter");
 
         // Create a new upvoter and update the proposal
-        uint256 upvotes = getUpvotesForVaultOwner(vault);
+        uint256 upvotes = verifyVaultOwnershipAndGetUpvotes(vault);
         upvoters[msg.sender] = Upvoter(upvotes, proposalID);
         Proposal storage proposal = proposals[proposalID];
         proposal.upvoters.push(msg.sender);
@@ -285,7 +326,7 @@ contract Portfolio is UsingRegistry {
         Upvoter storage upvoter = upvoters[msg.sender];
 
         // Difference between the current and previous vault balances
-        uint256 newUpvotes = getUpvotesForVaultOwner(vault);
+        uint256 newUpvotes = verifyVaultOwnershipAndGetUpvotes(vault);
         uint256 upvoteDifference = newUpvotes.sub(upvoter.upvotes);
 
         if (upvoteDifference == 0) {

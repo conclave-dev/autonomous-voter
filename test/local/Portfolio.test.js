@@ -3,7 +3,7 @@ const { minimumUpvoterBalance, maximumProposalGroups } = require('../../config')
 
 describe('Portfolio', function () {
   before(function () {
-    this.vaultSeedAmount = 10;
+    this.vaultSeedAmount = 100;
     this.validProposalSubmission = {
       indexes: [0, 1, 2],
       allocations: [20, 20, 60]
@@ -45,7 +45,9 @@ describe('Portfolio', function () {
       await this.portfolio.submitProposal(
         this.vaultInstance.address,
         this.validProposalSubmission.indexes,
-        this.validProposalSubmission.allocations
+        this.validProposalSubmission.allocations,
+        0,
+        0
       );
 
       const { 0: proposalID, 1: upvoters, 2: upvotes } = await this.portfolio.getProposalByUpvoter(this.primarySender);
@@ -98,85 +100,9 @@ describe('Portfolio', function () {
 
       return assert.equal(currentProposalUpvotes + upvoteDifference, updatedProposalUpvotes);
     });
-
-    it('should update the leading proposal ID', async function () {
-      const leadingProposalID = (await this.portfolio.leadingProposalID()).toNumber();
-      const leadingProposalUpvotes = (await this.portfolio.getProposal(leadingProposalID))[1].toNumber();
-
-      await this.bank.seed(this.thirdVaultInstance.address, {
-        value: leadingProposalUpvotes * 2,
-        from: this.thirdSender
-      });
-
-      await this.portfolio.submitProposal(
-        this.thirdVaultInstance.address,
-        this.validProposalSubmission.indexes,
-        this.validProposalSubmission.allocations,
-        {
-          from: this.thirdSender
-        }
-      );
-
-      const { 0: proposalID, 2: proposalUpvotes } = await this.portfolio.getProposalByUpvoter(this.thirdSender);
-      const currentLeadingProposalID = (await this.portfolio.leadingProposalID()).toNumber();
-      const currentLeadingProposalUpvotes = (await this.portfolio.getProposal(currentLeadingProposalID))[1].toNumber();
-
-      assert.equal(proposalUpvotes.toNumber(), currentLeadingProposalUpvotes);
-      return assert.equal(proposalID.toNumber(), currentLeadingProposalID);
-    });
   });
 
   describe('Methods 🛑', function () {
-    it('should not submit proposal: already upvoter', function () {
-      return assert.isRejected(
-        this.portfolio.submitProposal(
-          this.vaultInstance.address,
-          this.validProposalSubmission.indexes,
-          this.validProposalSubmission.allocations
-        )
-      );
-    });
-
-    it('should not submit proposal: vault non-owner', function () {
-      return assert.isRejected(
-        this.portfolio.submitProposal(
-          this.vaultInstance.address,
-          this.validProposalSubmission.indexes,
-          this.validProposalSubmission.allocations,
-          {
-            from: this.secondarySender
-          }
-        )
-      );
-    });
-
-    it('should not submit proposal: exceeds group limit', function () {
-      const groupIndexes = [0, 1, 2, 3];
-      const groupAllocations = [25, 25, 25, 25];
-
-      return assert.isRejected(
-        this.portfolio.submitProposal(this.vaultInstance.address, groupIndexes, groupAllocations)
-      );
-    });
-
-    it('should not submit proposal: mismatched indexes and allocations', function () {
-      const groupIndexes = [0, 1];
-      const groupAllocations = [100];
-
-      return assert.isRejected(
-        this.portfolio.submitProposal(this.vaultInstance.address, groupIndexes, groupAllocations)
-      );
-    });
-
-    it('should not submit proposal: total allocation != 100', function () {
-      const groupIndexes = [0, 1, 2];
-      const groupAllocations = [20, 20, 100];
-
-      return assert.isRejected(
-        this.portfolio.submitProposal(this.vaultInstance.address, groupIndexes, groupAllocations)
-      );
-    });
-
     it('should not add upvotes to a proposal: not vault owner', function () {
       return assert.isRejected(
         this.portfolio.addProposalUpvotes(this.secondaryVaultInstance.address, this.submittedProposalID, {
