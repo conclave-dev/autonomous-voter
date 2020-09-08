@@ -28,13 +28,8 @@ contract Portfolio is UsingRegistry {
         LinkedList.List upvoters;
         // The cumulative vault balances of the proposal
         uint256 upvotes;
-        // Indexes which reference eligible Celo groups
-        uint256[] groupIndexes;
-        // Vote allocations for groups in `groupIndexes`
-        // Group-allocation associations are index-based
-        // E.g. groupAllocations[0] for groupIndexes[0],
-        // groupAllocations[1] for groupIndexes[1], etc.
-        uint256[] groupAllocations;
+        // Group indexes (keys) and allocations (values)
+        SortedLinkedList.List groups;
     }
 
     // Accounts that have upvoted a proposal
@@ -45,8 +40,8 @@ contract Portfolio is UsingRegistry {
 
     mapping(address => address) public vaultsByOwner;
     mapping(uint256 => Proposal) proposals;
-    SortedLinkedList.List proposalUpvotesByID;
     mapping(address => Upvoter) public upvoters;
+    SortedLinkedList.List proposalUpvotesByID;
 
     /**
      * @notice Initializes Portfolio contract
@@ -173,17 +168,25 @@ contract Portfolio is UsingRegistry {
         public
         view
         returns (
-            uint256,
-            uint256[] memory,
-            uint256[] memory
+            uint256 upvotes,
+            uint256[] memory groupIndexes,
+            uint256[] memory groupAllocations
         )
     {
         Proposal memory proposal = proposals[proposalID];
-        return (
-            proposal.upvotes,
-            proposal.groupIndexes,
-            proposal.groupAllocations
-        );
+        (
+            uint256[] memory groupKeys,
+            uint256[] memory groupValues
+        ) = proposalUpvotesByID.getElements();
+        uint256[] memory groupIndexes;
+        uint256[] memory groupAllocations;
+
+        for (uint256 i = 0; i < groupKeys.length; i += 1) {
+            groupIndexes[i] = groupKeys[i];
+            groupAllocations[i] = groupValues[i];
+        }
+
+        return (proposal.upvotes, groupIndexes, groupAllocations);
     }
 
     // Retrieves a proposal by an upvoter's proposal ID and return its values
@@ -237,15 +240,28 @@ contract Portfolio is UsingRegistry {
 
         // Create a new proposal and upvoter for proposer
         LinkedList.List memory proposalUpvoters;
+        SortedLinkedList.List memory proposalGroups;
+
         proposals[newProposalID] = Proposal(
             proposer,
             proposalUpvoters,
             newProposalUpvotes,
-            groupIndexes,
-            groupAllocations
+            proposalGroups
         );
         proposals[newProposalID].upvoters.push(proposer);
         upvoters[proposer] = Upvoter(newProposalUpvotes, newProposalID);
+
+        for (uint256 i = 0; i < groupIndexes.length; i += 1) {
+            uint256 groupKey = groupIndexes[i];
+            uint256 groupValue = groupAllocations[i];
+            uint256 greaterGroupKey = i != 0 ? groupIndexes[i - 1] : 0;
+            proposals[newProposalID].groups.insert(
+                groupKey,
+                groupValue,
+                0,
+                greaterGroupKey
+            );
+        }
     }
 
     /**

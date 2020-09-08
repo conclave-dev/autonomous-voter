@@ -42,7 +42,7 @@ describe('Portfolio', function () {
         value: this.vaultSeedAmount
       });
 
-      await this.portfolio.submitProposal(
+      await this.portfolio.addProposal(
         this.vaultInstance.address,
         this.validProposalSubmission.indexes,
         this.validProposalSubmission.allocations,
@@ -62,7 +62,7 @@ describe('Portfolio', function () {
   describe('Methods 🛑', function () {
     it('should not add upvotes to a proposal: not vault owner', function () {
       return assert.isRejected(
-        this.portfolio.upvoteProposal(this.secondaryVaultInstance.address, this.submittedProposalID, {
+        this.portfolio.addProposalUpvotes(this.secondaryVaultInstance.address, this.submittedProposalID, {
           from: this.primarySender
         })
       );
@@ -70,7 +70,7 @@ describe('Portfolio', function () {
 
     it('should not add upvotes to a proposal: invalid proposal ID', function () {
       return assert.isRejected(
-        this.portfolio.upvoteProposal(this.secondaryVaultInstance.address, this.submittedProposalID + 100, {
+        this.portfolio.addProposalUpvotes(this.secondaryVaultInstance.address, this.submittedProposalID + 100, {
           from: this.secondarySender
         })
       );
