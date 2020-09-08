@@ -92,4 +92,9 @@ interface IElection {
         external
         view
         returns (address[] memory);
+
+    function getEligibleValidatorGroups()
+        external
+        view
+        returns (address[] memory);
 }

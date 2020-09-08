@@ -22,12 +22,6 @@ describe('Portfolio', function () {
       return assert.equal(await this.portfolio.owner(), this.primarySender);
     });
 
-    it('should have correct protocol contracts set', async function () {
-      assert.equal(await this.portfolio.registry(), this.registryContractAddress);
-      assert.equal(await this.portfolio.bank(), this.bank.address);
-      return assert.equal(await this.portfolio.vaultFactory(), this.vaultFactory.address);
-    });
-
     it('should have correct protocol parameters set', async function () {
       assert.equal(await this.portfolio.minimumUpvoterBalance(), minimumUpvoterBalance);
       return assert.equal(await this.portfolio.maximumProposalGroups(), maximumProposalGroups);

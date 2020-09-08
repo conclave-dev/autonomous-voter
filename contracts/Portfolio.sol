@@ -2,20 +2,23 @@ pragma solidity ^0.5.8;
 
 import "@openzeppelin/contracts-ethereum-package/contracts/math/SafeMath.sol";
 import "./celo/common/UsingRegistry.sol";
+import "./celo/common/libraries/UsingPrecompiles.sol";
 import "./celo/common/libraries/AddressLinkedList.sol";
 import "./celo/common/libraries/IntegerSortedLinkedList.sol";
 import "./Bank.sol";
 import "./VaultFactory.sol";
 import "./Vault.sol";
 
-contract Portfolio is UsingRegistry {
+contract Portfolio is UsingRegistry, UsingPrecompiles {
     using SafeMath for uint256;
     using AddressLinkedList for LinkedList.List;
     using IntegerSortedLinkedList for SortedLinkedList.List;
 
-    Bank public bank;
+    Bank internal bank;
     // Enables the Portfolio to only add vaults created by a known factory
-    VaultFactory public vaultFactory;
+    VaultFactory internal vaultFactory;
+    ILockedGold internal lockedGold;
+    IElection internal election;
     // Minimum balance required to submit or upvote a proposal
     uint256 public minimumUpvoterBalance;
     // Maximum number of groups that can be proposed
@@ -28,8 +31,9 @@ contract Portfolio is UsingRegistry {
         LinkedList.List upvoters;
         // The cumulative vault balances of the proposal
         uint256 upvotes;
-        // Group indexes (keys) and allocations (values)
-        SortedLinkedList.List groups;
+        // Indexes which reference eligible Celo groups
+        uint256[] groupIndexes;
+        mapping(uint256 => uint256) groupAllocationsByIndex;
     }
 
     // Accounts that have upvoted a proposal
@@ -38,10 +42,18 @@ contract Portfolio is UsingRegistry {
         uint256 proposalID;
     }
 
+    // Celo election data
+    struct ElectionGroups {
+        uint256 epoch;
+        mapping(address => uint256) indexesByAddress;
+        mapping(uint256 => address) addressesByIndex;
+    }
+
     mapping(address => address) public vaultsByOwner;
     mapping(uint256 => Proposal) proposals;
     mapping(address => Upvoter) public upvoters;
     SortedLinkedList.List proposalUpvotesByID;
+    ElectionGroups internal electionGroups;
 
     /**
      * @notice Initializes Portfolio contract
@@ -58,6 +70,8 @@ contract Portfolio is UsingRegistry {
     {
         bank = bank_;
         vaultFactory = vaultFactory_;
+        lockedGold = getLockedGold();
+        election = getElection();
     }
 
     function setProtocolParameters(
@@ -168,25 +182,22 @@ contract Portfolio is UsingRegistry {
         public
         view
         returns (
-            uint256 upvotes,
-            uint256[] memory groupIndexes,
-            uint256[] memory groupAllocations
+            uint256,
+            uint256[] memory,
+            uint256[] memory
         )
     {
-        Proposal memory proposal = proposals[proposalID];
-        (
-            uint256[] memory groupKeys,
-            uint256[] memory groupValues
-        ) = proposalUpvotesByID.getElements();
-        uint256[] memory groupIndexes;
-        uint256[] memory groupAllocations;
+        Proposal storage proposal = proposals[proposalID];
+        uint256[] memory groupAllocations = new uint256[](
+            proposal.groupIndexes.length
+        );
 
-        for (uint256 i = 0; i < groupKeys.length; i += 1) {
-            groupIndexes[i] = groupKeys[i];
-            groupAllocations[i] = groupValues[i];
+        for (uint256 i = 0; i < proposal.groupIndexes.length; i += 1) {
+            uint256 groupIndex = proposal.groupIndexes[i];
+            groupAllocations[i] = proposal.groupAllocationsByIndex[groupIndex];
         }
 
-        return (proposal.upvotes, groupIndexes, groupAllocations);
+        return (proposal.upvotes, proposal.groupIndexes, groupAllocations);
     }
 
     // Retrieves a proposal by an upvoter's proposal ID and return its values
@@ -240,27 +251,20 @@ contract Portfolio is UsingRegistry {
 
         // Create a new proposal and upvoter for proposer
         LinkedList.List memory proposalUpvoters;
-        SortedLinkedList.List memory proposalGroups;
-
         proposals[newProposalID] = Proposal(
             proposer,
             proposalUpvoters,
             newProposalUpvotes,
-            proposalGroups
+            groupIndexes
         );
-        proposals[newProposalID].upvoters.push(proposer);
+        Proposal storage proposal = proposals[newProposalID];
+        proposal.upvoters.push(proposer);
         upvoters[proposer] = Upvoter(newProposalUpvotes, newProposalID);
 
         for (uint256 i = 0; i < groupIndexes.length; i += 1) {
-            uint256 groupKey = groupIndexes[i];
-            uint256 groupValue = groupAllocations[i];
-            uint256 greaterGroupKey = i != 0 ? groupIndexes[i - 1] : 0;
-            proposals[newProposalID].groups.insert(
-                groupKey,
-                groupValue,
-                0,
-                greaterGroupKey
-            );
+            uint256 groupIndex = groupIndexes[i];
+            // Increment group indexes by 1, since the sorted list does accept 0 as a key
+            proposal.groupAllocationsByIndex[groupIndex] = groupAllocations[i];
         }
     }
 
@@ -341,5 +345,27 @@ contract Portfolio is UsingRegistry {
             lesserProposalID,
             greaterProposalID
         );
+    }
+
+    /**
+     * @notice Sets the eligible Celo election groups for the current epoch
+     */
+    function _updateElectionGroups() internal {
+        uint256 epochNumber = getEpochNumber();
+
+        if (epochNumber != electionGroups.epoch) {
+            // Reset electionGroups
+            delete electionGroups;
+
+            electionGroups.epoch = epochNumber;
+
+            address[] memory eligibleValidatorGroups = election
+                .getEligibleValidatorGroups();
+
+            for (uint256 i = 0; i < eligibleValidatorGroups.length; i += 1) {
+                electionGroups.indexesByAddress[eligibleValidatorGroups[i]] = i;
+                electionGroups.addressesByIndex[i] = eligibleValidatorGroups[i];
+            }
+        }
     }
 }
