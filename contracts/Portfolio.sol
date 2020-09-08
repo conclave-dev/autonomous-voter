@@ -33,7 +33,7 @@ contract Portfolio is UsingRegistry, UsingPrecompiles {
         uint256 upvotes;
         // Indexes which reference eligible Celo groups
         uint256[] groupIndexes;
-        mapping(uint256 => uint256) groupAllocationsByIndex;
+        mapping(uint256 => uint256) groupVotePercentByIndex;
     }
 
     // Accounts that have upvoted a proposal
@@ -194,7 +194,7 @@ contract Portfolio is UsingRegistry, UsingPrecompiles {
 
         for (uint256 i = 0; i < proposal.groupIndexes.length; i += 1) {
             uint256 groupIndex = proposal.groupIndexes[i];
-            groupAllocations[i] = proposal.groupAllocationsByIndex[groupIndex];
+            groupAllocations[i] = proposal.groupVotePercentByIndex[groupIndex];
         }
 
         return (proposal.upvotes, proposal.groupIndexes, groupAllocations);
@@ -264,7 +264,7 @@ contract Portfolio is UsingRegistry, UsingPrecompiles {
         for (uint256 i = 0; i < groupIndexes.length; i += 1) {
             uint256 groupIndex = groupIndexes[i];
             // Increment group indexes by 1, since the sorted list does accept 0 as a key
-            proposal.groupAllocationsByIndex[groupIndex] = groupAllocations[i];
+            proposal.groupVotePercentByIndex[groupIndex] = groupAllocations[i];
         }
     }
 
@@ -366,6 +366,69 @@ contract Portfolio is UsingRegistry, UsingPrecompiles {
                 electionGroups.indexesByAddress[eligibleValidatorGroups[i]] = i;
                 electionGroups.addressesByIndex[i] = eligibleValidatorGroups[i];
             }
+        }
+    }
+
+    /**
+     * @notice Manages votes for an account according to the leading proposal
+     */
+    function vote(address account) public {
+        _updateElectionGroups();
+
+        // Get the first element of proposalUpvotesByID (scheme)
+        (uint256[] memory proposalIDs, ) = proposalUpvotesByID.getElements();
+
+        // Proposal with the most upvotes
+        Proposal storage leadingProposal = proposals[proposalIDs[0]];
+
+        // Get the account's votes (voting and nonvoting)
+        uint256 nonvotingLockedGold = lockedGold.getAccountNonvotingLockedGold(
+            account
+        );
+        uint256 votingLockedGold = lockedGold
+            .getAccountTotalLockedGold(account)
+            .sub(nonvotingLockedGold);
+
+        // 1. Check that account is currently voting for the correct groups with the right amounts
+        // a. Fetch current groups
+        address[] memory votedGroups = election.getGroupsVotedForByAccount(
+            account
+        );
+
+        // b. Revoke votes from unwanted groups or those with excess to free up votes
+        for (uint256 i = 0; i < votedGroups.length; i += 1) {
+            uint256 votedGroupIndex = electionGroups
+                .indexesByAddress[votedGroups[i]];
+            uint256 votedGroupPendingVotes = election
+                .getPendingVotesForGroupByAccount(votedGroups[i], account);
+            uint256 votedGroupActiveVotes = election
+                .getActiveVotesForGroupByAccount(votedGroups[i], account);
+            uint256 proposalGroupVotePercent = leadingProposal
+                .groupVotePercentByIndex[votedGroupIndex];
+
+            // If group is not in the leading proposal, remove all votes
+            if (proposalGroupVotePercent == 0) {
+                // @TODO
+            }
+
+            // Calculate the amount votes that should be received and revoke excess if any
+            uint256 proposalGroupVotes = nonvotingLockedGold
+                .add(votingLockedGold)
+                .div(100)
+                .mul(proposalGroupVotePercent);
+
+            if (
+                votedGroupPendingVotes.add(votedGroupActiveVotes) >
+                proposalGroupVotes
+            ) {
+                // @TODO
+            }
+        }
+
+        // 2. Place votes for proposal groups
+        // Add votes to groups that should be voted for
+        for (uint256 i = 0; i < leadingProposal.groupIndexes.length; i += 1) {
+            // @TODO
         }
     }
 }
