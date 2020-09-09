@@ -9,7 +9,7 @@ const gotoNextEpoch = async (test, skip = 1) => {
   );
 };
 
-describe.only('RewardManager', function () {
+describe('RewardManager', function () {
   before(async function () {
     // Fast-forward to the next epoch
     this.epochSize = new BigNumber(await this.mockRewardManager.getEpochSize());
