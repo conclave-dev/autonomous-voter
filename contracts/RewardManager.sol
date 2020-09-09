@@ -68,6 +68,9 @@ contract RewardManager is Ownable, UsingPrecompiles {
         bank = bank_;
         rewardExpiration = rewardExpiration_;
         holderRewardPercentage = holderRewardPercentage_;
+
+        // Initialize the balance of the first tracked epoch
+        lockedGoldBalances[getEpochNumber()] = bank.totalLockedGold();
     }
 
     function setBank(Bank bank_) external onlyOwner {
@@ -75,6 +78,10 @@ contract RewardManager is Ownable, UsingPrecompiles {
     }
 
     function setRewardExpiration(uint256 rewardExpiration_) external onlyOwner {
+        require(
+            rewardExpiration_ > 0,
+            "Reward expiration must be set to at least 1 epoch"
+        );
         rewardExpiration = rewardExpiration_;
     }
 
@@ -82,16 +89,21 @@ contract RewardManager is Ownable, UsingPrecompiles {
         external
         onlyOwner
     {
+        require(
+            holderRewardPercentage_ > 0 && holderRewardPercentage_ < 100,
+            "Reward percentage must be between 1 and 99 percents"
+        );
         holderRewardPercentage = holderRewardPercentage_;
     }
 
+    // Handle incoming deposit request on Bank by keep tracking the mutation
     function addDepositMutation(address account, uint256 amount)
         public
         onlyBank
     {
         uint256 currentEpoch = getEpochNumber();
 
-        if (rewardBalances[currentEpoch] == 0) {
+        if (rewardBalances[currentEpoch - 1] == 0) {
             updateRewardBalance();
         }
 
@@ -103,13 +115,14 @@ contract RewardManager is Ownable, UsingPrecompiles {
             .add(amount);
     }
 
+    // Handle incoming withdrawal request on Bank by keep tracking the mutation
     function addWithdrawalMutation(address account, uint256 amount)
         public
         onlyBank
     {
         uint256 currentEpoch = getEpochNumber();
 
-        if (rewardBalances[currentEpoch] == 0) {
+        if (rewardBalances[currentEpoch - 1] == 0) {
             updateRewardBalance();
         }
 
@@ -121,6 +134,7 @@ contract RewardManager is Ownable, UsingPrecompiles {
             .add(amount);
     }
 
+    // Convenience method for transfers which affect both deposit and withdrawal mutation
     function addTransferMutations(
         address from,
         address to,
@@ -130,46 +144,54 @@ contract RewardManager is Ownable, UsingPrecompiles {
         addWithdrawalMutation(from, amount);
     }
 
+    // Update internal historical data to keep track of (and calculate) holder rewards each epoch
     function updateRewardBalance() public {
         uint256 currentEpoch = getEpochNumber();
         uint256 previousEpoch = currentEpoch - 1;
 
         require(
-            rewardBalances[currentEpoch] == 0,
+            rewardBalances[previousEpoch] == 0,
             "Reward balance has already been updated"
         );
 
-        // Calculate current lockedGold in Bank
-        // by also considering deposits/withdrawals in between the 2 epochs
-        uint256 currentBalance = bank
-            .totalLockedGold()
-            .sub(balanceMutations[previousEpoch].totalDeposit)
-            .add(balanceMutations[previousEpoch].totalWithdrawal);
+        // Get current lockedGold in Bank
+        uint256 currentBalance = bank.totalLockedGold();
 
         // Calculate the actual reward acquired by Bank
         // by comparing it with the previous epoch's total lockedGold
-        // and then get the actual amount allocated to holders
-        uint256 previousBalance = lockedGoldBalances[previousEpoch];
-        uint256 reward = currentBalance.sub(previousBalance);
-        rewardBalances[currentEpoch] = reward.mul(holderRewardPercentage).div(
-            100
-        );
+        // and also considering deposits/withdrawals in the previous epoch
+        // then get the actual amount allocated to holders
+        if (lockedGoldBalances[previousEpoch] > 0) {
+            uint256 previousBalance = lockedGoldBalances[previousEpoch];
+            uint256 reward = currentBalance
+                .sub(previousBalance)
+                .sub(balanceMutations[previousEpoch].totalDeposit)
+                .add(balanceMutations[previousEpoch].totalWithdrawal);
+            rewardBalances[previousEpoch] = reward
+                .mul(holderRewardPercentage)
+                .div(100);
+        } else {
+            // In the rare event of technical issue which cause an epoch to be skipped/not updated
+            // the system will not be giving out any reward
+            rewardBalances[previousEpoch] = 0;
+        }
 
         // Save the calculated lockedGold balance for current epoch
         lockedGoldBalances[currentEpoch] = currentBalance;
 
         // Immediately mint AV tokens according to the amount of epoch rewards allocated to holders
-        bank.mintEpochRewards(rewardBalances[currentEpoch]);
+        bank.mintEpochRewards(rewardBalances[previousEpoch]);
 
         // Update the token supply for both epochs
         tokenSupplies[previousEpoch] = tokenSupplies[previousEpoch]
             .add(balanceMutations[previousEpoch].totalDeposit)
             .sub(balanceMutations[previousEpoch].totalWithdrawal);
         tokenSupplies[currentEpoch] = tokenSupplies[previousEpoch].add(
-            rewardBalances[currentEpoch]
+            rewardBalances[previousEpoch]
         );
     }
 
+    // Called by token holders to claim their outstanding (and still available) rewards
     function claimReward(Vault vault) public onlyVaultOwner(vault) {
         address vaultAddress = address(vault);
         uint256 currentEpoch = getEpochNumber();
@@ -180,7 +202,7 @@ contract RewardManager is Ownable, UsingPrecompiles {
             "All available rewards have been claimed"
         );
 
-        if (rewardBalances[currentEpoch] == 0) {
+        if (rewardBalances[currentEpoch - 1] == 0) {
             updateRewardBalance();
         }
 
@@ -214,10 +236,18 @@ contract RewardManager is Ownable, UsingPrecompiles {
                 mutation.withdrawal
             );
             totalOwedRewards = totalOwedRewards.add(reward);
-
-            lastClaimedEpochs[vaultAddress] = currentEpoch - 1;
         }
 
+        lastClaimedEpochs[vaultAddress] = currentEpoch - 1;
+
         bank.transferEpochRewards(vault, totalOwedRewards);
+    }
+
+    function getEpochRewardBalance(uint256 epoch)
+        external
+        view
+        returns (uint256)
+    {
+        return rewardBalances[epoch];
     }
 }
