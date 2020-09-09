@@ -86,10 +86,46 @@ describe.only('RewardManager', function () {
       // Since there's only 1 holder, it will receive 100% of rewards allocated for holders
       await this.mockRewardManager.claimReward(this.vaultInstance.address);
 
+      // Confirm that the holder's token balance is correctly updated
       const epoch = new BigNumber(await this.mockRewardManager.getEpochNumber());
       const holdersReward = new BigNumber(await this.mockRewardManager.getEpochRewardBalance(epoch - 1));
       const updatedTokenBalance = new BigNumber(await this.mockBank.balanceOf(this.vaultInstance.address));
       return assert.equal(updatedTokenBalance.toFixed(0), currentTokenBalance.plus(holdersReward).toFixed(0));
+    });
+  });
+
+  describe('Methods 🛑', function () {
+    it('should not allow non-owners to set the reward expiration', async function () {
+      return assert.isRejected(this.mockRewardManager.setRewardExpiration(2, { from: this.secondarySender }));
+    });
+
+    it('should not allow non-owners to set the reward percentage for holders', async function () {
+      return assert.isRejected(this.mockRewardManager.setHolderRewardPercentage(5, { from: this.secondarySender }));
+    });
+
+    it('should not allow numbers less than "1" for the reward expiration', async function () {
+      return assert.isRejected(this.mockRewardManager.setRewardExpiration(0));
+    });
+
+    it('should not allow numbers < 0 or > 99 for the reward percentage', async function () {
+      await assert.isRejected(this.mockRewardManager.setHolderRewardPercentage(0));
+      return assert.isRejected(this.mockRewardManager.setHolderRewardPercentage(100));
+    });
+
+    it('should not allow calling `updateRewardBalance` if already called on the same epoch', async function () {
+      // Attempt to call the update method twice on the same epoch
+      await gotoNextEpoch(this);
+      await this.mockRewardManager.updateRewardBalance();
+
+      return assert.isRejected(this.mockRewardManager.updateRewardBalance());
+    });
+
+    it('should not allow reward claiming if already claimed up to the last available epoch', async function () {
+      // Attempt to claim reward twice on the same epoch
+      await gotoNextEpoch(this);
+      await this.mockRewardManager.claimReward(this.vaultInstance.address);
+
+      return assert.isRejected(this.mockRewardManager.claimReward(this.vaultInstance.address));
     });
   });
 });

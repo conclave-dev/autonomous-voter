@@ -30,6 +30,8 @@ contract RewardManager is Ownable, UsingPrecompiles {
 
     // Tracks the amount of lockedGold owned by the Bank for each epoch
     mapping(uint256 => uint256) internal lockedGoldBalances;
+    // Tracks wether the reward balance has been updated for each epoch
+    mapping(uint256 => bool) internal rewardUpdateStates;
     // Tracks the amount of reward acquired by the Bank for each epoch
     mapping(uint256 => uint256) internal rewardBalances;
     // Tracks the amount of deposit and withdrawal of all accounts for each epoch
@@ -103,7 +105,7 @@ contract RewardManager is Ownable, UsingPrecompiles {
     {
         uint256 currentEpoch = getEpochNumber();
 
-        if (rewardBalances[currentEpoch - 1] == 0) {
+        if (!rewardUpdateStates[currentEpoch - 1]) {
             updateRewardBalance();
         }
 
@@ -122,7 +124,7 @@ contract RewardManager is Ownable, UsingPrecompiles {
     {
         uint256 currentEpoch = getEpochNumber();
 
-        if (rewardBalances[currentEpoch - 1] == 0) {
+        if (!rewardUpdateStates[currentEpoch - 1]) {
             updateRewardBalance();
         }
 
@@ -150,7 +152,7 @@ contract RewardManager is Ownable, UsingPrecompiles {
         uint256 previousEpoch = currentEpoch - 1;
 
         require(
-            rewardBalances[previousEpoch] == 0,
+            !rewardUpdateStates[previousEpoch],
             "Reward balance has already been updated"
         );
 
@@ -189,6 +191,8 @@ contract RewardManager is Ownable, UsingPrecompiles {
         tokenSupplies[currentEpoch] = tokenSupplies[previousEpoch].add(
             rewardBalances[previousEpoch]
         );
+
+        rewardUpdateStates[previousEpoch] = true;
     }
 
     // Called by token holders to claim their outstanding (and still available) rewards
@@ -202,7 +206,7 @@ contract RewardManager is Ownable, UsingPrecompiles {
             "All available rewards have been claimed"
         );
 
-        if (rewardBalances[currentEpoch - 1] == 0) {
+        if (!rewardUpdateStates[currentEpoch - 1]) {
             updateRewardBalance();
         }
 
