@@ -13,7 +13,7 @@
     "lint:sol": "solhint -c .solhint_config.json -ignore_path .solhintignore './contracts/**/*.sol'",
     "format": "prettier --write ./**/*.js ./**/*.sol",
     "test": "mocha --exit --timeout 100000",
-    "test:local": "mocha test/local/**/*.js --exit --timeout 100000",
+    "test:local": "mocha test/local/**/*.js --exit --timeout 200000",
     "test:alfajores": "mocha test/alfajores/**/*.js --exit --timeout 100000",
     "truffle:compile": "truffle compile --all --network",
     "truffle:migrate": "truffle migrate --network"

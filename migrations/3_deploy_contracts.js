@@ -10,6 +10,10 @@ const VaultFactory = artifacts.require('VaultFactory');
 const ManagerFactory = artifacts.require('ManagerFactory');
 const Bank = artifacts.require('Bank');
 const Portfolio = artifacts.require('Portfolio');
+const RewardManager = artifacts.require('RewardManager');
+
+const MockBank = artifacts.require('MockBank');
+const MockRewardManager = artifacts.require('MockRewardManager');
 
 const contracts = [
   ImplementationDirectory,
@@ -20,7 +24,10 @@ const contracts = [
   VaultFactory,
   ManagerFactory,
   Bank,
-  Portfolio
+  Portfolio,
+  RewardManager,
+  MockBank,
+  MockRewardManager
 ];
 
 module.exports = async (deployer, network) => {

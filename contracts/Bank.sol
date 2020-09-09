@@ -6,6 +6,7 @@ import "@openzeppelin/contracts-ethereum-package/contracts/math/SafeMath.sol";
 import "@openzeppelin/contracts-ethereum-package/contracts/token/ERC20/StandaloneERC20.sol";
 
 import "./celo/common/UsingRegistry.sol";
+import "./RewardManager.sol";
 import "./Vault.sol";
 import "./Portfolio.sol";
 
@@ -35,7 +36,8 @@ contract Bank is Ownable, StandaloneERC20, UsingRegistry {
     mapping(address => FrozenTokens[]) internal frozenTokens;
 
     ILockedGold public lockedGold;
-    Portfolio public portfolio;
+    Portfolio internal portfolio;
+    RewardManager internal rewardManager;
 
     function initializeBank(
         string memory name_,
@@ -62,6 +64,15 @@ contract Bank is Ownable, StandaloneERC20, UsingRegistry {
         _;
     }
 
+    // Requires that the msg.sender be the currently set RewardManager
+    modifier onlyRewardManager() {
+        require(
+            msg.sender == address(rewardManager),
+            "Only available to Reward Manager"
+        );
+        _;
+    }
+
     /**
      * @notice Fetch the total amount of frozen balance of the specified account
      * @param account Address of the account to be queried
@@ -83,6 +94,10 @@ contract Bank is Ownable, StandaloneERC20, UsingRegistry {
         portfolio = portfolio_;
     }
 
+    function setRewardManager(RewardManager rewardManager_) external onlyOwner {
+        rewardManager = rewardManager_;
+    }
+
     /**
      * @notice Mints AV tokens for a vault
      * @param vault Vault contract deployed and owned by `msg.sender`
@@ -101,6 +116,7 @@ contract Bank is Ownable, StandaloneERC20, UsingRegistry {
 
         // Mint tokens proportionally based on the currently set ratio and the specified amount
         _mint(vaultAddress, mintAmount);
+
         totalSeeded[msg.sender] = totalSeeded[msg.sender].add(mintAmount);
         _frozenBalance[vaultAddress] = _frozenBalance[vaultAddress].add(
             mintAmount
@@ -110,6 +126,9 @@ contract Bank is Ownable, StandaloneERC20, UsingRegistry {
         frozenTokens[vaultAddress].push(
             FrozenTokens(mintAmount, now.add(seedFreezeDuration))
         );
+
+        // Notify the rewardManager for the deposit, must be called before locking the new gold
+        rewardManager.addDepositMutation(vaultAddress, mintAmount);
 
         // Proceed to lock the newly transferred CELO to be used for voting in CELO
         lockedGold.lock.value(msg.value)();
@@ -193,6 +212,7 @@ contract Bank is Ownable, StandaloneERC20, UsingRegistry {
         _checkAvailableTokens(msg.sender, amount);
         // Call internal `_transfer` since we can't pass identical `msg.sender` into ERC20's `transfer` method
         _transfer(msg.sender, recipient, amount);
+        rewardManager.addTransferMutations(msg.sender, recipient, amount);
         return true;
     }
 
@@ -204,6 +224,7 @@ contract Bank is Ownable, StandaloneERC20, UsingRegistry {
     ) public returns (bool) {
         _checkAvailableTokens(sender, amount);
         ERC20.transferFrom(sender, recipient, amount);
+        rewardManager.addTransferMutations(sender, recipient, amount);
         return true;
     }
 
@@ -220,5 +241,21 @@ contract Bank is Ownable, StandaloneERC20, UsingRegistry {
         );
         _checkAvailableTokens(address(vault), amount);
         _transfer(address(vault), recipient, amount);
+        rewardManager.addTransferMutations(address(vault), recipient, amount);
+    }
+
+    function totalLockedGold() external view returns (uint256) {
+        return lockedGold.getAccountTotalLockedGold(address(this));
+    }
+
+    function mintEpochRewards(uint256 amount) external onlyRewardManager {
+        _mint(address(this), amount);
+    }
+
+    function transferEpochRewards(Vault vault, uint256 amount)
+        external
+        onlyRewardManager
+    {
+        _transfer(address(this), address(vault), amount);
     }
 }
