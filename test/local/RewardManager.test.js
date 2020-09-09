@@ -119,6 +119,8 @@ describe('RewardManager', function () {
     });
 
     it('should not allow calling `updateRewardBalance` if already called on the same epoch', async function () {
+      await this.mockRewardManager.setRewardExpiration(rewardExpiration);
+
       // Attempt to call the update method twice on the same epoch
       await gotoNextEpoch(this);
       await this.mockRewardManager.updateRewardBalance();
