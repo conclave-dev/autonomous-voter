@@ -11,25 +11,18 @@ const gotoNextEpoch = async (test, skip = 1) => {
 
 describe.only('RewardManager', function () {
   before(async function () {
-    await this.rewardManager.setBank(this.mockBank.address);
-    this.lockedGold = (await this.kit._web3Contracts.getLockedGold()).methods;
-
     // Fast-forward to the next epoch
-    this.epochSize = new BigNumber(await this.rewardManager.getEpochSize());
+    this.epochSize = new BigNumber(await this.mockRewardManager.getEpochSize());
     await gotoNextEpoch(this);
-  });
-
-  after(async function () {
-    await this.rewardManager.setBank(this.bank.address);
   });
 
   describe('State', function () {
     it('should have the correct reward expiration', async function () {
-      return assert.equal(await this.rewardManager.rewardExpiration(), rewardExpiration);
+      return assert.equal(await this.mockRewardManager.rewardExpiration(), rewardExpiration);
     });
 
     it('should have the correct holder reward percentage', async function () {
-      return assert.equal(await this.rewardManager.holderRewardPercentage(), holderRewardPercentage);
+      return assert.equal(await this.mockRewardManager.holderRewardPercentage(), holderRewardPercentage);
     });
   });
 
@@ -37,21 +30,21 @@ describe.only('RewardManager', function () {
     it('should allow owners to set the reward expiration', async function () {
       const updatedSetRewardExpiration = 2;
 
-      await this.rewardManager.setRewardExpiration(updatedSetRewardExpiration);
-      assert.equal(await this.rewardManager.rewardExpiration(), updatedSetRewardExpiration);
+      await this.mockRewardManager.setRewardExpiration(updatedSetRewardExpiration);
+      assert.equal(await this.mockRewardManager.rewardExpiration(), updatedSetRewardExpiration);
 
-      await this.rewardManager.setRewardExpiration(rewardExpiration);
-      return assert.equal(await this.rewardManager.rewardExpiration(), rewardExpiration);
+      await this.mockRewardManager.setRewardExpiration(rewardExpiration);
+      return assert.equal(await this.mockRewardManager.rewardExpiration(), rewardExpiration);
     });
 
     it('should allow owners to set the reward percentage for holders', async function () {
       const updatedSetRewardPercentage = 10;
 
-      await this.rewardManager.setHolderRewardPercentage(updatedSetRewardPercentage);
-      assert.equal(await this.rewardManager.holderRewardPercentage(), updatedSetRewardPercentage);
+      await this.mockRewardManager.setHolderRewardPercentage(updatedSetRewardPercentage);
+      assert.equal(await this.mockRewardManager.holderRewardPercentage(), updatedSetRewardPercentage);
 
-      await this.rewardManager.setHolderRewardPercentage(holderRewardPercentage);
-      return assert.equal(await this.rewardManager.holderRewardPercentage(), holderRewardPercentage);
+      await this.mockRewardManager.setHolderRewardPercentage(holderRewardPercentage);
+      return assert.equal(await this.mockRewardManager.holderRewardPercentage(), holderRewardPercentage);
     });
 
     it('should mint AV tokens based on reward amount upon updating the bank epoch reward', async function () {
@@ -63,7 +56,7 @@ describe.only('RewardManager', function () {
 
       // Fast-forward to the next epoch and call the reward updater
       await gotoNextEpoch(this);
-      await this.rewardManager.updateRewardBalance();
+      await this.mockRewardManager.updateRewardBalance();
 
       const currentTokenSupply = new BigNumber(await this.mockBank.totalSupply());
 
@@ -76,25 +69,25 @@ describe.only('RewardManager', function () {
 
       // Update the reward for the latest epoch and confirm that the new tokens are minted
       // according to the amount allocated for the AV token holders
-      await this.rewardManager.updateRewardBalance();
+      await this.mockRewardManager.updateRewardBalance();
 
       const updatedTokenSupply = new BigNumber(await this.mockBank.totalSupply());
-      const rewardPercentage = new BigNumber(await this.rewardManager.holderRewardPercentage());
+      const rewardPercentage = new BigNumber(await this.mockRewardManager.holderRewardPercentage());
       const holdersReward = epochReward.multipliedBy(rewardPercentage).dividedBy(100);
       return assert.equal(updatedTokenSupply.toFixed(0), currentTokenSupply.plus(holdersReward).toFixed(0));
     });
 
     it('should allow holders to claim available unclaimed rewards', async function () {
       // Temporarily set to only 1 last epoch
-      await this.rewardManager.setRewardExpiration(1);
+      await this.mockRewardManager.setRewardExpiration(1);
 
       const currentTokenBalance = new BigNumber(await this.mockBank.balanceOf(this.vaultInstance.address));
 
       // Since there's only 1 holder, it will receive 100% of rewards allocated for holders
-      await this.rewardManager.claimReward(this.vaultInstance.address);
+      await this.mockRewardManager.claimReward(this.vaultInstance.address);
 
-      const epoch = new BigNumber(await this.rewardManager.getEpochNumber());
-      const holdersReward = new BigNumber(await this.rewardManager.getEpochRewardBalance(epoch - 1));
+      const epoch = new BigNumber(await this.mockRewardManager.getEpochNumber());
+      const holdersReward = new BigNumber(await this.mockRewardManager.getEpochRewardBalance(epoch - 1));
       const updatedTokenBalance = new BigNumber(await this.mockBank.balanceOf(this.vaultInstance.address));
       return assert.equal(updatedTokenBalance.toFixed(0), currentTokenBalance.plus(holdersReward).toFixed(0));
     });
