@@ -11,6 +11,10 @@ const gotoNextEpoch = async (test, skip = 1) => {
 
 describe('RewardManager', function () {
   before(async function () {
+    await this.mockBank.reset();
+    await this.mockRewardManager.reset();
+    await this.mockRewardManager.setRewardExpiration(rewardExpiration);
+
     // Fast-forward to the next epoch
     this.epochSize = new BigNumber(await this.mockRewardManager.getEpochSize());
     await gotoNextEpoch(this);
@@ -60,7 +64,9 @@ describe('RewardManager', function () {
 
       const currentTokenSupply = new BigNumber(await this.mockBank.totalSupply());
 
-      // Fast-forward to the next epoch
+      // Again, fast-forward to the next epoch
+      // This is due to the fact that golds coming from seeding won't be eligible for epoch rewards right away
+      // and only until the next epoch where the votes are activated, the will be eligible
       await gotoNextEpoch(this);
 
       // Simulate epoch reward distribution by increasing the MockBank's lockedGold

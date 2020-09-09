@@ -1,13 +1,7 @@
 const { newKit } = require('@celo/contractkit');
 const contract = require('@truffle/contract');
 const BigNumber = require('bignumber.js');
-const {
-  registryContractAddress,
-  packageName,
-  tokenDecimal,
-  cycleBlockDuration,
-  rewardExpiration
-} = require('../config');
+const { registryContractAddress, packageName, tokenDecimal, cycleBlockDuration } = require('../config');
 
 const contractBuildFiles = [
   require('../build/contracts/App.json'),
@@ -80,9 +74,7 @@ const setUpGlobalTestContracts = async ({
   managerFactory,
   managerCommission,
   minimumBalanceRequirement,
-  genesisBlockNumber,
-  mockBank,
-  mockRewardManager
+  genesisBlockNumber
 }) => {
   const getVaults = (account) => archive.getVaultsByOwner(account);
   const getManagers = () => archive.getManagersByOwner(primarySender);
@@ -117,10 +109,6 @@ const setUpGlobalTestContracts = async ({
   const thirdVaultInstance = await contracts.Vault.at(thirdVaults.pop());
 
   await portfolio.setCycleParameters(genesisBlockNumber, cycleBlockDuration);
-
-  await mockBank.reset();
-  await mockRewardManager.reset();
-  await mockRewardManager.setRewardExpiration(rewardExpiration);
 
   // Maintain state and used for voting tests
   return {
