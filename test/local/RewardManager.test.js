@@ -3,10 +3,12 @@ const { time } = require('@openzeppelin/test-helpers');
 const { default: BigNumber } = require('bignumber.js');
 const { rewardExpiration, holderRewardPercentage } = require('../../config');
 
-const gotoNextEpoch = async (test, skip = 1) => {
-  await time.advanceBlockTo(
-    new BigNumber(await test.kit.web3.eth.getBlockNumber()).plus(test.epochSize * skip).toFixed(0)
-  );
+const gotoNextEpoch = async (test) => {
+  // Calculate the remaining blocks until the next epoch
+  // then apply it to properly skip to the next epoch
+  const block = new BigNumber(await test.kit.web3.eth.getBlockNumber());
+  const diff = test.epochSize.minus(block.mod(test.epochSize)).plus(1);
+  await time.advanceBlockTo(block.plus(diff).toFixed(0));
 };
 
 describe('RewardManager', function () {
@@ -119,8 +121,6 @@ describe('RewardManager', function () {
     });
 
     it('should not allow calling `updateRewardBalance` if already called on the same epoch', async function () {
-      await this.mockRewardManager.setRewardExpiration(rewardExpiration);
-
       // Attempt to call the update method twice on the same epoch
       await gotoNextEpoch(this);
       await this.mockRewardManager.updateRewardBalance();
