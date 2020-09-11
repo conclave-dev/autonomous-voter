@@ -3,6 +3,7 @@ pragma solidity ^0.5.8;
 import "@openzeppelin/contracts-ethereum-package/contracts/math/SafeMath.sol";
 import "./celo/common/UsingRegistry.sol";
 import "./celo/common/libraries/UsingPrecompiles.sol";
+import "./celo/common/FixidityLib.sol";
 import "./celo/common/libraries/AddressLinkedList.sol";
 import "./celo/common/libraries/IntegerSortedLinkedList.sol";
 import "./Bank.sol";
@@ -12,6 +13,7 @@ import "./modules/ElectionDataProvider.sol";
 
 contract Portfolio is UsingRegistry, UsingPrecompiles, ElectionDataProvider {
     using SafeMath for uint256;
+    using FixidityLib for FixidityLib.Fraction;
     using AddressLinkedList for LinkedList.List;
     using IntegerSortedLinkedList for SortedLinkedList.List;
 
@@ -341,7 +343,7 @@ contract Portfolio is UsingRegistry, UsingPrecompiles, ElectionDataProvider {
     }
 
     /**
-     * @notice Manages votes for an account according to the leading proposal
+     * @notice Manages votes for an account based on the leading proposal
      */
     function vote(address account) public {
         _updateElectionGroups();
@@ -368,31 +370,38 @@ contract Portfolio is UsingRegistry, UsingPrecompiles, ElectionDataProvider {
 
         // b. Revoke votes from unwanted groups or those with excess to free up votes
         for (uint256 i = 0; i < votedGroups.length; i += 1) {
-            uint256 votedGroupIndex = electionGroups
+            uint256 eligibleGroupIndex = electionGroups
                 .indexesByAddress[votedGroups[i]];
-            uint256 votedGroupPendingVotes = election
-                .getPendingVotesForGroupByAccount(votedGroups[i], account);
-            uint256 votedGroupActiveVotes = election
-                .getActiveVotesForGroupByAccount(votedGroups[i], account);
-            uint256 proposalGroupVotePercent = leadingProposal
-                .groupVotePercentByIndex[votedGroupIndex];
+            uint256 pendingVotes = election.getPendingVotesForGroupByAccount(
+                votedGroups[i],
+                account
+            );
+            uint256 activeVotes = election.getActiveVotesForGroupByAccount(
+                votedGroups[i],
+                account
+            );
+            uint256 totalVotes = pendingVotes.add(activeVotes);
+            // Calculate the amount votes that should be received and revoke excess if any
+            uint256 proposalBasedGroupVotes = FixidityLib
+                .newFixedFraction(
+                nonvotingLockedGold.add(votingLockedGold),
+                100
+            )
+                .multiply(
+                FixidityLib.newFixed(
+                    leadingProposal.groupVotePercentByIndex[eligibleGroupIndex]
+                )
+            )
+                .fromFixed();
 
             // If group is not in the leading proposal, remove all votes
-            if (proposalGroupVotePercent == 0) {
-                // @TODO
+            if (proposalBasedGroupVotes == 0) {
+                _revokeVotes(totalVotes, votedGroups[i], account);
+                continue;
             }
 
-            // Calculate the amount votes that should be received and revoke excess if any
-            uint256 proposalGroupVotes = nonvotingLockedGold
-                .add(votingLockedGold)
-                .div(100)
-                .mul(proposalGroupVotePercent);
-
-            if (
-                votedGroupPendingVotes.add(votedGroupActiveVotes) >
-                proposalGroupVotes
-            ) {
-                // @TODO
+            if (totalVotes > proposalBasedGroupVotes) {
+                // @TODO: Remove excess votes if the group currently has more votes than proposed
             }
         }
 

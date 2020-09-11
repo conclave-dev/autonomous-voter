@@ -23,7 +23,7 @@ contract ElectionDataProvider is Initializable, UsingPrecompiles {
         election = election_;
     }
 
-    function _findLesserAndGreater(
+    function _findLesserAndGreaterAfterApplyingVotes(
         address group,
         uint256 votes,
         bool isRevoke
@@ -60,6 +60,22 @@ contract ElectionDataProvider is Initializable, UsingPrecompiles {
         return (lesser, greater);
     }
 
+    function _findGroupIndexForAccount(address group, address account)
+        internal
+        view
+        returns (uint256 groupIndex)
+    {
+        address[] memory accountGroups = election.getGroupsVotedForByAccount(
+            account
+        );
+
+        for (uint256 i = 0; i < accountGroups.length; i += 1) {
+            if (group == accountGroups[i]) {
+                return i;
+            }
+        }
+    }
+
     /**
      * @notice Sets the eligible Celo election groups for the current epoch
      */
@@ -80,5 +96,77 @@ contract ElectionDataProvider is Initializable, UsingPrecompiles {
                 electionGroups.addressesByIndex[i] = eligibleValidatorGroups[i];
             }
         }
+    }
+
+    /**
+     * @notice Revokes votes for a group
+     * @param revokeAmount Amount of votes to be revoked
+     * @param group Group to revoke votes from
+     * @param account Account voting for group
+     */
+    function _revokeVotes(
+        uint256 revokeAmount,
+        address group,
+        address account
+    ) internal returns (uint256 pendingVotes, uint256 activeVotes) {
+        pendingVotes = election.getPendingVotesForGroupByAccount(
+            group,
+            account
+        );
+        activeVotes = election.getActiveVotesForGroupByAccount(group, account);
+        require(
+            revokeAmount <= pendingVotes.add(activeVotes),
+            "Revoking too many votes"
+        );
+
+        // Revoke pending votes first
+        if (pendingVotes > 0) {
+            uint256 pendingVotesToRevoke = revokeAmount <= pendingVotes
+                ? revokeAmount
+                : pendingVotes;
+            (
+                address lesserGroup,
+                address greaterGroup
+            ) = _findLesserAndGreaterAfterApplyingVotes(
+                group,
+                pendingVotesToRevoke,
+                true
+            );
+
+            election.revokePending(
+                group,
+                revokeAmount,
+                lesserGroup,
+                greaterGroup,
+                _findGroupIndexForAccount(group, account)
+            );
+
+            revokeAmount = revokeAmount.sub(pendingVotesToRevoke);
+            pendingVotes = pendingVotes.sub(pendingVotesToRevoke);
+        }
+
+        // Revoke active votes if pending votes did not cover the revoke amount
+        if (revokeAmount > 0) {
+            (
+                address lesserGroup,
+                address greaterGroup
+            ) = _findLesserAndGreaterAfterApplyingVotes(
+                group,
+                revokeAmount,
+                true
+            );
+
+            election.revokeActive(
+                group,
+                revokeAmount,
+                lesserGroup,
+                greaterGroup,
+                _findGroupIndexForAccount(group, account)
+            );
+
+            activeVotes = activeVotes.sub(revokeAmount);
+        }
+
+        return (pendingVotes, activeVotes);
     }
 }
