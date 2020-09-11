@@ -8,8 +8,9 @@ import "./celo/common/libraries/IntegerSortedLinkedList.sol";
 import "./Bank.sol";
 import "./VaultFactory.sol";
 import "./Vault.sol";
+import "./modules/ElectionDataProvider.sol";
 
-contract Portfolio is UsingRegistry, UsingPrecompiles {
+contract Portfolio is UsingRegistry, UsingPrecompiles, ElectionDataProvider {
     using SafeMath for uint256;
     using AddressLinkedList for LinkedList.List;
     using IntegerSortedLinkedList for SortedLinkedList.List;
@@ -18,7 +19,7 @@ contract Portfolio is UsingRegistry, UsingPrecompiles {
     // Enables the Portfolio to only add vaults created by a known factory
     VaultFactory internal vaultFactory;
     ILockedGold internal lockedGold;
-    IElection internal election;
+
     // Minimum balance required to submit or upvote a proposal
     uint256 public minimumUpvoterBalance;
     // Maximum number of groups that can be proposed
@@ -42,18 +43,10 @@ contract Portfolio is UsingRegistry, UsingPrecompiles {
         uint256 proposalID;
     }
 
-    // Celo election data
-    struct ElectionGroups {
-        uint256 epoch;
-        mapping(address => uint256) indexesByAddress;
-        mapping(uint256 => address) addressesByIndex;
-    }
-
     mapping(address => address) public vaultsByOwner;
     mapping(uint256 => Proposal) proposals;
     mapping(address => Upvoter) public upvoters;
     SortedLinkedList.List proposalUpvotesByID;
-    ElectionGroups internal electionGroups;
 
     /**
      * @notice Initializes Portfolio contract
@@ -62,6 +55,7 @@ contract Portfolio is UsingRegistry, UsingPrecompiles {
     function initialize(address registry_) public initializer {
         Ownable.initialize(msg.sender);
         UsingRegistry.initializeRegistry(msg.sender, registry_);
+        ElectionDataProvider.initialize(getElection());
     }
 
     function setProtocolContracts(Bank bank_, VaultFactory vaultFactory_)
@@ -71,7 +65,6 @@ contract Portfolio is UsingRegistry, UsingPrecompiles {
         bank = bank_;
         vaultFactory = vaultFactory_;
         lockedGold = getLockedGold();
-        election = getElection();
     }
 
     function setProtocolParameters(
@@ -345,28 +338,6 @@ contract Portfolio is UsingRegistry, UsingPrecompiles {
             lesserProposalID,
             greaterProposalID
         );
-    }
-
-    /**
-     * @notice Sets the eligible Celo election groups for the current epoch
-     */
-    function _updateElectionGroups() internal {
-        uint256 epochNumber = getEpochNumber();
-
-        if (epochNumber != electionGroups.epoch) {
-            // Reset electionGroups
-            delete electionGroups;
-
-            electionGroups.epoch = epochNumber;
-
-            address[] memory eligibleValidatorGroups = election
-                .getEligibleValidatorGroups();
-
-            for (uint256 i = 0; i < eligibleValidatorGroups.length; i += 1) {
-                electionGroups.indexesByAddress[eligibleValidatorGroups[i]] = i;
-                electionGroups.addressesByIndex[i] = eligibleValidatorGroups[i];
-            }
-        }
     }
 
     /**
