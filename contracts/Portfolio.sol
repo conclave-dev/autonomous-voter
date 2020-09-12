@@ -3,24 +3,25 @@ pragma solidity ^0.5.8;
 import "@openzeppelin/contracts-ethereum-package/contracts/math/SafeMath.sol";
 import "./celo/common/UsingRegistry.sol";
 import "./celo/common/libraries/UsingPrecompiles.sol";
-import "./celo/common/FixidityLib.sol";
 import "./celo/common/libraries/AddressLinkedList.sol";
 import "./celo/common/libraries/IntegerSortedLinkedList.sol";
-import "./Bank.sol";
-import "./VaultFactory.sol";
-import "./Vault.sol";
-import "./modules/ElectionDataProvider.sol";
+import "./celo/common/FixidityLib.sol";
+import "./interfaces/IBank.sol";
+import "./interfaces/IElectionDataProvider.sol";
+import "./interfaces/IElectionVoter.sol";
+import "./interfaces/IVault.sol";
 
-contract Portfolio is UsingRegistry, UsingPrecompiles, ElectionDataProvider {
+contract Portfolio is UsingRegistry, UsingPrecompiles {
     using SafeMath for uint256;
-    using FixidityLib for FixidityLib.Fraction;
     using AddressLinkedList for LinkedList.List;
     using IntegerSortedLinkedList for SortedLinkedList.List;
+    using FixidityLib for FixidityLib.Fraction;
 
-    Bank internal bank;
+    IBank bank;
+    IElectionDataProvider electionDataProvider;
+
     // Enables the Portfolio to only add vaults created by a known factory
-    VaultFactory internal vaultFactory;
-    ILockedGold internal lockedGold;
+    address vaultFactory;
 
     // Minimum balance required to submit or upvote a proposal
     uint256 public minimumUpvoterBalance;
@@ -57,19 +58,19 @@ contract Portfolio is UsingRegistry, UsingPrecompiles, ElectionDataProvider {
     function initialize(address registry_) public initializer {
         Ownable.initialize(msg.sender);
         UsingRegistry.initializeRegistry(msg.sender, registry_);
-        ElectionDataProvider.initialize(getElection());
     }
 
-    function setProtocolContracts(Bank bank_, VaultFactory vaultFactory_)
-        external
-        onlyOwner
-    {
+    function setContracts(
+        IBank bank_,
+        IElectionDataProvider electionDataProvider_,
+        address vaultFactory_
+    ) external onlyOwner {
         bank = bank_;
+        electionDataProvider = electionDataProvider_;
         vaultFactory = vaultFactory_;
-        lockedGold = getLockedGold();
     }
 
-    function setProtocolParameters(
+    function setParameters(
         uint256 minimumUpvoterBalance_,
         uint256 maximumProposalGroups_
     ) external onlyOwner {
@@ -80,36 +81,25 @@ contract Portfolio is UsingRegistry, UsingPrecompiles, ElectionDataProvider {
     // Sets the vault
     function setVaultByOwner(address owner_, address vault) external {
         require(
-            msg.sender == address(vaultFactory),
+            msg.sender == vaultFactory,
             "Caller is not the VaultFactory contract"
         );
-        require(
-            getVaultByOwner(owner_) == address(0),
-            "Vault for owner has already been set"
-        );
         vaultsByOwner[owner_] = vault;
-    }
-
-    function getVaultByOwner(address owner_) public view returns (address) {
-        return vaultsByOwner[owner_];
     }
 
     /**
      * @notice Validates election group index and allocation parameters
      * @param groupIndexes Indexes referencing eligible Celo election groups
-     * @param groupAllocations Percentage of total votes allocated to each group
+     * @param groupVotePercents Percentage of total votes allocated to each group
      */
-    function _validateProposalGroups(
+    function _validateProposal(
         uint256[] memory groupIndexes,
-        uint256[] memory groupAllocations
+        uint256[] memory groupVotePercents
     ) internal view {
         require(
-            groupIndexes.length <= maximumProposalGroups,
-            "Proposal group limit exceeded"
-        );
-        require(
-            groupIndexes.length == groupAllocations.length,
-            "Missing group indexes or allocations"
+            groupIndexes.length <= maximumProposalGroups &&
+                groupIndexes.length == groupVotePercents.length,
+            "Invalid number of group index or vote percent elements"
         );
 
         // Fetch eligible Celo election groups to ensure group indexes are valid
@@ -120,22 +110,14 @@ contract Portfolio is UsingRegistry, UsingPrecompiles, ElectionDataProvider {
         uint256 groupAllocationTotal;
 
         for (uint256 i = 0; i < groupIndexes.length; i += 1) {
-            uint256 groupIndex = groupIndexes[i];
-            uint256 groupAllocation = groupAllocations[i];
-
-            // If not the first iteration, then validate that the current group
-            // index is larger than the previous group index.
             require(
-                i == 0 || groupIndex > groupIndexes[i - 1],
-                "Indexes must be in ascending order without duplicates"
-            );
-            require(
-                groupIndex < celoGroupIndexes.length,
+                groupIndexes[i] < celoGroupIndexes.length,
                 "Index must be that of an eligible Celo group"
             );
-            require(groupAllocation > 0, "Allocation cannot be zero");
 
-            groupAllocationTotal = groupAllocationTotal.add(groupAllocation);
+            groupAllocationTotal = groupAllocationTotal.add(
+                groupVotePercents[i]
+            );
         }
 
         require(
@@ -144,25 +126,12 @@ contract Portfolio is UsingRegistry, UsingPrecompiles, ElectionDataProvider {
         );
     }
 
-    function getProposalIDsByUpvotes()
-        public
-        view
-        returns (uint256[] memory proposalIDs, uint256[] memory proposalUpvotes)
-    {
-        return proposalUpvotesByID.getElements();
-    }
-
-    // Checks whether an account is an upvoter
-    function isUpvoter(address account) public view returns (bool) {
-        return upvoters[account].upvotes > 0;
-    }
-
     /**
      * @notice Gets the upvotes of a vault owner
      * @param vault Vault
      */
-    function verifyVaultOwnershipAndGetUpvotes(Vault vault)
-        internal
+    function verifyVaultOwnershipAndGetUpvotes(IVault vault)
+        private
         view
         returns (uint256)
     {
@@ -177,61 +146,43 @@ contract Portfolio is UsingRegistry, UsingPrecompiles, ElectionDataProvider {
         public
         view
         returns (
-            uint256,
-            uint256[] memory,
-            uint256[] memory
+            uint256 upvotes,
+            uint256[] memory groupIndexes,
+            uint256[] memory groupVotePercents
         )
     {
         Proposal storage proposal = proposals[proposalID];
-        uint256[] memory groupAllocations = new uint256[](
-            proposal.groupIndexes.length
-        );
+        groupVotePercents = new uint256[](proposal.groupIndexes.length);
 
         for (uint256 i = 0; i < proposal.groupIndexes.length; i += 1) {
             uint256 groupIndex = proposal.groupIndexes[i];
-            groupAllocations[i] = proposal.groupVotePercentByIndex[groupIndex];
+            groupVotePercents[i] = proposal.groupVotePercentByIndex[groupIndex];
         }
 
-        return (proposal.upvotes, proposal.groupIndexes, groupAllocations);
-    }
-
-    // Retrieves a proposal by an upvoter's proposal ID and return its values
-    function getProposalByUpvoter(address upvoter)
-        public
-        view
-        returns (
-            uint256 upvoterProposalID,
-            uint256 upvotes,
-            uint256[] memory groupIndexes,
-            uint256[] memory groupAllocations
-        )
-    {
-        upvoterProposalID = upvoters[upvoter].proposalID;
-        (upvotes, groupIndexes, groupAllocations) = getProposal(
-            upvoterProposalID
-        );
-        return (upvoterProposalID, upvotes, groupIndexes, groupAllocations);
+        return (proposal.upvotes, proposal.groupIndexes, groupVotePercents);
     }
 
     /**
      * @notice Submits a proposal
      * @param vault Vault
      * @param groupIndexes List of eligible Celo election group indexes
-     * @param groupAllocations Percentage of total votes allocated for the groups
+     * @param groupVotePercents Percentage of total votes allocated for the groups
      * @param lesserProposalID Proposal with lesser upvotes after upvotes are set
      * @param greaterProposalID Proposal with greater upvotes after upvotes are set
      * @dev Group indexes and allocations have the same indexes for their arrays
      * @dev Set lesser or greater proposal ID to zero if they do not exist
      */
     function addProposal(
-        Vault vault,
+        IVault vault,
         uint256[] calldata groupIndexes,
-        uint256[] calldata groupAllocations,
+        uint256[] calldata groupVotePercents,
         uint256 lesserProposalID,
         uint256 greaterProposalID
     ) external {
+        _validateProposal(groupIndexes, groupVotePercents);
+
         address proposer = msg.sender;
-        require(isUpvoter(proposer) == false, "Already an upvoter");
+        require(upvoters[proposer].upvotes == 0, "Already an upvoter");
 
         (uint256[] memory proposalIDs, ) = proposalUpvotesByID.getElements();
         uint256 newProposalUpvotes = verifyVaultOwnershipAndGetUpvotes(vault);
@@ -259,7 +210,7 @@ contract Portfolio is UsingRegistry, UsingPrecompiles, ElectionDataProvider {
         for (uint256 i = 0; i < groupIndexes.length; i += 1) {
             uint256 groupIndex = groupIndexes[i];
             // Increment group indexes by 1, since the sorted list does accept 0 as a key
-            proposal.groupVotePercentByIndex[groupIndex] = groupAllocations[i];
+            proposal.groupVotePercentByIndex[groupIndex] = groupVotePercents[i];
         }
     }
 
@@ -286,7 +237,7 @@ contract Portfolio is UsingRegistry, UsingPrecompiles, ElectionDataProvider {
      * @dev Set lesser or greater proposal ID to zero if they do not exist
      */
     function addProposalUpvotes(
-        Vault vault,
+        IVault vault,
         uint256 proposalID,
         uint256 lesserProposalID,
         uint256 greaterProposalID
@@ -342,73 +293,69 @@ contract Portfolio is UsingRegistry, UsingPrecompiles, ElectionDataProvider {
         );
     }
 
-    /**
-     * @notice Manages votes for an account based on the leading proposal
-     */
-    function vote(address account) public {
-        _updateElectionGroups();
-
-        // Get the first element of proposalUpvotesByID (scheme)
+    function getLeadingProposalGroupVotesForVoter(address group, address voter)
+        internal
+        view
+        returns (uint256)
+    {
         (uint256[] memory proposalIDs, ) = proposalUpvotesByID.getElements();
-
-        // Proposal with the most upvotes
         Proposal storage leadingProposal = proposals[proposalIDs[0]];
-
-        // Get the account's votes (voting and nonvoting)
-        uint256 nonvotingLockedGold = lockedGold.getAccountNonvotingLockedGold(
-            account
-        );
-        uint256 votingLockedGold = lockedGold
-            .getAccountTotalLockedGold(account)
-            .sub(nonvotingLockedGold);
-
-        // 1. Check that account is currently voting for the correct groups with the right amounts
-        // a. Fetch current groups
-        address[] memory votedGroups = election.getGroupsVotedForByAccount(
-            account
+        uint256 totalLockedGold = getLockedGold().getAccountTotalLockedGold(
+            voter
         );
 
-        // b. Revoke votes from unwanted groups or those with excess to free up votes
-        for (uint256 i = 0; i < votedGroups.length; i += 1) {
-            uint256 eligibleGroupIndex = electionGroups
-                .indexesByAddress[votedGroups[i]];
-            uint256 pendingVotes = election.getPendingVotesForGroupByAccount(
-                votedGroups[i],
-                account
-            );
-            uint256 activeVotes = election.getActiveVotesForGroupByAccount(
-                votedGroups[i],
-                account
-            );
-            uint256 totalVotes = pendingVotes.add(activeVotes);
-            // Calculate the amount votes that should be received and revoke excess if any
-            uint256 proposalBasedGroupVotes = FixidityLib
-                .newFixedFraction(
-                nonvotingLockedGold.add(votingLockedGold),
-                100
-            )
+        return
+            FixidityLib
+                .newFixedFraction(totalLockedGold, 100)
                 .multiply(
                 FixidityLib.newFixed(
-                    leadingProposal.groupVotePercentByIndex[eligibleGroupIndex]
+                    leadingProposal.groupVotePercentByIndex[electionDataProvider
+                        .getElectionGroupIndex(group)]
                 )
             )
                 .fromFixed();
+    }
 
-            // If group is not in the leading proposal, remove all votes
-            if (proposalBasedGroupVotes == 0) {
-                _revokeVotes(totalVotes, votedGroups[i], account);
+    function tidyVoterGroups(IElectionVoter voter) private {
+        IElection election = getElection();
+        address[] memory groups = election.getGroupsVotedForByAccount(
+            address(voter)
+        );
+
+        for (uint256 i = 0; i < groups.length; i += 1) {
+            address group = groups[i];
+            uint256 groupVotes = election.getTotalVotesForGroupByAccount(
+                group,
+                address(voter)
+            );
+            uint256 proposedGroupVotes = getLeadingProposalGroupVotesForVoter(
+                group,
+                address(voter)
+            );
+
+            // Revoke all votes for group if it is not within the leading proposal
+            if (proposedGroupVotes == 0) {
+                voter.revoke(election, electionDataProvider, groupVotes, group);
                 continue;
             }
 
-            if (totalVotes > proposalBasedGroupVotes) {
-                // @TODO: Remove excess votes if the group currently has more votes than proposed
+            // Revoke excess votes for groups with more votes than proposed
+            if (proposedGroupVotes < groupVotes) {
+                voter.revoke(
+                    election,
+                    electionDataProvider,
+                    groupVotes.sub(proposedGroupVotes),
+                    group
+                );
             }
         }
+    }
 
-        // 2. Place votes for proposal groups
-        // Add votes to groups that should be voted for
-        for (uint256 i = 0; i < leadingProposal.groupIndexes.length; i += 1) {
-            // @TODO
-        }
+    /**
+     * @notice Manages votes for an account based on the leading proposal
+     */
+    function vote(IElectionVoter voter) public {
+        electionDataProvider.updateElectionGroups();
+        tidyVoterGroups(voter);
     }
 }

@@ -3,8 +3,8 @@ pragma solidity ^0.5.8;
 import "@openzeppelin/upgrades/contracts/Initializable.sol";
 import "@openzeppelin/contracts-ethereum-package/contracts/math/SafeMath.sol";
 
-import "./celo/governance/interfaces/IElection.sol";
 import "./celo/common/libraries/UsingPrecompiles.sol";
+import "./celo/governance/interfaces/IElection.sol";
 
 contract ElectionDataProvider is Initializable, UsingPrecompiles {
     using SafeMath for uint256;
@@ -23,7 +23,7 @@ contract ElectionDataProvider is Initializable, UsingPrecompiles {
         election = election_;
     }
 
-    function findLesserAndGreaterAfterApplyingVotes(
+    function findLesserAndGreaterGroups(
         address group,
         uint256 votes,
         bool isRevoke
