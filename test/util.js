@@ -1,7 +1,7 @@
 const { newKit } = require('@celo/contractkit');
 const contract = require('@truffle/contract');
 const BigNumber = require('bignumber.js');
-const { registryContractAddress, packageName, tokenDecimal } = require('../config');
+const { packageName, tokenDecimal } = require('../config');
 
 const contractBuildFiles = [
   require('../build/contracts/App.json'),
@@ -51,6 +51,7 @@ const setUpGlobalTestVariables = async (rpcAPI, primaryAccount) => {
 };
 
 const setUpGlobalTestContracts = async ({
+  kit,
   portfolio,
   contracts,
   primarySender,
@@ -58,7 +59,8 @@ const setUpGlobalTestContracts = async ({
   thirdSender,
   vaultFactory
 }) => {
-  const getVaultByOwner = (account) => portfolio.getVaultByOwner(account);
+  const registryContractAddress = kit.registry.cache.get('Registry');
+  const getVaultByOwner = (account) => portfolio.vaultsByOwner(account);
   const createVaultInstance = (account) =>
     vaultFactory.createInstance(packageName, 'Vault', registryContractAddress, {
       from: account
@@ -78,6 +80,7 @@ const setUpGlobalTestContracts = async ({
 
   // Maintain state and used for voting tests
   return {
+    registryContractAddress,
     vaultInstance,
     secondaryVaultInstance,
     thirdVaultInstance,

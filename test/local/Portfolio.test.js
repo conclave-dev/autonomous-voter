@@ -12,7 +12,7 @@ describe('Portfolio', function () {
 
   describe('State', function () {
     it(`should have a mapping to track user's vault instances`, async function () {
-      const primarySenderVaults = await this.portfolio.getVaultByOwner(this.primarySender);
+      const primarySenderVaults = await this.portfolio.vaultsByOwner(this.primarySender);
       return assert.isTrue(primarySenderVaults.length > 0);
     });
   });
@@ -28,7 +28,7 @@ describe('Portfolio', function () {
     });
 
     it('should get a vault by owner', async function () {
-      return assert.equal(await this.portfolio.getVaultByOwner(this.primarySender), this.vaultInstance.address);
+      return assert.equal(await this.portfolio.vaultsByOwner(this.primarySender), this.vaultInstance.address);
     });
 
     it('should submit a proposal', async function () {
@@ -44,7 +44,8 @@ describe('Portfolio', function () {
         0
       );
 
-      const { 0: proposalID, 1: upvotes } = await this.portfolio.getProposalByUpvoter(this.primarySender);
+      const proposalID = (await this.portfolio.upvoters(this.primarySender)).proposalID.toNumber();
+      const { upvotes } = await this.portfolio.getProposal(proposalID);
       const vaultBalance = await this.bank.balanceOf(this.vaultInstance.address);
 
       this.submittedProposalID = proposalID;
