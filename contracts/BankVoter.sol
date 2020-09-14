@@ -1,20 +1,29 @@
 pragma solidity ^0.5.8;
 
 import "@openzeppelin/contracts-ethereum-package/contracts/math/SafeMath.sol";
-import "../celo/governance/interfaces/IElection.sol";
-import "../interfaces/IElectionDataProvider.sol";
+import "./celo/common/UsingRegistry.sol";
+import "./interfaces/IElectionDataProvider.sol";
 
-contract ElectionVoter {
+contract BankVoter is UsingRegistry {
     using SafeMath for uint256;
 
+    IElectionDataProvider electionDataProvider;
     address manager;
+
+    function initialize(address registry_) public initializer {
+        UsingRegistry.initializeRegistry(msg.sender, registry_);
+    }
 
     modifier onlyManager() {
         require(msg.sender == manager, "Caller is not manager");
         _;
     }
 
-    function _setManager(address manager_) internal {
+    function setState(
+        IElectionDataProvider electionDataProvider_,
+        address manager_
+    ) external onlyOwner {
+        electionDataProvider = electionDataProvider_;
         manager = manager_;
     }
 
@@ -23,23 +32,15 @@ contract ElectionVoter {
      * @param amount Amount of votes to be revoked
      * @param group Group to revoke votes from
      */
-    function revoke(
-        IElection election,
-        IElectionDataProvider electionDataProvider,
-        uint256 amount,
-        address group
-    ) external onlyManager returns (uint256 pendingVotes, uint256 activeVotes) {
-        pendingVotes = election.getPendingVotesForGroupByAccount(
+    function revoke(uint256 amount, address group) external onlyManager {
+        IElection election = getElection();
+        uint256 pendingVotes = election.getPendingVotesForGroupByAccount(
             group,
             address(this)
         );
-        activeVotes = election.getActiveVotesForGroupByAccount(
+        uint256 activeVotes = election.getActiveVotesForGroupByAccount(
             group,
             address(this)
-        );
-        require(
-            amount <= pendingVotes.add(activeVotes),
-            "Revoking too many votes"
         );
 
         // Revoke pending votes first
@@ -48,7 +49,12 @@ contract ElectionVoter {
                 ? amount
                 : pendingVotes;
             (address lesserGroup, address greaterGroup) = electionDataProvider
-                .findLesserAndGreaterGroups(group, pendingVotesToRevoke, true);
+                .findLesserAndGreaterGroups(
+                group,
+                address(this),
+                pendingVotesToRevoke,
+                true
+            );
 
             election.revokePending(
                 group,
@@ -62,13 +68,12 @@ contract ElectionVoter {
             );
 
             amount = amount.sub(pendingVotesToRevoke);
-            pendingVotes = pendingVotes.sub(pendingVotesToRevoke);
         }
 
         // Revoke active votes if pending votes did not cover the revoke amount
         if (amount > 0) {
             (address lesserGroup, address greaterGroup) = electionDataProvider
-                .findLesserAndGreaterGroups(group, amount, true);
+                .findLesserAndGreaterGroups(group, address(this), amount, true);
 
             election.revokeActive(
                 group,
@@ -83,7 +88,5 @@ contract ElectionVoter {
 
             activeVotes = activeVotes.sub(amount);
         }
-
-        return (pendingVotes, activeVotes);
     }
 }

@@ -25,6 +25,7 @@ contract ElectionDataProvider is Initializable, UsingPrecompiles {
 
     function findLesserAndGreaterGroups(
         address group,
+        address account,
         uint256 votes,
         bool isRevoke
     ) external view returns (address, address) {
@@ -38,7 +39,7 @@ contract ElectionDataProvider is Initializable, UsingPrecompiles {
         // Get the current totalVotes count for the specified group
         uint256 totalVotes = election.getTotalVotesForGroupByAccount(
             group,
-            address(this)
+            account
         );
         if (isRevoke) {
             totalVotes = totalVotes.sub(votes);

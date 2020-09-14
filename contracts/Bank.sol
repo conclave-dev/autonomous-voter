@@ -6,7 +6,6 @@ import "@openzeppelin/contracts-ethereum-package/contracts/token/ERC20/Standalon
 
 import "./celo/common/UsingRegistry.sol";
 import "./interfaces/IVault.sol";
-import "./modules/ElectionVoter.sol";
 
 /**
  * @title VM contract to manage token related functionalities

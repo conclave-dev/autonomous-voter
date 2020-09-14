@@ -8,7 +8,7 @@ import "./celo/common/libraries/IntegerSortedLinkedList.sol";
 import "./celo/common/FixidityLib.sol";
 import "./interfaces/IBank.sol";
 import "./interfaces/IElectionDataProvider.sol";
-import "./interfaces/IElectionVoter.sol";
+import "./interfaces/IBankVoter.sol";
 import "./interfaces/IVault.sol";
 
 contract Portfolio is UsingRegistry, UsingPrecompiles {
@@ -316,7 +316,7 @@ contract Portfolio is UsingRegistry, UsingPrecompiles {
                 .fromFixed();
     }
 
-    function tidyVoterGroups(IElectionVoter voter) private {
+    function tidyVoterGroups(IBankVoter voter) private {
         IElection election = getElection();
         address[] memory groups = election.getGroupsVotedForByAccount(
             address(voter)
@@ -335,14 +335,13 @@ contract Portfolio is UsingRegistry, UsingPrecompiles {
 
             // Revoke all votes for group if it is not within the leading proposal
             if (proposedGroupVotes == 0) {
-                voter.revoke(election, electionDataProvider, groupVotes, group);
+                voter.revoke(electionDataProvider, groupVotes, group);
                 continue;
             }
 
             // Revoke excess votes for groups with more votes than proposed
             if (proposedGroupVotes < groupVotes) {
                 voter.revoke(
-                    election,
                     electionDataProvider,
                     groupVotes.sub(proposedGroupVotes),
                     group
@@ -354,7 +353,7 @@ contract Portfolio is UsingRegistry, UsingPrecompiles {
     /**
      * @notice Manages votes for an account based on the leading proposal
      */
-    function vote(IElectionVoter voter) public {
+    function vote(IBankVoter voter) public {
         electionDataProvider.updateElectionGroups();
         tidyVoterGroups(voter);
     }

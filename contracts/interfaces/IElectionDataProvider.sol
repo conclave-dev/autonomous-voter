@@ -3,6 +3,7 @@ pragma solidity ^0.5.8;
 interface IElectionDataProvider {
     function findLesserAndGreaterGroups(
         address group,
+        address account,
         uint256 votes,
         bool isRevoke
     ) external view returns (address, address);

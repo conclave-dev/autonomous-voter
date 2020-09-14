@@ -6,6 +6,7 @@ const App = artifacts.require('App');
 const VaultFactory = artifacts.require('VaultFactory');
 const Bank = artifacts.require('Bank');
 const Portfolio = artifacts.require('Portfolio');
+const BankVoter = artifacts.require('BankVoter');
 const ElectionDataProvider = artifacts.require('ElectionDataProvider');
 
 module.exports = (deployer, network) =>
@@ -17,6 +18,7 @@ module.exports = (deployer, network) =>
     const bank = await Bank.deployed();
     const portfolio = await Portfolio.deployed();
     const electionDataProvider = await ElectionDataProvider.deployed();
+    const bankVoter = await BankVoter.deployed();
     const vaultFactory = await VaultFactory.deployed();
     const contractInitializers = [
       {
@@ -39,6 +41,10 @@ module.exports = (deployer, network) =>
       {
         contract: 'ElectionDataProvider',
         fn: async () => await electionDataProvider.initialize(electionContractAddress)
+      },
+      {
+        contract: 'BankVoter',
+        fn: async () => await bankVoter.initialize(registryContractAddress)
       },
       {
         contract: 'VaultFactory',
