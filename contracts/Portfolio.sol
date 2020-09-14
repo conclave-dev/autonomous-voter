@@ -5,8 +5,6 @@ import "./celo/common/UsingRegistry.sol";
 import "./celo/common/libraries/UsingPrecompiles.sol";
 import "./celo/common/libraries/AddressLinkedList.sol";
 import "./celo/common/libraries/IntegerSortedLinkedList.sol";
-import "./libraries/ElectionDataProvider.sol";
-import "./celo/common/FixidityLib.sol";
 import "./interfaces/IBank.sol";
 import "./interfaces/IBankVoter.sol";
 import "./interfaces/IVault.sol";
@@ -15,24 +13,6 @@ contract Portfolio is UsingRegistry, UsingPrecompiles {
     using SafeMath for uint256;
     using AddressLinkedList for LinkedList.List;
     using IntegerSortedLinkedList for SortedLinkedList.List;
-    using FixidityLib for FixidityLib.Fraction;
-    using ElectionDataProvider for ElectionDataProvider;
-
-    // Frequently-accessed Celo election data
-    struct EligibleGroups {
-        uint256 epoch;
-        mapping(address => uint256) indexesByAddress;
-        mapping(uint256 => address) addressesByIndex;
-    }
-
-    IBank bank;
-    // Enables the Portfolio to only add vaults created by a known factory
-    address vaultFactory;
-    // Minimum balance required to submit or upvote a proposal
-    uint256 public minimumUpvoterBalance;
-    // Maximum number of groups that can be proposed
-    uint256 public maximumProposalGroups;
-    EligibleGroups eligibleGroups;
 
     struct Proposal {
         // The account that submitted the proposal
@@ -52,10 +32,26 @@ contract Portfolio is UsingRegistry, UsingPrecompiles {
         uint256 proposalID;
     }
 
+    // Frequently-accessed Celo election data
+    struct EligibleGroups {
+        uint256 epoch;
+        mapping(address => uint256) indexesByAddress;
+        mapping(uint256 => address) addressesByIndex;
+    }
+
+    IBank bank;
+    // Enables the Portfolio to only add vaults created by a known factory
+    address vaultFactory;
+    // Minimum balance required to submit or upvote a proposal
+    uint256 public minimumUpvoterBalance;
+    // Maximum number of groups that can be proposed
+    uint256 public maximumProposalGroups;
+
     mapping(address => address) public vaultsByOwner;
     mapping(uint256 => Proposal) proposals;
     mapping(address => Upvoter) public upvoters;
     SortedLinkedList.List proposalUpvotesByID;
+    EligibleGroups eligibleGroups;
 
     /**
      * @notice Initializes Portfolio contract
@@ -151,19 +147,27 @@ contract Portfolio is UsingRegistry, UsingPrecompiles {
         view
         returns (
             uint256 upvotes,
+            address[] memory groups,
             uint256[] memory groupIndexes,
             uint256[] memory groupVotePercents
         )
     {
         Proposal storage proposal = proposals[proposalID];
+        groups = new address[](proposal.groupIndexes.length);
         groupVotePercents = new uint256[](proposal.groupIndexes.length);
 
         for (uint256 i = 0; i < proposal.groupIndexes.length; i += 1) {
             uint256 groupIndex = proposal.groupIndexes[i];
+            groups[i] = eligibleGroups.addressesByIndex[groupIndex];
             groupVotePercents[i] = proposal.groupVotePercentByIndex[groupIndex];
         }
 
-        return (proposal.upvotes, proposal.groupIndexes, groupVotePercents);
+        return (
+            proposal.upvotes,
+            groups,
+            proposal.groupIndexes,
+            groupVotePercents
+        );
     }
 
     /**
@@ -297,26 +301,32 @@ contract Portfolio is UsingRegistry, UsingPrecompiles {
         );
     }
 
-    function getLeadingProposalGroupVotesForAccount(
-        address group,
-        address account
-    ) public view returns (uint256) {
+    function getLeadingProposalGroupVotePercentByAddress(address group)
+        public
+        view
+        returns (uint256)
+    {
         (uint256[] memory proposalIDs, ) = proposalUpvotesByID.getElements();
         Proposal storage leadingProposal = proposals[proposalIDs[0]];
-        uint256 totalLockedGold = getLockedGold().getAccountTotalLockedGold(
-            account
-        );
         uint256 eligibleGroupIndex = eligibleGroups.indexesByAddress[group];
+        return leadingProposal.groupVotePercentByIndex[eligibleGroupIndex];
+    }
 
-        return
-            FixidityLib
-                .newFixedFraction(totalLockedGold, 100)
-                .multiply(
-                FixidityLib.newFixed(
-                    leadingProposal.groupVotePercentByIndex[eligibleGroupIndex]
-                )
-            )
-                .fromFixed();
+    function getLeadingProposalGroups()
+        public
+        view
+        returns (
+            address[] memory groups,
+            uint256[] memory groupIndexes,
+            uint256[] memory groupVotePercents
+        )
+    {
+        (uint256[] memory proposalIDs, ) = proposalUpvotesByID.getElements();
+        (, groups, groupIndexes, groupVotePercents) = getProposal(
+            proposalIDs[0]
+        );
+
+        return (groups, groupIndexes, groupVotePercents);
     }
 
     function updateEligibleGroups() public {
@@ -335,10 +345,20 @@ contract Portfolio is UsingRegistry, UsingPrecompiles {
     }
 
     /**
-     * @notice Manages votes for an account based on the leading proposal
+     * @notice Calls the voter contract's `tidyVotes` method
+     * @param bankVoter BankVoter contract instance
      */
-    function vote(IBankVoter voter) public {
+    function tidyVotes(IBankVoter bankVoter) public {
         require(eligibleGroups.epoch == getEpochNumber());
-        voter.tidy();
+        bankVoter.tidyVotes();
+    }
+
+    /**
+     * @notice Calls the voter contract's `applyVotes` method
+     * @param bankVoter BankVoter contract instance
+     */
+    function applyVotes(IBankVoter bankVoter) public {
+        require(eligibleGroups.epoch == getEpochNumber());
+        bankVoter.applyVotes();
     }
 }

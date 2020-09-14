@@ -2,26 +2,28 @@ pragma solidity ^0.5.8;
 
 import "@openzeppelin/contracts-ethereum-package/contracts/math/SafeMath.sol";
 import "./celo/common/UsingRegistry.sol";
+import "./celo/common/FixidityLib.sol";
 import "./libraries/ElectionDataProvider.sol";
 import "./Portfolio.sol";
 
 contract BankVoter is UsingRegistry {
     using SafeMath for uint256;
+    using FixidityLib for FixidityLib.Fraction;
     using ElectionDataProvider for ElectionDataProvider;
 
-    address manager;
+    Portfolio portfolio;
 
     function initialize(address registry_) public initializer {
         UsingRegistry.initializeRegistry(msg.sender, registry_);
     }
 
-    modifier onlyManager() {
-        require(msg.sender == manager, "Caller is not manager");
+    modifier onlyPortfolio() {
+        require(msg.sender == address(portfolio), "Caller is not portfolio");
         _;
     }
 
-    function setState(address manager_) external onlyOwner {
-        manager = manager_;
+    function setState(Portfolio portfolio_) external onlyOwner {
+        portfolio = portfolio_;
     }
 
     /**
@@ -96,7 +98,23 @@ contract BankVoter is UsingRegistry {
         }
     }
 
-    function tidy() external onlyManager {
+    function _vote(uint256 amount, address group) internal {
+        (address lesserGroup, address greaterGroup) = ElectionDataProvider
+            .findLesserAndGreaterGroups(
+            getElection(),
+            group,
+            address(this),
+            amount,
+            false
+        );
+
+        getElection().vote(group, amount, lesserGroup, greaterGroup);
+    }
+
+    /**
+     * @notice Lets the Portfolio revoke group votes according to its leading proposal
+     */
+    function tidyVotes() external onlyPortfolio {
         IElection election = getElection();
         address[] memory groups = election.getGroupsVotedForByAccount(
             address(this)
@@ -108,18 +126,61 @@ contract BankVoter is UsingRegistry {
                 group,
                 address(this)
             );
-            uint256 proposedGroupVotes = Portfolio(manager)
-                .getLeadingProposalGroupVotesForAccount(group, address(this));
+            uint256 portfolioGroupVotePercent = portfolio
+                .getLeadingProposalGroupVotePercentByAddress(group);
+            uint256 totalLockedGold = getLockedGold().getAccountTotalLockedGold(
+                address(this)
+            );
+            uint256 portfolioGroupVotes = FixidityLib
+                .newFixedFraction(totalLockedGold, 100)
+                .multiply(FixidityLib.newFixed(portfolioGroupVotePercent))
+                .fromFixed();
 
             // Revoke all votes for group if it is not within the leading proposal
-            if (proposedGroupVotes == 0) {
+            if (portfolioGroupVotes == 0) {
                 _revoke(groupVotes, group);
                 continue;
             }
 
             // Revoke excess votes for groups with more votes than proposed
-            if (proposedGroupVotes < groupVotes) {
-                _revoke(groupVotes.sub(proposedGroupVotes), group);
+            if (portfolioGroupVotes < groupVotes) {
+                _revoke(groupVotes.sub(portfolioGroupVotes), group);
+            }
+        }
+    }
+
+    /**
+     * @notice Lets the Portfolio place group votes according to its leading proposal
+     */
+    function applyVotes() external onlyPortfolio {
+        IElection election = getElection();
+        // Get leading proposal group addresses and vote percents from Portfolio
+        (
+            address[] memory groups,
+            ,
+            uint256[] memory groupVotePercents
+        ) = portfolio.getLeadingProposalGroups();
+        uint256 totalLockedGold = getLockedGold().getAccountTotalLockedGold(
+            address(this)
+        );
+
+        for (uint256 i = 0; i < groups.length; i += 1) {
+            address group = groups[i];
+            uint256 portfolioGroupVotes = FixidityLib
+                .newFixedFraction(totalLockedGold, 100)
+                .multiply(FixidityLib.newFixed(groupVotePercents[i]))
+                .fromFixed();
+            // Calculate the difference between the portfolio group votes and the
+            // current group votes. May encounter a subtraction overflow error if
+            // `tidyVotes` was not called first
+            uint256 votes = portfolioGroupVotes.sub(
+                election.getTotalVotesForGroupByAccount(group, address(this))
+            );
+
+            // NOTE: It's possible for `votes` to be `0` if the group has received
+            // all the votes that it should receive
+            if (votes > 0) {
+                _vote(votes, group);
             }
         }
     }
