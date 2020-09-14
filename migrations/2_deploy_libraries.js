@@ -2,7 +2,9 @@ const LinkedList = artifacts.require('LinkedList');
 const AddressLinkedList = artifacts.require('AddressLinkedList');
 const SortedLinkedList = artifacts.require('SortedLinkedList');
 const IntegerSortedLinkedList = artifacts.require('IntegerSortedLinkedList');
+const ElectionDataProvider = artifacts.require('ElectionDataProvider');
 const Portfolio = artifacts.require('Portfolio');
+const BankVoter = artifacts.require('BankVoter');
 
 module.exports = async (deployer, network) => {
   const overwrite = network === 'local' ? true : false;
@@ -10,6 +12,7 @@ module.exports = async (deployer, network) => {
   let deployAddressLinkedList;
   let deploySortedLinkedList;
   let deployIntegerSortedLinkedList;
+  let deployElectionDataProvider;
 
   try {
     deployLinkedList =
@@ -20,6 +23,8 @@ module.exports = async (deployer, network) => {
       overwrite || (await SortedLinkedList.deployed()).address === '0x0000000000000000000000000000000000000000';
     deployIntegerSortedLinkedList =
       overwrite || (await IntegerSortedLinkedList.deployed()).address === '0x0000000000000000000000000000000000000000';
+    deployElectionDataProvider =
+      overwrite || (await ElectionDataProvider.deployed()).address === '0x0000000000000000000000000000000000000000';
   } catch (err) {
     console.error(err);
   }
@@ -34,4 +39,8 @@ module.exports = async (deployer, network) => {
   await deployer.link(SortedLinkedList, IntegerSortedLinkedList);
   await deployer.deploy(IntegerSortedLinkedList, { overwrite: deployIntegerSortedLinkedList });
   await deployer.link(IntegerSortedLinkedList, Portfolio);
+
+  await deployer.deploy(ElectionDataProvider, { overwrite: deployElectionDataProvider });
+  await deployer.link(ElectionDataProvider, Portfolio);
+  await deployer.link(ElectionDataProvider, BankVoter);
 };

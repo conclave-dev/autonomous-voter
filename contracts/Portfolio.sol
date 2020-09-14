@@ -5,9 +5,9 @@ import "./celo/common/UsingRegistry.sol";
 import "./celo/common/libraries/UsingPrecompiles.sol";
 import "./celo/common/libraries/AddressLinkedList.sol";
 import "./celo/common/libraries/IntegerSortedLinkedList.sol";
+import "./libraries/ElectionDataProvider.sol";
 import "./celo/common/FixidityLib.sol";
 import "./interfaces/IBank.sol";
-import "./interfaces/IElectionDataProvider.sol";
 import "./interfaces/IBankVoter.sol";
 import "./interfaces/IVault.sol";
 
@@ -16,17 +16,23 @@ contract Portfolio is UsingRegistry, UsingPrecompiles {
     using AddressLinkedList for LinkedList.List;
     using IntegerSortedLinkedList for SortedLinkedList.List;
     using FixidityLib for FixidityLib.Fraction;
+    using ElectionDataProvider for ElectionDataProvider;
+
+    // Frequently-accessed Celo election data
+    struct EligibleGroups {
+        uint256 epoch;
+        mapping(address => uint256) indexesByAddress;
+        mapping(uint256 => address) addressesByIndex;
+    }
 
     IBank bank;
-    IElectionDataProvider electionDataProvider;
-
     // Enables the Portfolio to only add vaults created by a known factory
     address vaultFactory;
-
     // Minimum balance required to submit or upvote a proposal
     uint256 public minimumUpvoterBalance;
     // Maximum number of groups that can be proposed
     uint256 public maximumProposalGroups;
+    EligibleGroups eligibleGroups;
 
     struct Proposal {
         // The account that submitted the proposal
@@ -60,13 +66,11 @@ contract Portfolio is UsingRegistry, UsingPrecompiles {
         UsingRegistry.initializeRegistry(msg.sender, registry_);
     }
 
-    function setContracts(
-        IBank bank_,
-        IElectionDataProvider electionDataProvider_,
-        address vaultFactory_
-    ) external onlyOwner {
+    function setContracts(IBank bank_, address vaultFactory_)
+        external
+        onlyOwner
+    {
         bank = bank_;
-        electionDataProvider = electionDataProvider_;
         vaultFactory = vaultFactory_;
     }
 
@@ -293,60 +297,40 @@ contract Portfolio is UsingRegistry, UsingPrecompiles {
         );
     }
 
-    function getLeadingProposalGroupVotesForVoter(address group, address voter)
-        internal
-        view
-        returns (uint256)
-    {
+    function getLeadingProposalGroupVotesForAccount(
+        address group,
+        address account
+    ) public view returns (uint256) {
         (uint256[] memory proposalIDs, ) = proposalUpvotesByID.getElements();
         Proposal storage leadingProposal = proposals[proposalIDs[0]];
         uint256 totalLockedGold = getLockedGold().getAccountTotalLockedGold(
-            voter
+            account
         );
+        uint256 eligibleGroupIndex = eligibleGroups.indexesByAddress[group];
 
         return
             FixidityLib
                 .newFixedFraction(totalLockedGold, 100)
                 .multiply(
                 FixidityLib.newFixed(
-                    leadingProposal.groupVotePercentByIndex[electionDataProvider
-                        .getElectionGroupIndex(group)]
+                    leadingProposal.groupVotePercentByIndex[eligibleGroupIndex]
                 )
             )
                 .fromFixed();
     }
 
-    function tidyVoterGroups(IBankVoter voter) private {
-        IElection election = getElection();
-        address[] memory groups = election.getGroupsVotedForByAccount(
-            address(voter)
-        );
+    function updateEligibleGroups() public {
+        // Reset eligibleGroups
+        delete eligibleGroups;
 
-        for (uint256 i = 0; i < groups.length; i += 1) {
-            address group = groups[i];
-            uint256 groupVotes = election.getTotalVotesForGroupByAccount(
-                group,
-                address(voter)
-            );
-            uint256 proposedGroupVotes = getLeadingProposalGroupVotesForVoter(
-                group,
-                address(voter)
-            );
+        eligibleGroups.epoch = getEpochNumber();
 
-            // Revoke all votes for group if it is not within the leading proposal
-            if (proposedGroupVotes == 0) {
-                voter.revoke(electionDataProvider, groupVotes, group);
-                continue;
-            }
+        address[] memory eligibleGroups_ = getElection()
+            .getEligibleValidatorGroups();
 
-            // Revoke excess votes for groups with more votes than proposed
-            if (proposedGroupVotes < groupVotes) {
-                voter.revoke(
-                    electionDataProvider,
-                    groupVotes.sub(proposedGroupVotes),
-                    group
-                );
-            }
+        for (uint256 i = 0; i < eligibleGroups_.length; i += 1) {
+            eligibleGroups.indexesByAddress[eligibleGroups_[i]] = i;
+            eligibleGroups.addressesByIndex[i] = eligibleGroups_[i];
         }
     }
 
@@ -354,7 +338,7 @@ contract Portfolio is UsingRegistry, UsingPrecompiles {
      * @notice Manages votes for an account based on the leading proposal
      */
     function vote(IBankVoter voter) public {
-        electionDataProvider.updateElectionGroups();
-        tidyVoterGroups(voter);
+        require(eligibleGroups.epoch == getEpochNumber());
+        voter.tidy();
     }
 }

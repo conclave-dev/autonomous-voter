@@ -2,12 +2,13 @@ pragma solidity ^0.5.8;
 
 import "@openzeppelin/contracts-ethereum-package/contracts/math/SafeMath.sol";
 import "./celo/common/UsingRegistry.sol";
-import "./interfaces/IElectionDataProvider.sol";
+import "./libraries/ElectionDataProvider.sol";
+import "./Portfolio.sol";
 
 contract BankVoter is UsingRegistry {
     using SafeMath for uint256;
+    using ElectionDataProvider for ElectionDataProvider;
 
-    IElectionDataProvider electionDataProvider;
     address manager;
 
     function initialize(address registry_) public initializer {
@@ -19,11 +20,7 @@ contract BankVoter is UsingRegistry {
         _;
     }
 
-    function setState(
-        IElectionDataProvider electionDataProvider_,
-        address manager_
-    ) external onlyOwner {
-        electionDataProvider = electionDataProvider_;
+    function setState(address manager_) external onlyOwner {
         manager = manager_;
     }
 
@@ -32,7 +29,7 @@ contract BankVoter is UsingRegistry {
      * @param amount Amount of votes to be revoked
      * @param group Group to revoke votes from
      */
-    function revoke(uint256 amount, address group) external onlyManager {
+    function _revoke(uint256 amount, address group) internal {
         IElection election = getElection();
         uint256 pendingVotes = election.getPendingVotesForGroupByAccount(
             group,
@@ -48,8 +45,9 @@ contract BankVoter is UsingRegistry {
             uint256 pendingVotesToRevoke = amount <= pendingVotes
                 ? amount
                 : pendingVotes;
-            (address lesserGroup, address greaterGroup) = electionDataProvider
+            (address lesserGroup, address greaterGroup) = ElectionDataProvider
                 .findLesserAndGreaterGroups(
+                election,
                 group,
                 address(this),
                 pendingVotesToRevoke,
@@ -61,7 +59,8 @@ contract BankVoter is UsingRegistry {
                 amount,
                 lesserGroup,
                 greaterGroup,
-                electionDataProvider.findGroupIndexForAccount(
+                ElectionDataProvider.findGroupIndexForAccount(
+                    election,
                     group,
                     address(this)
                 )
@@ -72,21 +71,56 @@ contract BankVoter is UsingRegistry {
 
         // Revoke active votes if pending votes did not cover the revoke amount
         if (amount > 0) {
-            (address lesserGroup, address greaterGroup) = electionDataProvider
-                .findLesserAndGreaterGroups(group, address(this), amount, true);
+            (address lesserGroup, address greaterGroup) = ElectionDataProvider
+                .findLesserAndGreaterGroups(
+                election,
+                group,
+                address(this),
+                amount,
+                true
+            );
 
             election.revokeActive(
                 group,
                 amount,
                 lesserGroup,
                 greaterGroup,
-                electionDataProvider.findGroupIndexForAccount(
+                ElectionDataProvider.findGroupIndexForAccount(
+                    election,
                     group,
                     address(this)
                 )
             );
 
             activeVotes = activeVotes.sub(amount);
+        }
+    }
+
+    function tidy() external onlyManager {
+        IElection election = getElection();
+        address[] memory groups = election.getGroupsVotedForByAccount(
+            address(this)
+        );
+
+        for (uint256 i = 0; i < groups.length; i += 1) {
+            address group = groups[i];
+            uint256 groupVotes = election.getTotalVotesForGroupByAccount(
+                group,
+                address(this)
+            );
+            uint256 proposedGroupVotes = Portfolio(manager)
+                .getLeadingProposalGroupVotesForAccount(group, address(this));
+
+            // Revoke all votes for group if it is not within the leading proposal
+            if (proposedGroupVotes == 0) {
+                _revoke(groupVotes, group);
+                continue;
+            }
+
+            // Revoke excess votes for groups with more votes than proposed
+            if (proposedGroupVotes < groupVotes) {
+                _revoke(groupVotes.sub(proposedGroupVotes), group);
+            }
         }
     }
 }
