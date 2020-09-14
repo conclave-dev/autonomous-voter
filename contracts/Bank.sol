@@ -212,7 +212,6 @@ contract Bank is Ownable, StandaloneERC20, UsingRegistry {
         _checkAvailableTokens(msg.sender, amount);
         // Call internal `_transfer` since we can't pass identical `msg.sender` into ERC20's `transfer` method
         _transfer(msg.sender, recipient, amount);
-        rewardManager.addTransferMutations(msg.sender, recipient, amount);
         return true;
     }
 
@@ -224,7 +223,6 @@ contract Bank is Ownable, StandaloneERC20, UsingRegistry {
     ) public returns (bool) {
         _checkAvailableTokens(sender, amount);
         ERC20.transferFrom(sender, recipient, amount);
-        rewardManager.addTransferMutations(sender, recipient, amount);
         return true;
     }
 
@@ -241,7 +239,6 @@ contract Bank is Ownable, StandaloneERC20, UsingRegistry {
         );
         _checkAvailableTokens(address(vault), amount);
         _transfer(address(vault), recipient, amount);
-        rewardManager.addTransferMutations(address(vault), recipient, amount);
     }
 
     function totalLockedGold() external view returns (uint256) {

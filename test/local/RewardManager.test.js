@@ -15,7 +15,7 @@ describe('RewardManager', function () {
   before(async function () {
     await this.mockBank.reset();
     await this.mockRewardManager.reset();
-    await this.mockRewardManager.setRewardExpiration(rewardExpiration);
+    await this.mockRewardManager.setCeloRewardExpiration(rewardExpiration);
 
     // Fast-forward to the next epoch
     this.epochSize = new BigNumber(await this.mockRewardManager.getEpochSize());
@@ -24,33 +24,33 @@ describe('RewardManager', function () {
 
   describe('State', function () {
     it('should have the correct reward expiration', async function () {
-      return assert.equal(await this.mockRewardManager.rewardExpiration(), rewardExpiration);
+      return assert.equal(await this.mockRewardManager.CELORewardExpiration(), rewardExpiration);
     });
 
     it('should have the correct holder reward percentage', async function () {
-      return assert.equal(await this.mockRewardManager.holderRewardPercentage(), holderRewardPercentage);
+      return assert.equal(await this.mockRewardManager.CELOCompoundingPercent(), holderRewardPercentage);
     });
   });
 
   describe('Methods ✅', function () {
     it('should allow owners to set the reward expiration', async function () {
-      const updatedSetRewardExpiration = 2;
+      const updatedsetCeloRewardExpiration = 2;
 
-      await this.mockRewardManager.setRewardExpiration(updatedSetRewardExpiration);
-      assert.equal(await this.mockRewardManager.rewardExpiration(), updatedSetRewardExpiration);
+      await this.mockRewardManager.setCeloRewardExpiration(updatedsetCeloRewardExpiration);
+      assert.equal(await this.mockRewardManager.CELORewardExpiration(), updatedsetCeloRewardExpiration);
 
-      await this.mockRewardManager.setRewardExpiration(rewardExpiration);
-      return assert.equal(await this.mockRewardManager.rewardExpiration(), rewardExpiration);
+      await this.mockRewardManager.setCeloRewardExpiration(rewardExpiration);
+      return assert.equal(await this.mockRewardManager.CELORewardExpiration(), rewardExpiration);
     });
 
     it('should allow owners to set the reward percentage for holders', async function () {
       const updatedSetRewardPercentage = 10;
 
-      await this.mockRewardManager.setHolderRewardPercentage(updatedSetRewardPercentage);
-      assert.equal(await this.mockRewardManager.holderRewardPercentage(), updatedSetRewardPercentage);
+      await this.mockRewardManager.setCeloCompoundingPercent(updatedSetRewardPercentage);
+      assert.equal(await this.mockRewardManager.CELOCompoundingPercent(), updatedSetRewardPercentage);
 
-      await this.mockRewardManager.setHolderRewardPercentage(holderRewardPercentage);
-      return assert.equal(await this.mockRewardManager.holderRewardPercentage(), holderRewardPercentage);
+      await this.mockRewardManager.setCeloCompoundingPercent(holderRewardPercentage);
+      return assert.equal(await this.mockRewardManager.CELOCompoundingPercent(), holderRewardPercentage);
     });
 
     it('should mint AV tokens based on reward amount upon updating the bank epoch reward', async function () {
@@ -80,14 +80,14 @@ describe('RewardManager', function () {
       await this.mockRewardManager.updateRewardBalance();
 
       const updatedTokenSupply = new BigNumber(await this.mockBank.totalSupply());
-      const rewardPercentage = new BigNumber(await this.mockRewardManager.holderRewardPercentage());
+      const rewardPercentage = new BigNumber(await this.mockRewardManager.CELOCompoundingPercent());
       const holdersReward = epochReward.multipliedBy(rewardPercentage).dividedBy(100);
       return assert.equal(updatedTokenSupply.toFixed(0), currentTokenSupply.plus(holdersReward).toFixed(0));
     });
 
     it('should allow holders to claim available unclaimed rewards', async function () {
       // Temporarily set to only 1 last epoch
-      await this.mockRewardManager.setRewardExpiration(1);
+      await this.mockRewardManager.setCeloRewardExpiration(1);
 
       const currentTokenBalance = new BigNumber(await this.mockBank.balanceOf(this.vaultInstance.address));
 
@@ -104,20 +104,20 @@ describe('RewardManager', function () {
 
   describe('Methods 🛑', function () {
     it('should not allow non-owners to set the reward expiration', async function () {
-      return assert.isRejected(this.mockRewardManager.setRewardExpiration(2, { from: this.secondarySender }));
+      return assert.isRejected(this.mockRewardManager.setCeloRewardExpiration(2, { from: this.secondarySender }));
     });
 
     it('should not allow non-owners to set the reward percentage for holders', async function () {
-      return assert.isRejected(this.mockRewardManager.setHolderRewardPercentage(5, { from: this.secondarySender }));
+      return assert.isRejected(this.mockRewardManager.setCeloCompoundingPercent(5, { from: this.secondarySender }));
     });
 
     it('should not allow numbers less than "1" for the reward expiration', async function () {
-      return assert.isRejected(this.mockRewardManager.setRewardExpiration(0));
+      return assert.isRejected(this.mockRewardManager.setCeloRewardExpiration(0));
     });
 
     it('should not allow numbers < 0 or > 99 for the reward percentage', async function () {
-      await assert.isRejected(this.mockRewardManager.setHolderRewardPercentage(0));
-      return assert.isRejected(this.mockRewardManager.setHolderRewardPercentage(100));
+      await assert.isRejected(this.mockRewardManager.setCeloCompoundingPercent(0));
+      return assert.isRejected(this.mockRewardManager.setCeloCompoundingPercent(100));
     });
 
     it('should not allow calling `updateRewardBalance` if already called on the same epoch', async function () {

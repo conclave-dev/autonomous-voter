@@ -9,9 +9,9 @@ contract MockRewardManager is RewardManager {
         // Clear all epoch states up to the next 20 epochs
         uint256 epoch = getEpochNumber();
         for (uint256 i = epoch; i < epoch + 20; i++) {
-            delete lockedGoldBalances[i];
-            delete rewardUpdateStates[i];
-            delete rewardBalances[i];
+            bankBalance.lastRewardUpdatedEpoch = 0;
+            delete bankBalance.lockedGoldBalances[i];
+            delete bankBalance.rewardBalances[i];
             delete balanceMutations[i];
             delete tokenSupplies[i];
         }

@@ -28,12 +28,15 @@ contract RewardManager is Ownable, UsingPrecompiles {
         mapping(address => AccountBalanceMutation) accountMutations;
     }
 
-    // Tracks the amount of lockedGold owned by the Bank for each epoch
-    mapping(uint256 => uint256) internal lockedGoldBalances;
-    // Tracks wether the reward balance has been updated for each epoch
-    mapping(uint256 => bool) internal rewardUpdateStates;
-    // Tracks the amount of reward acquired by the Bank for each epoch
-    mapping(uint256 => uint256) internal rewardBalances;
+    // Stores last updated epoch as well as the balances of both the Bank's lockedGold
+    // and accrued reward on each epoch
+    struct BankBalance {
+        uint256 lastRewardUpdatedEpoch;
+        mapping(uint256 => uint256) lockedGoldBalances;
+        mapping(uint256 => uint256) rewardBalances;
+    }
+
+    BankBalance bankBalance;
     // Tracks the amount of deposit and withdrawal of all accounts for each epoch
     mapping(uint256 => BalanceMutation) internal balanceMutations;
     // Tracks the total supply of tokens for each epoch
@@ -42,9 +45,9 @@ contract RewardManager is Ownable, UsingPrecompiles {
     mapping(address => uint256) internal lastClaimedEpochs;
 
     // Stores the duration in which rewards would no longer be available to claim
-    uint256 public rewardExpiration;
+    uint256 public CELORewardExpiration;
     // Stores the percentage of reward from the epoch rewards to be distributed to token holders
-    uint256 public holderRewardPercentage;
+    uint256 public CELOCompoundingPercent;
 
     Bank public bank;
 
@@ -62,32 +65,36 @@ contract RewardManager is Ownable, UsingPrecompiles {
 
     function initialize(
         Bank bank_,
-        uint256 rewardExpiration_,
-        uint256 holderRewardPercentage_
+        uint256 rewardExpiration,
+        uint256 holderRewardPercentage
     ) public initializer {
         Ownable.initialize(msg.sender);
 
         bank = bank_;
-        rewardExpiration = rewardExpiration_;
-        holderRewardPercentage = holderRewardPercentage_;
+        CELORewardExpiration = rewardExpiration;
+        CELOCompoundingPercent = holderRewardPercentage;
 
         // Initialize the balance of the first tracked epoch
-        lockedGoldBalances[getEpochNumber()] = bank.totalLockedGold();
+        bankBalance.lockedGoldBalances[getEpochNumber()] = bank
+            .totalLockedGold();
     }
 
     function setBank(Bank bank_) external onlyOwner {
         bank = bank_;
     }
 
-    function setRewardExpiration(uint256 rewardExpiration_) external onlyOwner {
+    function setCeloRewardExpiration(uint256 rewardExpiration_)
+        external
+        onlyOwner
+    {
         require(
             rewardExpiration_ > 0,
             "Reward expiration must be set to at least 1 epoch"
         );
-        rewardExpiration = rewardExpiration_;
+        CELORewardExpiration = rewardExpiration_;
     }
 
-    function setHolderRewardPercentage(uint256 holderRewardPercentage_)
+    function setCeloCompoundingPercent(uint256 holderRewardPercentage_)
         external
         onlyOwner
     {
@@ -95,7 +102,7 @@ contract RewardManager is Ownable, UsingPrecompiles {
             holderRewardPercentage_ > 0 && holderRewardPercentage_ < 100,
             "Reward percentage must be between 1 and 99 percents"
         );
-        holderRewardPercentage = holderRewardPercentage_;
+        CELOCompoundingPercent = holderRewardPercentage_;
     }
 
     // Handle incoming deposit request on Bank by keep tracking the mutation
@@ -105,7 +112,7 @@ contract RewardManager is Ownable, UsingPrecompiles {
     {
         uint256 currentEpoch = getEpochNumber();
 
-        if (!rewardUpdateStates[currentEpoch - 1]) {
+        if (bankBalance.lastRewardUpdatedEpoch < currentEpoch - 1) {
             updateRewardBalance();
         }
 
@@ -124,7 +131,7 @@ contract RewardManager is Ownable, UsingPrecompiles {
     {
         uint256 currentEpoch = getEpochNumber();
 
-        if (!rewardUpdateStates[currentEpoch - 1]) {
+        if (bankBalance.lastRewardUpdatedEpoch < currentEpoch - 1) {
             updateRewardBalance();
         }
 
@@ -136,23 +143,13 @@ contract RewardManager is Ownable, UsingPrecompiles {
             .add(amount);
     }
 
-    // Convenience method for transfers which affect both deposit and withdrawal mutation
-    function addTransferMutations(
-        address from,
-        address to,
-        uint256 amount
-    ) external onlyBank {
-        addDepositMutation(to, amount);
-        addWithdrawalMutation(from, amount);
-    }
-
     // Update internal historical data to keep track of (and calculate) holder rewards each epoch
     function updateRewardBalance() public {
         uint256 currentEpoch = getEpochNumber();
         uint256 previousEpoch = currentEpoch - 1;
 
         require(
-            !rewardUpdateStates[previousEpoch],
+            bankBalance.lastRewardUpdatedEpoch < currentEpoch - 1,
             "Reward balance has already been updated"
         );
 
@@ -163,36 +160,35 @@ contract RewardManager is Ownable, UsingPrecompiles {
         // by comparing it with the previous epoch's total lockedGold
         // and also considering deposits/withdrawals in the previous epoch
         // then get the actual amount allocated to holders
-        if (lockedGoldBalances[previousEpoch] > 0) {
-            uint256 previousBalance = lockedGoldBalances[previousEpoch];
+        if (bankBalance.lockedGoldBalances[previousEpoch] > 0) {
+            uint256 previousBalance = bankBalance
+                .lockedGoldBalances[previousEpoch];
             uint256 reward = currentBalance
                 .sub(previousBalance)
                 .sub(balanceMutations[previousEpoch].totalDeposit)
                 .add(balanceMutations[previousEpoch].totalWithdrawal);
-            rewardBalances[previousEpoch] = reward
-                .mul(holderRewardPercentage)
+            bankBalance.rewardBalances[previousEpoch] = reward
+                .mul(CELOCompoundingPercent)
                 .div(100);
         } else {
             // In the rare event of technical issue which cause an epoch to be skipped/not updated
             // the system will not be giving out any reward
-            rewardBalances[previousEpoch] = 0;
+            bankBalance.rewardBalances[previousEpoch] = 0;
         }
 
         // Save the calculated lockedGold balance for current epoch
-        lockedGoldBalances[currentEpoch] = currentBalance;
+        bankBalance.lockedGoldBalances[currentEpoch] = currentBalance;
 
-        // Immediately mint AV tokens according to the amount of epoch rewards allocated to holders
-        bank.mintEpochRewards(rewardBalances[previousEpoch]);
-
-        // Update the token supply for both epochs
-        tokenSupplies[previousEpoch] = tokenSupplies[previousEpoch]
-            .add(balanceMutations[previousEpoch].totalDeposit)
-            .sub(balanceMutations[previousEpoch].totalWithdrawal);
-        tokenSupplies[currentEpoch] = tokenSupplies[previousEpoch].add(
-            rewardBalances[previousEpoch]
+        // Update the token supply for the previous epoch
+        // by deducting any deposit performed
+        tokenSupplies[previousEpoch] = bank.totalSupply().sub(
+            balanceMutations[previousEpoch].totalDeposit
         );
 
-        rewardUpdateStates[previousEpoch] = true;
+        // Immediately mint AV tokens according to the amount of epoch rewards allocated to holders
+        bank.mintEpochRewards(bankBalance.rewardBalances[previousEpoch]);
+
+        bankBalance.lastRewardUpdatedEpoch = previousEpoch;
     }
 
     // Called by token holders to claim their outstanding (and still available) rewards
@@ -206,13 +202,13 @@ contract RewardManager is Ownable, UsingPrecompiles {
             "All available rewards have been claimed"
         );
 
-        if (!rewardUpdateStates[currentEpoch - 1]) {
+        if (bankBalance.lastRewardUpdatedEpoch < currentEpoch - 1) {
             updateRewardBalance();
         }
 
         uint256 startingEpoch = (
-            currentEpoch - rewardExpiration > lastClaimed + 1
-                ? currentEpoch - rewardExpiration
+            currentEpoch - CELORewardExpiration > lastClaimed + 1
+                ? currentEpoch - CELORewardExpiration
                 : lastClaimed + 1
         );
         uint256 vaultBalance = bank.balanceOf(vaultAddress);
@@ -230,9 +226,9 @@ contract RewardManager is Ownable, UsingPrecompiles {
             uint256 ownershipPercentage = vaultBalance.mul(100).div(
                 tokenSupplies[i]
             );
-            uint256 reward = ownershipPercentage.mul(rewardBalances[i]).div(
-                100
-            );
+            uint256 reward = ownershipPercentage
+                .mul(bankBalance.rewardBalances[i])
+                .div(100);
 
             AccountBalanceMutation memory mutation = balanceMutations[i]
                 .accountMutations[vaultAddress];
@@ -252,6 +248,6 @@ contract RewardManager is Ownable, UsingPrecompiles {
         view
         returns (uint256)
     {
-        return rewardBalances[epoch];
+        return bankBalance.rewardBalances[epoch];
     }
 }
