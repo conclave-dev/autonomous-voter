@@ -13,8 +13,13 @@ contract Rewards is UsingRegistry {
 
     Portfolio portfolio;
 
+    function() external payable {
+        getLockedGold().lock.value(msg.value)();
+    }
+
     function initialize(address registry_) public initializer {
         UsingRegistry.initializeRegistry(msg.sender, registry_);
+        getAccounts().createAccount();
     }
 
     modifier onlyPortfolio() {

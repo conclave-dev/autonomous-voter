@@ -1,10 +1,10 @@
-const BankVoter = artifacts.require('BankVoter');
+const Rewards = artifacts.require('Rewards');
 const Portfolio = artifacts.require('Portfolio');
 
 module.exports = (deployer) =>
   deployer.then(async () => {
-    const bankVoter = await BankVoter.deployed();
+    const rewards = await Rewards.deployed();
     const portfolioAddress = (await Portfolio.deployed()).address;
 
-    await bankVoter.setState(portfolioAddress);
+    await rewards.setState(portfolioAddress);
   });
