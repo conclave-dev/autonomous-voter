@@ -17,6 +17,7 @@ module.exports = (deployer, network) =>
     const portfolio = await Portfolio.deployed();
     const bankVoter = await Rewards.deployed();
     const vaultFactory = await VaultFactory.deployed();
+    const rewards = await Rewards.deployed();
     const contractInitializers = [
       {
         contract: 'Bank',
@@ -28,7 +29,8 @@ module.exports = (deployer, network) =>
             [],
             [],
             seedFreezeDuration,
-            registryContractAddress
+            registryContractAddress,
+            rewards.address
           )
       },
       {

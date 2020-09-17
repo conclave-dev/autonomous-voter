@@ -11,11 +11,7 @@ contract Rewards is UsingRegistry {
     using FixidityLib for FixidityLib.Fraction;
     using ElectionDataProvider for ElectionDataProvider;
 
-    Portfolio portfolio;
-
-    function() external payable {
-        getLockedGold().lock.value(msg.value)();
-    }
+    Portfolio public portfolio;
 
     function initialize(address registry_) public initializer {
         UsingRegistry.initializeRegistry(msg.sender, registry_);
@@ -23,12 +19,16 @@ contract Rewards is UsingRegistry {
     }
 
     modifier onlyPortfolio() {
-        require(msg.sender == address(portfolio), "Caller is not portfolio");
+        require(msg.sender == address(portfolio), "Caller is not Portfolio");
         _;
     }
 
     function setState(Portfolio portfolio_) external onlyOwner {
         portfolio = portfolio_;
+    }
+
+    function deposit() external payable {
+        getLockedGold().lock.value(msg.value)();
     }
 
     /**

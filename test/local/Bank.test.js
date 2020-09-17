@@ -41,10 +41,6 @@ describe('Bank', function () {
     it('should have a valid seed freeze duration', async function () {
       return assert.isAbove((await this.bank.seedFreezeDuration()).toNumber(), 1);
     });
-
-    it('should be a registered CELO account', async function () {
-      return assert.isTrue(await (await this.accounts.isAccount(this.bank.address)).call());
-    });
   });
 
   describe('Methods ✅', function () {

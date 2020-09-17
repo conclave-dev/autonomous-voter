@@ -9,7 +9,8 @@ const contractBuildFiles = [
   require('../build/contracts/VaultFactory.json'),
   require('../build/contracts/ProxyAdmin.json'),
   require('../build/contracts/Bank.json'),
-  require('../build/contracts/Portfolio.json')
+  require('../build/contracts/Portfolio.json'),
+  require('../build/contracts/Rewards.json')
 ];
 
 const getTruffleContracts = (rpcAPI, primaryAccount) =>
@@ -46,7 +47,8 @@ const setUpGlobalTestVariables = async (rpcAPI, primaryAccount) => {
     vault: await contracts.Vault.deployed(),
     vaultFactory: await contracts.VaultFactory.deployed(),
     bank: await contracts.Bank.deployed(),
-    portfolio: await contracts.Portfolio.deployed()
+    portfolio: await contracts.Portfolio.deployed(),
+    rewards: await contracts.Rewards.deployed()
   };
 };
 

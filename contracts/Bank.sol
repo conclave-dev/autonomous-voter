@@ -6,6 +6,7 @@ import "@openzeppelin/contracts-ethereum-package/contracts/token/ERC20/Standalon
 
 import "./celo/common/UsingRegistry.sol";
 import "./interfaces/IVault.sol";
+import "./Rewards.sol";
 
 /**
  * @title VM contract to manage token related functionalities
@@ -13,6 +14,8 @@ import "./interfaces/IVault.sol";
  */
 contract Bank is StandaloneERC20, UsingRegistry {
     using SafeMath for uint256;
+
+    Rewards public rewards;
 
     // # of seed AV tokens per Vault
     uint256 public constant seedCapacity = 1000;
@@ -39,15 +42,15 @@ contract Bank is StandaloneERC20, UsingRegistry {
         address[] memory minters,
         address[] memory pausers,
         uint256 seedFreezeDuration_,
-        address registry_
+        address registry_,
+        address rewards_
     ) public initializer {
         Ownable.initialize(msg.sender);
         StandaloneERC20.initialize(name_, symbol_, decimals_, minters, pausers);
         UsingRegistry.initializeRegistry(msg.sender, registry_);
 
-        getAccounts().createAccount();
-
         seedFreezeDuration = seedFreezeDuration_;
+        rewards = Rewards(rewards_);
     }
 
     // Requires that the msg.sender be the vault owner
@@ -101,8 +104,7 @@ contract Bank is StandaloneERC20, UsingRegistry {
             FrozenTokens(mintAmount, now.add(seedFreezeDuration))
         );
 
-        // Proceed to lock the newly transferred CELO to be used for voting in CELO
-        getLockedGold().lock.value(msg.value)();
+        rewards.deposit.value(msg.value)();
     }
 
     /**
