@@ -1,6 +1,6 @@
 pragma solidity ^0.5.8;
 
-interface IBankVoter {
+interface IRewards {
     function tidyVotes() external;
 
     function applyVotes() external;

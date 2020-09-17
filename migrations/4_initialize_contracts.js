@@ -6,7 +6,7 @@ const App = artifacts.require('App');
 const VaultFactory = artifacts.require('VaultFactory');
 const Bank = artifacts.require('Bank');
 const Portfolio = artifacts.require('Portfolio');
-const BankVoter = artifacts.require('BankVoter');
+const Rewards = artifacts.require('Rewards');
 
 module.exports = (deployer, network) =>
   deployer.then(async () => {
@@ -15,7 +15,7 @@ module.exports = (deployer, network) =>
     const app = await App.deployed();
     const bank = await Bank.deployed();
     const portfolio = await Portfolio.deployed();
-    const bankVoter = await BankVoter.deployed();
+    const bankVoter = await Rewards.deployed();
     const vaultFactory = await VaultFactory.deployed();
     const contractInitializers = [
       {
@@ -36,7 +36,7 @@ module.exports = (deployer, network) =>
         fn: async () => await portfolio.initialize(registryContractAddress)
       },
       {
-        contract: 'BankVoter',
+        contract: 'Rewards',
         fn: async () => await bankVoter.initialize(registryContractAddress)
       },
       {

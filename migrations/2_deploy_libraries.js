@@ -4,7 +4,7 @@ const SortedLinkedList = artifacts.require('SortedLinkedList');
 const IntegerSortedLinkedList = artifacts.require('IntegerSortedLinkedList');
 const ElectionDataProvider = artifacts.require('ElectionDataProvider');
 const Portfolio = artifacts.require('Portfolio');
-const BankVoter = artifacts.require('BankVoter');
+const Rewards = artifacts.require('Rewards');
 
 module.exports = async (deployer, network) => {
   const overwrite = network === 'local' ? true : false;
@@ -42,5 +42,5 @@ module.exports = async (deployer, network) => {
 
   await deployer.deploy(ElectionDataProvider, { overwrite: deployElectionDataProvider });
   await deployer.link(ElectionDataProvider, Portfolio);
-  await deployer.link(ElectionDataProvider, BankVoter);
+  await deployer.link(ElectionDataProvider, Rewards);
 };

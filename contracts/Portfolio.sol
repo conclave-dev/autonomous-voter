@@ -6,7 +6,7 @@ import "./celo/common/libraries/UsingPrecompiles.sol";
 import "./celo/common/libraries/AddressLinkedList.sol";
 import "./celo/common/libraries/IntegerSortedLinkedList.sol";
 import "./interfaces/IBank.sol";
-import "./interfaces/IBankVoter.sol";
+import "./interfaces/IRewards.sol";
 import "./interfaces/IVault.sol";
 
 contract Portfolio is UsingRegistry, UsingPrecompiles {
@@ -346,19 +346,25 @@ contract Portfolio is UsingRegistry, UsingPrecompiles {
 
     /**
      * @notice Calls the voter contract's `tidyVotes` method
-     * @param bankVoter BankVoter contract instance
+     * @param rewards Rewards contract instance
      */
-    function tidyVotes(IBankVoter bankVoter) public {
-        require(eligibleGroups.epoch == getEpochNumber());
-        bankVoter.tidyVotes();
+    function tidyVotes(IRewards rewards) public {
+        require(
+            eligibleGroups.epoch == getEpochNumber(),
+            "Eligible groups have not been updated for this epoch"
+        );
+        rewards.tidyVotes();
     }
 
     /**
      * @notice Calls the voter contract's `applyVotes` method
-     * @param bankVoter BankVoter contract instance
+     * @param rewards Rewards contract instance
      */
-    function applyVotes(IBankVoter bankVoter) public {
-        require(eligibleGroups.epoch == getEpochNumber());
-        bankVoter.applyVotes();
+    function applyVotes(IRewards rewards) public {
+        require(
+            eligibleGroups.epoch == getEpochNumber(),
+            "Eligible groups have not been updated for this epoch"
+        );
+        rewards.applyVotes();
     }
 }

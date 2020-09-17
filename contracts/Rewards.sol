@@ -6,7 +6,7 @@ import "./celo/common/FixidityLib.sol";
 import "./libraries/ElectionDataProvider.sol";
 import "./Portfolio.sol";
 
-contract BankVoter is UsingRegistry {
+contract Rewards is UsingRegistry {
     using SafeMath for uint256;
     using FixidityLib for FixidityLib.Fraction;
     using ElectionDataProvider for ElectionDataProvider;
