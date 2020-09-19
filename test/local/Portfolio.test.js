@@ -5,8 +5,8 @@ describe('Portfolio', function () {
   before(function () {
     this.vaultSeedAmount = 100;
     this.validProposalSubmission = {
-      indexes: [0, 1, 2],
-      allocations: [20, 20, 60]
+      indexes: [0],
+      allocations: [100]
     };
   });
 

@@ -1,3 +1,5 @@
+const BigNumber = require('bignumber.js');
+const Promise = require('bluebird');
 const { assert } = require('./setup');
 
 describe('Rewards', function () {
@@ -27,13 +29,31 @@ describe('Rewards', function () {
 
       return assert.equal(lockedGoldBeforeSeed + seedAmount, lockedGoldAfterSeed);
     });
+
+    it('should allow the Portfolio to vote', async function () {
+      await this.portfolio.updatePortfolioGroups();
+
+      const election = await this.kit.contracts.getElection();
+
+      await this.portfolio.applyVotes(this.rewards.address);
+
+      const { groups, groupVotePercents } = await this.portfolio.getPortfolioGroups();
+      const groupsVoted = await election.getGroupsVotedForByAccount(this.rewards.address);
+      const accountVotes = await (await election.contract.methods.getTotalVotesByAccount(this.rewards.address)).call();
+
+      // Check that votes were applied to groups correctly
+      const votesApplied = await Promise.map(groups, async (group, i) => {
+        const expectedGroupVotes = new BigNumber(Math.floor((accountVotes / 100) * groupVotePercents));
+        const actualGroupVotes = new BigNumber(
+          await (await election.contract.methods.getTotalVotesForGroupByAccount(group, this.rewards.address)).call()
+        );
+
+        return expectedGroupVotes.isEqualTo(actualGroupVotes) && groupsVoted[i].toLowerCase() === group.toLowerCase();
+      });
+
+      return assert.isTrue(votesApplied.every((i) => i));
+    });
   });
 
-  describe('Methods 🛑', function () {
-    // it('should not allow a non-owner to set its proxy admin', function () {
-    //   return assert.isRejected(
-    //     this.vaultInstance.setProxyAdmin(this.proxyAdmin.address, { from: this.secondarySender })
-    //   );
-    // });
-  });
+  describe('Methods 🛑', function () {});
 });

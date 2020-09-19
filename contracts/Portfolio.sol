@@ -33,10 +33,11 @@ contract Portfolio is UsingRegistry, UsingPrecompiles {
     }
 
     // Frequently-accessed Celo election data
-    struct EligibleGroups {
-        uint256 epoch;
+    struct PortfolioGroups {
+        uint256 epochUpdated;
         mapping(address => uint256) indexesByAddress;
         mapping(uint256 => address) addressesByIndex;
+        mapping(address => uint256) votePercentsByAddress;
     }
 
     IBank bank;
@@ -51,7 +52,7 @@ contract Portfolio is UsingRegistry, UsingPrecompiles {
     mapping(uint256 => Proposal) proposals;
     mapping(address => Upvoter) public upvoters;
     SortedLinkedList.List proposalUpvotesByID;
-    EligibleGroups eligibleGroups;
+    PortfolioGroups portfolioGroups;
 
     /**
      * @notice Initializes Portfolio contract
@@ -147,27 +148,19 @@ contract Portfolio is UsingRegistry, UsingPrecompiles {
         view
         returns (
             uint256 upvotes,
-            address[] memory groups,
             uint256[] memory groupIndexes,
             uint256[] memory groupVotePercents
         )
     {
         Proposal storage proposal = proposals[proposalID];
-        groups = new address[](proposal.groupIndexes.length);
         groupVotePercents = new uint256[](proposal.groupIndexes.length);
 
         for (uint256 i = 0; i < proposal.groupIndexes.length; i += 1) {
             uint256 groupIndex = proposal.groupIndexes[i];
-            groups[i] = eligibleGroups.addressesByIndex[groupIndex];
             groupVotePercents[i] = proposal.groupVotePercentByIndex[groupIndex];
         }
 
-        return (
-            proposal.upvotes,
-            groups,
-            proposal.groupIndexes,
-            groupVotePercents
-        );
+        return (proposal.upvotes, proposal.groupIndexes, groupVotePercents);
     }
 
     /**
@@ -301,18 +294,50 @@ contract Portfolio is UsingRegistry, UsingPrecompiles {
         );
     }
 
-    function getLeadingProposalGroupVotePercentByAddress(address group)
-        public
-        view
-        returns (uint256)
-    {
+    function updatePortfolioGroups() public {
+        uint256 epoch = getEpochNumber();
+
+        if (portfolioGroups.epochUpdated == epoch) {
+            return;
+        }
+
+        delete portfolioGroups;
+        portfolioGroups.epochUpdated = epoch;
+
         (uint256[] memory proposalIDs, ) = proposalUpvotesByID.getElements();
         Proposal storage leadingProposal = proposals[proposalIDs[0]];
-        uint256 eligibleGroupIndex = eligibleGroups.indexesByAddress[group];
-        return leadingProposal.groupVotePercentByIndex[eligibleGroupIndex];
+        address[] memory eligibleValidatorGroups = getElection()
+            .getEligibleValidatorGroups();
+
+        require(
+            leadingProposal.groupIndexes.length <=
+                eligibleValidatorGroups.length,
+            "Invalid proposal groups set"
+        );
+
+        for (uint256 i = 0; i < leadingProposal.groupIndexes.length; i += 1) {
+            uint256 groupIndex = leadingProposal.groupIndexes[i];
+            address groupAddress = eligibleValidatorGroups[groupIndex];
+
+            portfolioGroups.indexesByAddress[groupAddress] = groupIndex;
+            portfolioGroups.addressesByIndex[groupIndex] = groupAddress;
+            portfolioGroups
+                .votePercentsByAddress[groupAddress] = leadingProposal
+                .groupVotePercentByIndex[groupIndex];
+        }
+
+        // emit PortfolioGroupsUpdated(epoch);
     }
 
-    function getLeadingProposalGroups()
+    function getPortfolioGroupVotePercentByAddress(address group)
+        public
+        view
+        returns (uint256 votePercent)
+    {
+        return portfolioGroups.votePercentsByAddress[group];
+    }
+
+    function getPortfolioGroups()
         public
         view
         returns (
@@ -321,27 +346,24 @@ contract Portfolio is UsingRegistry, UsingPrecompiles {
             uint256[] memory groupVotePercents
         )
     {
-        (uint256[] memory proposalIDs, ) = proposalUpvotesByID.getElements();
-        (, groups, groupIndexes, groupVotePercents) = getProposal(
-            proposalIDs[0]
+        require(
+            portfolioGroups.epochUpdated == getEpochNumber(),
+            "Portfolio groups need to be updated"
         );
 
-        return (groups, groupIndexes, groupVotePercents);
-    }
+        (uint256[] memory proposalIDs, ) = proposalUpvotesByID.getElements();
+        Proposal storage leadingProposal = proposals[proposalIDs[0]];
+        groups = new address[](leadingProposal.groupIndexes.length);
+        groupVotePercents = new uint256[](leadingProposal.groupIndexes.length);
 
-    function updateEligibleGroups() public {
-        // Reset eligibleGroups
-        delete eligibleGroups;
-
-        eligibleGroups.epoch = getEpochNumber();
-
-        address[] memory eligibleGroups_ = getElection()
-            .getEligibleValidatorGroups();
-
-        for (uint256 i = 0; i < eligibleGroups_.length; i += 1) {
-            eligibleGroups.indexesByAddress[eligibleGroups_[i]] = i;
-            eligibleGroups.addressesByIndex[i] = eligibleGroups_[i];
+        for (uint256 i = 0; i < leadingProposal.groupIndexes.length; i += 1) {
+            uint256 groupIndex = leadingProposal.groupIndexes[i];
+            groups[i] = portfolioGroups.addressesByIndex[groupIndex];
+            groupVotePercents[i] = leadingProposal
+                .groupVotePercentByIndex[groupIndex];
         }
+
+        return (groups, leadingProposal.groupIndexes, groupVotePercents);
     }
 
     /**
@@ -349,10 +371,7 @@ contract Portfolio is UsingRegistry, UsingPrecompiles {
      * @param rewards Rewards contract instance
      */
     function tidyVotes(IRewards rewards) public {
-        require(
-            eligibleGroups.epoch == getEpochNumber(),
-            "Eligible groups have not been updated for this epoch"
-        );
+        updatePortfolioGroups();
         rewards.tidyVotes();
     }
 
@@ -361,10 +380,7 @@ contract Portfolio is UsingRegistry, UsingPrecompiles {
      * @param rewards Rewards contract instance
      */
     function applyVotes(IRewards rewards) public {
-        require(
-            eligibleGroups.epoch == getEpochNumber(),
-            "Eligible groups have not been updated for this epoch"
-        );
+        updatePortfolioGroups();
         rewards.applyVotes();
     }
 }

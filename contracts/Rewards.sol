@@ -56,7 +56,6 @@ contract Rewards is UsingRegistry {
                 .findLesserAndGreaterGroups(
                 election,
                 group,
-                address(this),
                 pendingVotesToRevoke,
                 true
             );
@@ -79,13 +78,7 @@ contract Rewards is UsingRegistry {
         // Revoke active votes if pending votes did not cover the revoke amount
         if (amount > 0) {
             (address lesserGroup, address greaterGroup) = ElectionDataProvider
-                .findLesserAndGreaterGroups(
-                election,
-                group,
-                address(this),
-                amount,
-                true
-            );
+                .findLesserAndGreaterGroups(election, group, amount, true);
 
             election.revokeActive(
                 group,
@@ -105,13 +98,7 @@ contract Rewards is UsingRegistry {
 
     function _vote(uint256 amount, address group) internal {
         (address lesserGroup, address greaterGroup) = ElectionDataProvider
-            .findLesserAndGreaterGroups(
-            getElection(),
-            group,
-            address(this),
-            amount,
-            false
-        );
+            .findLesserAndGreaterGroups(getElection(), group, amount, false);
 
         getElection().vote(group, amount, lesserGroup, greaterGroup);
     }
@@ -132,7 +119,7 @@ contract Rewards is UsingRegistry {
                 address(this)
             );
             uint256 portfolioGroupVotePercent = portfolio
-                .getLeadingProposalGroupVotePercentByAddress(group);
+                .getPortfolioGroupVotePercentByAddress(group);
             uint256 totalLockedGold = getLockedGold().getAccountTotalLockedGold(
                 address(this)
             );
@@ -164,7 +151,7 @@ contract Rewards is UsingRegistry {
             address[] memory groups,
             ,
             uint256[] memory groupVotePercents
-        ) = portfolio.getLeadingProposalGroups();
+        ) = portfolio.getPortfolioGroups();
         uint256 totalLockedGold = getLockedGold().getAccountTotalLockedGold(
             address(this)
         );
