@@ -10,22 +10,17 @@ library ElectionDataProvider {
     function findLesserAndGreaterGroups(
         IElection election,
         address group,
-        address account,
         uint256 votes,
         bool isRevoke
     ) external view returns (address, address) {
-        address[] memory groups;
-        uint256[] memory groupVotes;
-        (groups, groupVotes) = election
+        (address[] memory groups, uint256[] memory groupVotes) = election
             .getTotalVotesForEligibleValidatorGroups();
         address lesser = address(0);
         address greater = address(0);
 
         // Get the current totalVotes count for the specified group
-        uint256 totalVotes = election.getTotalVotesForGroupByAccount(
-            group,
-            account
-        );
+        uint256 totalVotes = election.getTotalVotesForGroup(group);
+
         if (isRevoke) {
             totalVotes = totalVotes.sub(votes);
         } else {

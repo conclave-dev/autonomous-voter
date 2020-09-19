@@ -56,6 +56,11 @@ interface IElection {
         view
         returns (uint256);
 
+    function getTotalVotesForGroup(address group)
+        external
+        view
+        returns (uint256);
+
     function getActiveVotesForGroupByAccount(address group, address account)
         external
         view
