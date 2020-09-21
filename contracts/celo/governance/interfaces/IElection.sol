@@ -56,6 +56,11 @@ interface IElection {
         view
         returns (uint256);
 
+    function getTotalVotesForGroup(address group)
+        external
+        view
+        returns (uint256);
+
     function getActiveVotesForGroupByAccount(address group, address account)
         external
         view
@@ -89,6 +94,11 @@ interface IElection {
         returns (address[] memory groups, uint256[] memory values);
 
     function getGroupsVotedForByAccount(address account)
+        external
+        view
+        returns (address[] memory);
+
+    function getEligibleValidatorGroups()
         external
         view
         returns (address[] memory);

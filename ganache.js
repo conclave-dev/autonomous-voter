@@ -1,14 +1,13 @@
 const ganacheCore = require('ganache-core');
+const { alfajoresRpcAPI, alfajoresNetworkID } = require('./config');
 
-const networkId = 40120; // mainnet
-const fork = 'https://baklava.celoist.com'; // baklava node rpc
 const port = 8545;
 const host = 'localhost';
 const callback = () => null;
 
 const ganacheServer = ganacheCore.server({
-  network_id: networkId,
-  fork,
+  network_id: alfajoresNetworkID,
+  fork: alfajoresRpcAPI,
   hardfork: 'istanbul',
   total_accounts: 3,
   gasLimit: 20000000,

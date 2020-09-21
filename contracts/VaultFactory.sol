@@ -4,18 +4,16 @@ pragma solidity ^0.5.8;
 import "@openzeppelin/upgrades/contracts/Initializable.sol";
 
 import "./App.sol";
-import "./Archive.sol";
+import "./Portfolio.sol";
 import "./ProxyAdmin.sol";
 
 contract VaultFactory is Initializable {
-    uint256 public constant MINIMUM_DEPOSIT = 100000000000000000;
-
     App public app;
-    Archive public archive;
+    Portfolio public portfolio;
 
-    function initialize(App app_, Archive archive_) public initializer {
+    function initialize(App app_, Portfolio portfolio_) public initializer {
         app = app_;
-        archive = archive_;
+        portfolio = portfolio_;
     }
 
     function createInstance(
@@ -23,11 +21,6 @@ contract VaultFactory is Initializable {
         string calldata contractName,
         address registry
     ) external payable {
-        require(
-            msg.value >= MINIMUM_DEPOSIT,
-            "Insufficient funds for initial deposit"
-        );
-
         address vaultOwner = msg.sender;
 
         // Create a vault admin for managing the user's vault upgradeability
@@ -37,20 +30,20 @@ contract VaultFactory is Initializable {
 
         // Create the actual vault instance
         address vaultAddress = address(
-            app.create.value(msg.value)(
+            app.create(
                 packageName,
                 contractName,
                 adminAddress,
                 abi.encodeWithSignature(
                     "initialize(address,address,address,address)",
                     registry,
-                    address(archive),
+                    address(portfolio),
                     vaultOwner,
                     adminAddress
                 )
             )
         );
 
-        archive.associateVaultWithOwner(vaultAddress, vaultOwner);
+        portfolio.setVaultByOwner(vaultOwner, vaultAddress);
     }
 }

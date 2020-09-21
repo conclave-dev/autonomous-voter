@@ -1,31 +1,24 @@
+const { newKit } = require('@celo/contractkit');
 const Promise = require('bluebird');
-const { registryContractAddress, tokenName, tokenSymbol, tokenDecimal, seedFreezeDuration } = require('../config');
+const { localRpcAPI, alfajoresRpcAPI, tokenName, tokenSymbol, tokenDecimal, seedFreezeDuration } = require('../config');
 
 const App = artifacts.require('App');
-const Archive = artifacts.require('Archive');
 const VaultFactory = artifacts.require('VaultFactory');
-const ManagerFactory = artifacts.require('ManagerFactory');
 const Bank = artifacts.require('Bank');
 const Portfolio = artifacts.require('Portfolio');
+const Rewards = artifacts.require('Rewards');
 
-module.exports = (deployer) =>
+module.exports = (deployer, network) =>
   deployer.then(async () => {
+    const kit = newKit(network === 'local' ? localRpcAPI : alfajoresRpcAPI);
+    const registryContractAddress = kit.registry.cache.get('Registry');
     const app = await App.deployed();
-    const archive = await Archive.deployed();
-    const vaultFactory = await VaultFactory.deployed();
-    const managerFactory = await ManagerFactory.deployed();
     const bank = await Bank.deployed();
     const portfolio = await Portfolio.deployed();
+    const bankVoter = await Rewards.deployed();
+    const vaultFactory = await VaultFactory.deployed();
+    const rewards = await Rewards.deployed();
     const contractInitializers = [
-      { contract: 'Archive', fn: async () => await archive.initialize(registryContractAddress) },
-      {
-        contract: 'VaultFactory',
-        fn: async () => await vaultFactory.initialize(app.address, archive.address)
-      },
-      {
-        contract: 'ManagerFactory',
-        fn: async () => await managerFactory.initialize(app.address, archive.address)
-      },
       {
         contract: 'Bank',
         fn: async () =>
@@ -36,12 +29,21 @@ module.exports = (deployer) =>
             [],
             [],
             seedFreezeDuration,
-            registryContractAddress
+            registryContractAddress,
+            rewards.address
           )
       },
       {
         contract: 'Portfolio',
         fn: async () => await portfolio.initialize(registryContractAddress)
+      },
+      {
+        contract: 'Rewards',
+        fn: async () => await bankVoter.initialize(registryContractAddress)
+      },
+      {
+        contract: 'VaultFactory',
+        fn: async () => await vaultFactory.initialize(app.address, portfolio.address)
       }
     ];
 

@@ -1,17 +1,11 @@
 const { assert } = require('chai').use(require('chai-as-promised'));
 const { forEach } = require('lodash');
-const {
-  alfajoresRpcAPI,
-  alfajoresPrimaryAccount,
-  alfajoresSecondaryAccount,
-  registryContractAddress
-} = require('../../config');
+const { alfajoresRpcAPI, alfajoresPrimaryAccount, alfajoresSecondaryAccount } = require('../../config');
 const { setUpGlobalTestVariables, setUpGlobalTestContracts } = require('../util');
 
 before(async function () {
   this.primarySender = alfajoresPrimaryAccount;
   this.secondarySender = alfajoresSecondaryAccount;
-  this.registryContractAddress = registryContractAddress;
 
   // Add variables to test execution context
   forEach(await setUpGlobalTestVariables(alfajoresRpcAPI, this.primarySender), (value, key) => {

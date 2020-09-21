@@ -1,20 +1,21 @@
 // contracts/Bank.sol
 pragma solidity ^0.5.8;
 
-import "@openzeppelin/contracts-ethereum-package/contracts/ownership/Ownable.sol";
 import "@openzeppelin/contracts-ethereum-package/contracts/math/SafeMath.sol";
 import "@openzeppelin/contracts-ethereum-package/contracts/token/ERC20/StandaloneERC20.sol";
 
 import "./celo/common/UsingRegistry.sol";
-import "./Vault.sol";
-import "./Portfolio.sol";
+import "./interfaces/IVault.sol";
+import "./Rewards.sol";
 
 /**
  * @title VM contract to manage token related functionalities
  *
  */
-contract Bank is Ownable, StandaloneERC20, UsingRegistry {
+contract Bank is StandaloneERC20, UsingRegistry {
     using SafeMath for uint256;
+
+    Rewards public rewards;
 
     // # of seed AV tokens per Vault
     uint256 public constant seedCapacity = 1000;
@@ -34,9 +35,6 @@ contract Bank is Ownable, StandaloneERC20, UsingRegistry {
     mapping(address => uint256) internal totalSeeded;
     mapping(address => FrozenTokens[]) internal frozenTokens;
 
-    ILockedGold public lockedGold;
-    Portfolio public portfolio;
-
     function initializeBank(
         string memory name_,
         string memory symbol_,
@@ -44,20 +42,19 @@ contract Bank is Ownable, StandaloneERC20, UsingRegistry {
         address[] memory minters,
         address[] memory pausers,
         uint256 seedFreezeDuration_,
-        address registry_
+        address registry_,
+        address rewards_
     ) public initializer {
         Ownable.initialize(msg.sender);
         StandaloneERC20.initialize(name_, symbol_, decimals_, minters, pausers);
         UsingRegistry.initializeRegistry(msg.sender, registry_);
 
-        getAccounts().createAccount();
-        lockedGold = getLockedGold();
-
         seedFreezeDuration = seedFreezeDuration_;
+        rewards = Rewards(rewards_);
     }
 
     // Requires that the msg.sender be the vault owner
-    modifier onlyVaultOwner(Vault vault) {
+    modifier onlyVaultOwner(IVault vault) {
         require(msg.sender == vault.owner(), "Must be vault owner");
         _;
     }
@@ -79,15 +76,11 @@ contract Bank is Ownable, StandaloneERC20, UsingRegistry {
         seedFreezeDuration = duration;
     }
 
-    function setPortfolio(Portfolio portfolio_) external onlyOwner {
-        portfolio = portfolio_;
-    }
-
     /**
      * @notice Mints AV tokens for a vault
      * @param vault Vault contract deployed and owned by `msg.sender`
      */
-    function seed(Vault vault) external payable onlyVaultOwner(vault) {
+    function seed(IVault vault) external payable onlyVaultOwner(vault) {
         require(msg.value > 0, "Invalid amount");
         address vaultAddress = address(vault);
 
@@ -111,15 +104,14 @@ contract Bank is Ownable, StandaloneERC20, UsingRegistry {
             FrozenTokens(mintAmount, now.add(seedFreezeDuration))
         );
 
-        // Proceed to lock the newly transferred CELO to be used for voting in CELO
-        lockedGold.lock.value(msg.value)();
+        rewards.deposit.value(msg.value)();
     }
 
     /**
      * @notice Unfreeze the specified account's frozen tokens if available
      * @param index Index of the frozen tokens record to be unfrozen
      */
-    function unfreezeTokens(Vault vault, uint256 index)
+    function unfreezeTokens(IVault vault, uint256 index)
         external
         onlyVaultOwner(vault)
     {
@@ -209,15 +201,10 @@ contract Bank is Ownable, StandaloneERC20, UsingRegistry {
 
     // Custom transfer method to allow vault owners to transfer unfrozen (and unlocked) tokens regardless of allowance
     function transferFromVault(
-        Vault vault,
+        IVault vault,
         address recipient,
         uint256 amount
     ) external onlyVaultOwner(vault) {
-        // Prevent transfer if the vault's owner is an upvoter (preventing duplicate upvotes with the same tokens)
-        require(
-            portfolio.isUpvoter(msg.sender) == false,
-            "Caller upvoted a proposal - cannot transfer tokens yet"
-        );
         _checkAvailableTokens(address(vault), amount);
         _transfer(address(vault), recipient, amount);
     }

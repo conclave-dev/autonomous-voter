@@ -41,10 +41,6 @@ describe('Bank', function () {
     it('should have a valid seed freeze duration', async function () {
       return assert.isAbove((await this.bank.seedFreezeDuration()).toNumber(), 1);
     });
-
-    it('should be a registered CELO account', async function () {
-      return assert.isTrue(await (await this.accounts.isAccount(this.bank.address)).call());
-    });
   });
 
   describe('Methods ✅', function () {
@@ -161,15 +157,6 @@ describe('Bank', function () {
     it('should not allow a owners to unfreeze tokens when not yet available', function () {
       // Attempt to unfreeze the first record, which should not be unfrozen yet
       return assert.isRejected(this.bank.unfreezeTokens(this.vaultInstance.address, 0));
-    });
-
-    it('should not allow owners to perform transfer on frozen tokens', async function () {
-      // Attempt to transfer the entire unlocked balance of a vault including the newly minted (and frozen) tokens
-      const balance = new BigNumber(await this.bank.balanceOf(this.vaultInstance.address));
-
-      return assert.isRejected(
-        this.bank.transferFromVault(this.vaultInstance.address, this.secondarySender, balance.toString())
-      );
     });
   });
 });
